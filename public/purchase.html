@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Purchase Tickets</title>
+  <link rel="icon" type="image/x-icon" href="wizard.ico">
+  <script src="https://js.stripe.com/v3/"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-link">← Back to Event</a>
+    <h1>Purchase Tickets</h1>
+    <div class="event-details">
+      <h2 id="event-name">Loading...</h2>
+      <p><strong>When:</strong> <span id="event-datetime">Loading...</span></p>
+      <p><strong>Where:</strong> <span id="event-address">Loading...</span></p>
+    </div>
+    <div class="ticket-info">
+      <div class="quantity-section">
+        <div class="quantity-selector">
+          <button type="button" id="decrement-btn" class="qty-btn">-</button>
+          <input type="number" id="quantity" min="1" max="10" value="1">
+          <button type="button" id="increment-btn" class="qty-btn">+</button>
+        </div>
+        <div class="price-breakdown">
+          <div class="price-line">
+            <span>Subtotal:</span>
+            <span>$<span id="subtotal-price">10.00</span></span>
+          </div>
+          <div class="price-line">
+            <span>Estimated Sales Tax:</span>
+            <span>$<span id="tax-amount">0.90</span></span>
+          </div>
+          <div class="price-line total-line">
+            <strong>Total:</strong>
+            <strong>$<span id="total-price">10.90</span></strong>
+          </div>
+        </div>
+      </div>
+    </div>
+    <form id="payment-form">
+      <div class="email-input">
+        <label for="email">Email Address:</label>
+        <input type="email" id="email" required placeholder="Enter your email">
+      </div>
+      <div id="card-element">
+        <!-- Stripe Elements will insert the card input here -->
+      </div>
+      <button id="submit-button" type="submit">Purchase Tickets</button>
+    </form>
+    <div id="payment-result"></div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

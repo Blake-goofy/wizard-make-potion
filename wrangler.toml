@@ -1,0 +1,15 @@
+name = "wizard-make-potion"
+main = "src/index.js"
+compatibility_date = "2025-09-30"
+compatibility_flags = ["nodejs_compat"]
+
+# Bind D1 database
+[[d1_databases]]
+binding = "DB"
+database_name = "wizard-tickets"
+database_id = "eb70e381-c3da-47b1-8d92-717db9ad2fbe"
+
+# Static assets configuration
+[assets]
+directory = "./public"
+binding = "ASSETS"

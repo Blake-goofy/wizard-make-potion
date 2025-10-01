@@ -1,0 +1,436 @@
+/* Global Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('images/dj.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  color: #ffffff;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* Landing Page Hero */
+.hero {
+  min-height: 100vh;
+  background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('images/dj.png');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+}
+
+.hero-content {
+  max-width: 800px;
+  animation: fadeInUp 1s ease-out;
+}
+
+.hero h1 {
+  font-size: 4rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1, #96ceb4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.event-details {
+  margin: 30px 0;
+}
+
+.event-date {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #4ecdc4;
+  margin-bottom: 10px;
+}
+
+.event-time {
+  font-size: 1.2rem;
+  color: #ffffff;
+  margin-bottom: 5px;
+}
+
+.event-location {
+  font-size: 1.1rem;
+  color: #cccccc;
+  margin-bottom: 20px;
+}
+
+.event-description {
+  font-size: 1.1rem;
+  color: #e0e0e0;
+  margin: 30px 0;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.buy-tickets-btn {
+  display: inline-block;
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+  color: white;
+  padding: 18px 40px;
+  text-decoration: none;
+  border-radius: 50px;
+  font-size: 1.3rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+  border: 2px solid transparent;
+}
+
+.buy-tickets-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 35px rgba(255, 107, 107, 0.4);
+  background: linear-gradient(45deg, #ff5252, #26d0ce);
+}
+
+/* Purchase Page Styles */
+.container {
+  max-width: 500px;
+  margin: 10px auto;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.back-link {
+  display: inline-block;
+  color: #4ecdc4;
+  text-decoration: none;
+  margin-bottom: 20px;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.back-link:hover {
+  color: #26d0ce;
+}
+
+.container h1 {
+  color: #ffffff;
+  margin-bottom: 30px;
+  text-align: center;
+  font-size: 2.5rem;
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.event-details {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.event-details h2 {
+  color: #4ecdc4;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.event-details p {
+  color: #e0e0e0;
+  margin-bottom: 8px;
+}
+
+.ticket-info {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quantity-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.quantity-selector {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0;
+}
+
+.quantity-selector input {
+  width: 60px;
+  padding: 8px 8px;
+  font-size: 16px;
+  text-align: center;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  transition: border-color 0.3s ease;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+  margin: 0;
+}
+
+.quantity-selector input::-webkit-outer-spin-button,
+.quantity-selector input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.quantity-selector input:focus {
+  outline: none;
+  border-color: #4ecdc4;
+}
+
+.qty-btn {
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  box-shadow: none;
+  transform: none;
+}
+
+.qty-btn:first-child {
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+}
+
+.qty-btn:last-child {
+  border-radius: 0 8px 8px 0;
+  border-left: none;
+}
+
+.qty-btn:hover:not(:disabled) {
+  background: rgba(78, 205, 196, 0.2);
+  color: #4ecdc4;
+  box-shadow: none;
+  transform: none;
+}
+
+.qty-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.price-breakdown {
+  color: #ffffff;
+  margin-top: 20px;
+  width: 100%;
+}
+
+.price-line {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  color: rgba(255, 255, 255, 0.8);
+  width: 100%;
+  gap: 10px;
+}
+
+.price-line.total-line {
+  margin-top: 10px;
+  padding-top: 15px;
+  border-top: 2px solid rgba(78, 205, 196, 0.3);
+  font-size: 1.2rem;
+  color: #ffffff;
+}
+
+.email-input {
+  margin-bottom: 25px;
+}
+
+.email-input label {
+  display: block;
+  margin-bottom: 10px;
+  color: #e0e0e0;
+  font-weight: 500;
+}
+
+.email-input input {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  font-size: 16px;
+  transition: border-color 0.3s ease;
+}
+
+.email-input input:focus {
+  outline: none;
+  border-color: #4ecdc4;
+}
+
+.email-input input::placeholder {
+  color: #cccccc;
+}
+
+#card-element {
+  margin-bottom: 25px;
+}
+
+/* Stripe Elements Styling for Dark Theme */
+.StripeElement {
+  padding: 15px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  transition: border-color 0.3s ease;
+  --stripe-color-text: #ffffff;
+  --stripe-color-background: rgba(255, 255, 255, 0.05);
+  --stripe-color-border: rgba(255, 255, 255, 0.2);
+  --stripe-color-focus: #4ecdc4;
+}
+
+.StripeElement--focus {
+  border-color: #4ecdc4;
+  outline: none;
+}
+
+.StripeElement--invalid {
+  border-color: #ff6b6b;
+}
+
+/* Try to style the iframe content */
+.StripeElement iframe {
+  color: #ffffff !important;
+}
+
+.StripeElement iframe * {
+  color: #ffffff !important;
+}
+
+button {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(255, 107, 107, 0.4);
+  background: linear-gradient(45deg, #ff5252, #26d0ce);
+}
+
+#payment-result {
+  text-align: center;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .hero h1 {
+    font-size: 2.5rem;
+  }
+
+  .event-description {
+    font-size: 1rem;
+  }
+
+  .buy-tickets-btn {
+    padding: 15px 30px;
+    font-size: 1.1rem;
+  }
+
+  .container {
+    margin: 20px;
+    padding: 25px;
+  }
+
+  .container h1 {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero {
+    padding: 10px;
+  }
+
+  .hero h1 {
+    font-size: 2rem;
+  }
+
+  .event-date {
+    font-size: 1.2rem;
+  }
+
+  .event-time,
+  .event-location {
+    font-size: 1rem;
+  }
+
+  .buy-tickets-btn {
+    padding: 12px 25px;
+    font-size: 1rem;
+  }
+
+  .container {
+    margin: 10px;
+    padding: 20px;
+  }
+
+  .container h1 {
+    font-size: 1.8rem;
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "event": {
+    "name": "Wizard Make Potion",
+    "date": "2025-10-20",
+    "time": "7:00 PM",
+    "address": "123 Magic Street, Wizard City, WC 12345",
+    "description": "Join us for an enchanting evening of magical elixirs, mystical performances, and wizardry wonders. Experience the art of potion-making like never before!"
+  },
+  "ticketing": {
+    "price": 10.00,
+    "minQuantity": 1,
+    "maxQuantity": 10,
+    "currency": "usd"
+  },
+  "email": {
+    "fromAddress": "info@wizardmakepotion.com",
+    "fromName": "Wizard Make Potion"
+  }
+}
