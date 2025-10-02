@@ -925,6 +925,81 @@ app.post('/api/validate-ticket', async (c) => {
   });
 });
 
+// Scan ticket endpoint (for door scanning with camera)
+app.post('/api/scan-ticket', requireAuth, async (c) => {
+  try {
+    const { ticketId } = await c.req.json();
+    
+    if (!ticketId) {
+      return c.json({ 
+        success: false, 
+        message: 'Ticket ID required',
+        status: 'error'
+      }, 400);
+    }
+
+    // Look up ticket in database
+    const ticket = await c.env.DB.prepare(
+      'SELECT * FROM tickets WHERE id = ?'
+    ).bind(ticketId).first();
+
+    if (!ticket) {
+      return c.json({ 
+        success: false, 
+        message: 'Invalid ticket - not found in system',
+        status: 'invalid'
+      }, 404);
+    }
+
+    // Check if already used
+    if (ticket.used === 1) {
+      return c.json({ 
+        success: false, 
+        message: `Already scanned at ${new Date(ticket.used_at).toLocaleString()}`,
+        status: 'already_used',
+        ticket: {
+          email: ticket.email,
+          ticketNumber: ticket.ticket_number,
+          totalQuantity: ticket.total_quantity,
+          usedAt: ticket.used_at
+        }
+      }, 200);
+    }
+
+    // Mark ticket as used
+    await c.env.DB.prepare(
+      'UPDATE tickets SET used = 1, used_at = ? WHERE id = ?'
+    ).bind(new Date().toISOString(), ticketId).run();
+
+    // Get event details
+    const event = await c.env.DB.prepare(
+      'SELECT * FROM events WHERE id = ?'
+    ).bind(ticket.event_id).first();
+
+    return c.json({ 
+      success: true, 
+      message: 'Ticket validated - entry granted!',
+      status: 'valid',
+      ticket: {
+        email: ticket.email,
+        ticketNumber: ticket.ticket_number,
+        totalQuantity: ticket.total_quantity,
+        eventName: ticket.event_name,
+        eventDate: ticket.event_date,
+        scannedAt: new Date().toISOString()
+      }
+    }, 200);
+
+  } catch (error) {
+    console.error('Scan ticket error:', error);
+    return c.json({ 
+      success: false, 
+      message: 'Server error', 
+      status: 'error' 
+    }, 500);
+  }
+});
+
 // Development endpoint: Generate test tickets without Stripe
 app.post('/api/dev/generate-tickets', async (c) => {
   try {
@@ -1097,6 +1172,20 @@ app.get('/admin', async (c) => {
     }
   }
   return c.text('Admin page not found', 404);
+});
+
+// Scan page - serves HTML (auth checked client-side)
+app.get('/scan', async (c) => {
+  if (c.env.ASSETS) {
+    try {
+      const url = new URL(c.req.url);
+      const asset = await c.env.ASSETS.fetch(new URL('/scan.html', url.origin));
+      return asset;
+    } catch (e) {
+      return c.text('Scan page not found', 404);
+    }
+  }
+  return c.text('Scan page not found', 404);
 });
 
 // API: Update configuration (password required in request)

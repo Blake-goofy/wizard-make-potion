@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scan Tickets</title>
+  <link rel="icon" type="image/x-icon" href="/wizard.ico">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .scan-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      width: 100%;
+    }
+
+    .scan-header {
+      text-align: center;
+      margin-bottom: 30px;
+      color: white;
+    }
+
+    .scan-header h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+      color: #4ecdc4;
+    }
+
+    #video-container {
+      position: relative;
+      width: 100%;
+      max-width: 600px;
+      height: 300px;
+      margin: 0 auto 15px;
+      border-radius: 15px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 15px;
+      object-fit: cover;
+    }
+
+    #scan-region {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 250px;
+      height: 250px;
+      border: 3px solid #4ecdc4;
+      border-radius: 15px;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    #scan-region.valid {
+      border-color: #4ade80;
+      box-shadow: 0 0 20px rgba(74, 222, 128, 0.5), 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    }
+
+    #scan-region.invalid {
+      border-color: #ef4444;
+      box-shadow: 0 0 20px rgba(239, 68, 68, 0.5), 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    }
+
+    #scan-region.duplicate {
+      border-color: #fbbf24;
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.5), 0 0 0 9999px rgba(0, 0, 0, 0.5);
+    }
+
+    #scan-region::before,
+    #scan-region::after,
+    #scan-region > span::before,
+    #scan-region > span::after {
+      content: '';
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border: 3px solid inherit;
+      transition: border-color 0.3s ease;
+    }
+
+    #scan-region::before {
+      top: -3px;
+      left: -3px;
+      border-right: none;
+      border-bottom: none;
+    }
+
+    #scan-region::after {
+      top: -3px;
+      right: -3px;
+      border-left: none;
+      border-bottom: none;
+    }
+
+    #scan-region > span::before {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      left: -3px;
+      width: 30px;
+      height: 30px;
+      border: 3px solid inherit;
+      border-right: none;
+      border-top: none;
+    }
+
+    #scan-region > span::after {
+      content: '';
+      position: absolute;
+      bottom: -3px;
+      right: -3px;
+      width: 30px;
+      height: 30px;
+      border: 3px solid inherit;
+      border-left: none;
+      border-top: none;
+    }
+
+    .result-box {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 1.1rem;
+      display: none;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .result-box.success {
+      background: rgba(76, 175, 80, 0.2);
+      border: 2px solid #4caf50;
+      color: #4caf50;
+      display: block;
+    }
+
+    .result-box.error {
+      background: rgba(244, 67, 54, 0.2);
+      border: 2px solid #f44336;
+      color: #f44336;
+      display: block;
+    }
+
+    .result-box.warning {
+      background: rgba(255, 152, 0, 0.2);
+      border: 2px solid #ff9800;
+      color: #ff9800;
+      display: block;
+    }
+
+    .result-box .icon {
+      font-size: 3rem;
+      margin-bottom: 15px;
+    }
+
+    .result-box .message {
+      font-size: 1.3rem;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+
+    .result-box .details {
+      font-size: 0.95rem;
+      opacity: 0.9;
+      margin-top: 10px;
+    }
+
+    .stats-container {
+      display: flex;
+      gap: 10px;
+      max-width: 600px;
+      margin: 15px auto;
+      justify-content: space-between;
+    }
+
+    .stat-box {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 10px 15px;
+      text-align: center;
+      color: white;
+      flex: 1;
+    }
+
+    .stat-box .number {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #4ecdc4;
+      margin-bottom: 2px;
+    }
+
+    .stat-box .label {
+      font-size: 0.75rem;
+      opacity: 0.8;
+    }
+
+    .controls {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .controls button {
+      background: #4ecdc4;
+      color: #000;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin: 5px;
+      transition: background 0.3s;
+      font-weight: 600;
+    }
+
+    .controls button:hover {
+      background: #5eddd4;
+    }
+
+    .controls button:disabled {
+      background: #666;
+      cursor: not-allowed;
+    }
+
+    #camera-error {
+      color: #f44336;
+      text-align: center;
+      padding: 20px;
+      display: none;
+      max-width: 600px;
+      margin: 20px auto;
+      background: rgba(244, 67, 54, 0.1);
+      border: 2px solid #f44336;
+      border-radius: 15px;
+    }
+
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+
+    #login-box {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 400px;
+      width: 100%;
+      margin: 20px;
+    }
+
+    #login-box h2 {
+      color: #4ecdc4;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    #login-box input {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      color: white;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+
+    #login-box button {
+      width: 100%;
+      padding: 15px;
+      background: #4ecdc4;
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    #login-box button:hover {
+      background: #5eddd4;
+    }
+
+    #login-error {
+      color: #f44336;
+      text-align: center;
+      margin-top: 10px;
+      display: none;
+    }
+
+    #scanner-screen {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div id="login-screen">
+    <div id="login-box">
+      <h2>🎟️ Ticket Scanner</h2>
+      <p style="color: rgba(255,255,255,0.7); text-align: center; margin-bottom: 20px;">
+        Enter admin password to access scanner
+      </p>
+      <input type="password" id="password-input" placeholder="Admin Password" autocomplete="current-password">
+      <button onclick="login()">Login</button>
+      <div id="login-error">Invalid password</div>
+    </div>
+  </div>
+
+  <!-- Scanner Screen -->
+  <div id="scanner-screen">
+    <div class="scan-container">
+      <a href="/" class="back-link">← Back to Events</a>
+      
+      <div class="scan-header">
+        <h1>🎟️ Ticket Scanner</h1>
+        <p>Point camera at QR code to scan tickets</p>
+      </div>
+
+      <div id="video-container">
+        <video id="video" playsinline></video>
+        <div id="scan-region"><span></span></div>
+      </div>
+
+      <div id="camera-error">
+        <p style="font-size: 1.5rem; margin-bottom: 10px;">❌</p>
+        <p><strong>Camera access denied or not available</strong></p>
+        <p style="font-size: 0.9rem; margin-top: 10px;">Please enable camera permissions in your browser settings</p>
+      </div>
+
+      <div id="result" class="result-box"></div>
+
+      <div class="stats-container">
+        <div class="stat-box">
+          <div class="number" id="total-scanned">0</div>
+          <div class="label">Scanned</div>
+        </div>
+        <div class="stat-box">
+          <div class="number" id="valid-count">0</div>
+          <div class="label">Valid</div>
+        </div>
+        <div class="stat-box">
+          <div class="number" id="duplicate-count">0</div>
+          <div class="label">Duplicates</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="reset-stats">Reset Stats</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script>
+    // Login functionality
+    function login() {
+      const password = document.getElementById('password-input').value;
+      
+      if (!password) {
+        document.getElementById('login-error').style.display = 'block';
+        return;
+      }
+
+      // Store password in sessionStorage
+      sessionStorage.setItem('adminPassword', password);
+      
+      // Hide login, show scanner
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('scanner-screen').style.display = 'block';
+      
+      // Start camera
+      startCamera();
+    }
+
+    // Allow Enter key on password input
+    document.getElementById('password-input')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        login();
+      }
+    });
+
+    // Check if already logged in
+    if (sessionStorage.getItem('adminPassword')) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('scanner-screen').style.display = 'block';
+    }
+
+    // Scanner functionality
+    const video = document.getElementById('video');
+    const resultBox = document.getElementById('result');
+    const cameraError = document.getElementById('camera-error');
+    const resetBtn = document.getElementById('reset-stats');
+    const scanRegion = document.getElementById('scan-region');
+    
+    let scanning = true;
+    let stats = {
+      total: 0,
+      valid: 0,
+      duplicates: 0
+    };
+    let lastScannedCode = null;
+    let lastScanTime = 0;
+    const SCAN_COOLDOWN = 3000; // 3 seconds between same code scans
+
+    // Load stats from sessionStorage
+    const savedStats = sessionStorage.getItem('scanStats');
+    if (savedStats) {
+      stats = JSON.parse(savedStats);
+      updateStatsDisplay();
+    }
+
+    // Start camera
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: 'environment', // Use back camera on mobile
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+        video.srcObject = stream;
+        video.setAttribute('playsinline', true);
+        await video.play();
+        requestAnimationFrame(scanFrame);
+      } catch (err) {
+        console.error('Camera error:', err);
+        cameraError.style.display = 'block';
+        document.getElementById('video-container').style.display = 'none';
+      }
+    }
+
+    function scanFrame() {
+      if (!scanning) {
+        requestAnimationFrame(scanFrame);
+        return;
+      }
+
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        if (code && code.data) {
+          const now = Date.now();
+          // Prevent scanning same code multiple times quickly
+          if (code.data !== lastScannedCode || (now - lastScanTime) > SCAN_COOLDOWN) {
+            lastScannedCode = code.data;
+            lastScanTime = now;
+            handleScan(code.data);
+          }
+        }
+      }
+      
+      requestAnimationFrame(scanFrame);
+    }
+
+    async function handleScan(ticketId) {
+      try {
+        const password = sessionStorage.getItem('adminPassword');
+        const response = await fetch('/api/scan-ticket', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Password': password
+          },
+          body: JSON.stringify({ ticketId })
+        });
+
+        const data = await response.json();
+        
+        // Check for auth error
+        if (response.status === 401) {
+          alert('Invalid password. Please login again.');
+          sessionStorage.removeItem('adminPassword');
+          location.reload();
+          return;
+        }
+        
+        stats.total++;
+        
+        if (data.status === 'valid') {
+          stats.valid++;
+          showToast('success', `Valid Ticket - Entry Granted!\nTicket ${data.ticket.ticketNumber} of ${data.ticket.totalQuantity}`);
+          flashScanRegion('valid');
+          playSound('success');
+        } else if (data.status === 'already_used') {
+          stats.duplicates++;
+          showToast('warning', `⚠️ Already Scanned\nPreviously scanned at:\n${new Date(data.ticket.usedAt).toLocaleString()}\n${data.ticket.email}`);
+          flashScanRegion('duplicate');
+          playSound('error');
+        } else {
+          showToast('error', `❌ Invalid Ticket\n${data.message}`);
+          flashScanRegion('invalid');
+          playSound('error');
+        }
+
+        updateStatsDisplay();
+        saveStats();
+
+      } catch (error) {
+        console.error('Scan error:', error);
+        showToast('error', '❌ Error\nFailed to validate ticket. Please try again.');
+      }
+    }
+
+    function showToast(type, message) {
+      const backgroundColor = type === 'success' ? '#4ade80' : 
+                             type === 'warning' ? '#fbbf24' : '#ef4444';
+      
+      Toastify({
+        text: message,
+        duration: 3000,
+        gravity: "top",
+        position: "center",
+        style: {
+          background: backgroundColor,
+          color: '#000',
+          fontWeight: 'bold',
+          fontSize: '16px',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          whiteSpace: 'pre-line',
+          textAlign: 'center',
+          maxWidth: '90vw',
+          margin: '0 auto'
+        }
+      }).showToast();
+    }
+
+    function flashScanRegion(type) {
+      scanRegion.classList.remove('valid', 'invalid', 'duplicate');
+      scanRegion.classList.add(type);
+      
+      setTimeout(() => {
+        scanRegion.classList.remove(type);
+      }, 1000);
+    }
+
+    function updateStatsDisplay() {
+      document.getElementById('total-scanned').textContent = stats.total;
+      document.getElementById('valid-count').textContent = stats.valid;
+      document.getElementById('duplicate-count').textContent = stats.duplicates;
+    }
+
+    function saveStats() {
+      sessionStorage.setItem('scanStats', JSON.stringify(stats));
+    }
+
+    function playSound(type) {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      if (type === 'success') {
+        // Success: Pleasant two-tone chime
+        playTone(audioContext, 523.25, 0, 0.15, 0.8); // C5
+        playTone(audioContext, 659.25, 0.15, 0.15, 0.8); // E5
+      } else {
+        // Error: Lower buzzer sound
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.value = 200;
+        oscillator.type = 'sawtooth'; // Harsher sound for error
+        
+        gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.4);
+      }
+    }
+
+    function playTone(audioContext, frequency, startTime, duration, volume) {
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'sine';
+      
+      const startAt = audioContext.currentTime + startTime;
+      gainNode.gain.setValueAtTime(volume, startAt);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startAt + duration);
+      
+      oscillator.start(startAt);
+      oscillator.stop(startAt + duration);
+    }
+
+    resetBtn?.addEventListener('click', () => {
+      if (confirm('Reset all scan statistics?')) {
+        stats = { total: 0, valid: 0, duplicates: 0 };
+        updateStatsDisplay();
+        saveStats();
+        lastScannedCode = null;
+        lastScanTime = 0;
+        scanRegion.classList.remove('valid', 'invalid', 'duplicate');
+      }
+    });
+
+    // Auto-start camera if already logged in
+    if (sessionStorage.getItem('adminPassword') && document.getElementById('scanner-screen').style.display === 'block') {
+      startCamera();
+    }
+  </script>
+</body>
+</html>
