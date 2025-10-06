@@ -597,6 +597,7 @@ app.get('/confirmation', async (c) => {
         <head>
           <title>Processing Your Tickets</title>
           <link rel="stylesheet" href="/styles.css">
+          <script src="/nav.js"></script>
         </head>
         <body>
           <div style="text-align: center; padding: 50px; max-width: 600px; margin: 0 auto;">
@@ -694,6 +695,7 @@ app.get('/confirmation', async (c) => {
       <head>
         <title>Your Tickets - ${firstTicket.event_name}</title>
         <link rel="stylesheet" href="/styles.css">
+        <script src="/nav.js"></script>
         <style>
           body {
             padding: 20px;
@@ -1186,6 +1188,20 @@ app.get('/scan', async (c) => {
     }
   }
   return c.text('Scan page not found', 404);
+});
+
+// About page
+app.get('/about', async (c) => {
+  if (c.env.ASSETS) {
+    try {
+      const url = new URL(c.req.url);
+      const asset = await c.env.ASSETS.fetch(new URL('/about.html', url.origin));
+      return asset;
+    } catch (e) {
+      return c.text('About page not found', 404);
+    }
+  }
+  return c.text('About page not found', 404);
 });
 
 // API: Update configuration (password required in request)

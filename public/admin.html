@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
   <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="/nav.js"></script>
   <style>
     .admin-container {
       max-width: 1400px;
@@ -277,8 +278,6 @@
   </div>
 
   <div class="admin-container" id="admin-section" style="display: none;">
-    <a href="/" class="back-link">← Back to Home</a>
-    
     <div class="admin-header">
       <h1>Event Management</h1>
       <p>Create, edit, and manage events</p>
@@ -409,6 +408,12 @@
         sessionStorage.setItem('adminPassword', password);
         document.getElementById('login-section').style.display = 'none';
         document.getElementById('admin-section').style.display = 'block';
+        
+        // Refresh navigation to show admin links
+        if (window.WizardNav) {
+          window.WizardNav.refresh();
+        }
+        
         loadEvents();
         showToast('Logged in successfully!', 'success');
         
