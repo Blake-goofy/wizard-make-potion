@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Tickets - Wizard Make Potion</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/nav.js"></script>
+  <style>
+    body {
+      padding: 20px;
+    }
+    .confirmation-container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .confirmation-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    .confirmation-header h1 {
+      color: #4ecdc4;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+    }
+    .confirmation-header h2 {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1.5rem;
+      font-weight: normal;
+    }
+    .info-box {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 30px;
+    }
+    .info-box h3 {
+      color: #4ecdc4;
+      margin-top: 0;
+      margin-bottom: 20px;
+    }
+    .info-box p {
+      color: rgba(255, 255, 255, 0.9);
+      margin: 10px 0;
+      line-height: 1.6;
+    }
+    .info-box strong {
+      color: #4ecdc4;
+    }
+    .ticket {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    .ticket h3 {
+      color: #4ecdc4;
+      margin-top: 0;
+    }
+    .ticket p {
+      color: rgba(255, 255, 255, 0.9);
+      margin: 10px 0;
+    }
+    .ticket strong {
+      color: #4ecdc4;
+    }
+    .qr-code {
+      margin: 20px auto;
+      padding: 20px;
+      background: #ffffff;
+      border-radius: 15px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 320px;
+    }
+    .qr-code img {
+      display: block;
+      width: 300px;
+      height: 300px;
+    }
+    .email-notice {
+      background: rgba(78, 205, 196, 0.1);
+      border: 2px solid rgba(78, 205, 196, 0.3);
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.9);
+      margin-top: 30px;
+      margin-bottom: 30px;
+    }
+    .email-notice strong {
+      color: #4ecdc4;
+    }
+    .action-buttons {
+      text-align: center;
+      margin: 30px 0;
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .action-btn {
+      display: inline-block;
+      padding: 12px 30px;
+      background: #4ecdc4;
+      color: #000;
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: bold;
+      transition: background 0.2s ease;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .action-btn:hover {
+      background: #5eddd4;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      body {
+        padding: 15px;
+      }
+      .confirmation-container {
+        padding: 0;
+      }
+      .confirmation-header h1 {
+        font-size: 1.8rem;
+      }
+      .confirmation-header h2 {
+        font-size: 1.2rem;
+      }
+      .info-box, .ticket {
+        padding: 20px;
+        border-radius: 15px;
+      }
+      .qr-code {
+        padding: 15px;
+        min-height: 250px;
+      }
+      .qr-code img {
+        width: 220px;
+        height: 220px;
+      }
+      .email-notice {
+        padding: 15px;
+        font-size: 0.95rem;
+      }
+      .action-btn {
+        padding: 10px 20px;
+        font-size: 14px;
+        width: 100%;
+      }
+      .action-buttons {
+        flex-direction: column;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .confirmation-header h1 {
+        font-size: 1.5rem;
+      }
+      .confirmation-header h2 {
+        font-size: 1rem;
+      }
+      .qr-code img {
+        width: 180px;
+        height: 180px;
+      }
+      .info-box p, .ticket p {
+        font-size: 0.9rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="confirmation-container">
+    <div class="email-notice">
+      <p><strong>Confirmation Email Sent</strong></p>
+      <p>A confirmation email with a link to this page has been sent to <strong id="ticket-email"></strong></p>
+      <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); margin-top: 10px;">
+        💡 Tip: Take a screenshot or save the link from your email to access your tickets anytime
+      </p>
+    </div>
+
+    <div id="tickets-container"></div>
+
+    <div id="event-details" class="info-box"></div>
+
+    <div id="purchase-info" class="info-box"></div>
+
+    <div id="payment-summary" class="info-box"></div>
+
+    <div class="action-buttons">
+      <a href="/" class="action-btn">Buy More Tickets</a>
+    </div>
+  </div>
+
+  <script>
+    // Get payment intent ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentIntentId = urlParams.get('payment_intent');
+    const emailParam = urlParams.get('email');
+
+    if (!paymentIntentId && !emailParam) {
+      window.location.href = '/';
+    }
+
+    // Get test mode from session storage
+    const isTestMode = sessionStorage.getItem('testMode') === 'true';
+    const headers = {};
+    if (isTestMode) {
+      headers['X-Test-Mode'] = 'true';
+    }
+
+    // Fetch ticket data
+    async function loadTickets() {
+      try {
+        const url = paymentIntentId 
+          ? `/api/tickets?payment_intent=${paymentIntentId}`
+          : `/api/tickets?email=${emailParam}`;
+        
+        const response = await fetch(url, { headers });
+        
+        if (!response.ok) {
+          throw new Error('Failed to load tickets');
+        }
+        
+        const data = await response.json();
+        
+        if (!data.tickets || data.tickets.length === 0) {
+          // No tickets yet, try to generate them
+          if (paymentIntentId) {
+            const checkResponse = await fetch('/api/check-payment', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...headers
+              },
+              body: JSON.stringify({ paymentIntentId })
+            });
+            
+            const checkData = await checkResponse.json();
+            
+            if (checkData.ready) {
+              // Tickets should be ready now, reload
+              location.reload();
+            } else {
+              // Wait and try again
+              setTimeout(() => location.reload(), 2000);
+            }
+          }
+          return;
+        }
+        
+        displayTickets(data);
+      } catch (error) {
+        console.error('Error loading tickets:', error);
+        document.querySelector('.confirmation-container').innerHTML = `
+          <div class="info-box" style="text-align: center;">
+            <h3>Error Loading Tickets</h3>
+            <p>There was a problem loading your tickets. Please check your email for the confirmation link or contact support.</p>
+            <a href="/" class="action-btn" style="display: inline-block; margin-top: 20px;">Return to Events</a>
+          </div>
+        `;
+      }
+    }
+
+    function displayTickets(data) {
+      const { tickets } = data;
+      const firstTicket = tickets[0];
+      
+      // Set email
+      document.getElementById('ticket-email').textContent = firstTicket.email;
+      
+      // Display tickets
+      const ticketsHtml = tickets.map(ticket => `
+        <div class="ticket ${ticket.used ? 'used' : ''}">
+          <h3>Ticket ${ticket.ticket_number} of ${ticket.total_quantity}</h3>
+          <p style="color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; margin-bottom: 15px;">Show this QR code at the event entrance</p>
+          <div class="qr-code">
+            ${ticket.qr_code_data_url && ticket.qr_code_data_url.startsWith('data:image') 
+              ? `<img src="${ticket.qr_code_data_url}" alt="QR Code" onerror="this.parentElement.innerHTML='<p style=color:#666;>QR Code Error</p>';" />` 
+              : '<p style="color:#666;">QR Code not available</p>'}
+          </div>
+        </div>
+      `).join('');
+      
+      document.getElementById('tickets-container').innerHTML = ticketsHtml;
+      
+      // Event details
+      document.getElementById('event-details').innerHTML = `
+        <h3>Event Details</h3>
+        <p><strong>When:</strong> ${firstTicket.event_day}, ${firstTicket.event_date} at ${firstTicket.event_time}</p>
+        <p><strong>Where:</strong> ${firstTicket.event_address}</p>
+        ${firstTicket.event_description ? `<p><strong>About:</strong> ${firstTicket.event_description}</p>` : ''}
+      `;
+      
+      // Purchase info
+      document.getElementById('purchase-info').innerHTML = `
+        <h3>Purchase Information</h3>
+        <p><strong>Email:</strong> ${firstTicket.email}</p>
+        <p><strong>Total Tickets:</strong> ${tickets.length}</p>
+        <p><strong>Purchase Date:</strong> ${new Date(firstTicket.purchase_date).toLocaleString()}</p>
+      `;
+      
+      // Payment summary
+      if (firstTicket.ticket_price) {
+        document.getElementById('payment-summary').innerHTML = `
+          <h3>Payment Summary</h3>
+          <p><strong>Ticket Price:</strong> $${firstTicket.ticket_price.toFixed(2)} × ${tickets.length} = $${firstTicket.subtotal.toFixed(2)}</p>
+          <p><strong>Estimated Sales Tax:</strong> $${firstTicket.sales_tax.toFixed(2)}</p>
+          <p style="font-size: 1.2rem; margin-top: 10px;"><strong>Total Paid:</strong> $${firstTicket.total_paid.toFixed(2)}</p>
+        `;
+      } else {
+        document.getElementById('payment-summary').style.display = 'none';
+      }
+    }
+
+    // Load tickets when page loads
+    loadTickets();
+  </script>
+</body>
+</html>

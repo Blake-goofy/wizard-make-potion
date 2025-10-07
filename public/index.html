@@ -7,182 +7,9 @@
   <link rel="icon" type="image/x-icon" href="wizard.ico">
   <link rel="stylesheet" href="styles.css">
   <script src="/nav.js"></script>
-  <style>
-    .events-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    .events-header {
-      text-align: center;
-      margin-bottom: 40px;
-    }
-
-    .events-header h1 {
-      font-size: 3rem;
-      color: #fff;
-      margin-bottom: 10px;
-    }
-
-    .event-cards {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 30px;
-      margin-bottom: 40px;
-      max-width: 800px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    .event-card {
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(15px);
-      -webkit-backdrop-filter: blur(15px);
-      border: 2px solid rgba(255, 255, 255, 0.15);
-      border-radius: 20px;
-      padding: 30px;
-      cursor: pointer;
-      transition: border-color 0.3s ease, box-shadow 0.3s ease;
-      position: relative;
-    }
-
-    .event-card:hover {
-      border-color: #4ecdc4;
-      box-shadow: 0 8px 20px rgba(78, 205, 196, 0.2);
-    }
-
-    .event-card.selected {
-      border-color: #4ecdc4;
-      box-shadow: 0 0 30px rgba(78, 205, 196, 0.5);
-    }
-
-    .event-card.selected::before {
-      content: '✓';
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      width: 30px;
-      height: 30px;
-      background: #4ecdc4;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      color: #000;
-    }
-
-    .event-card h2 {
-      color: #4ecdc4;
-      margin-top: 0;
-      margin-bottom: 15px;
-      font-size: 1.8rem;
-    }
-
-    .event-info p {
-      margin: 10px 0;
-      color: rgba(255, 255, 255, 0.9);
-      font-size: 1rem;
-    }
-
-    .event-info strong {
-      color: #4ecdc4;
-    }
-
-    .event-description {
-      margin-top: 15px;
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 0.95rem;
-      line-height: 1.5;
-    }
-
-    .event-price {
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      font-size: 1.3rem;
-      color: #4ecdc4;
-      font-weight: bold;
-    }
-
-    .purchase-section {
-      position: fixed;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      text-align: center;
-    }
-
-    .buy-tickets-btn {
-      background: #4ecdc4;
-      color: #000;
-      padding: 15px 40px;
-      border-radius: 10px;
-      text-decoration: none;
-      font-size: 16px;
-      font-weight: bold;
-      display: inline-block;
-      transition: background-color 0.2s ease, box-shadow 0.2s ease;
-      border: none;
-      cursor: pointer;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    }
-
-    .buy-tickets-btn:hover {
-      background: #5eddd4;
-      box-shadow: 0 6px 25px rgba(78, 205, 196, 0.4);
-    }
-
-    .buy-tickets-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-
-
-    .no-events {
-      text-align: center;
-      padding: 80px 20px;
-    }
-
-    .no-events h2 {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 2rem;
-      margin-bottom: 20px;
-    }
-
-    .no-events p {
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 1.2rem;
-    }
-
-      @media (max-width: 768px) {
-      .events-header h1 {
-        font-size: 2rem;
-      }
-
-      .event-cards {
-        gap: 20px;
-      }      .event-card {
-        padding: 20px;
-      }
-
-      .buy-tickets-btn {
-        padding: 15px 40px;
-        font-size: 1.1rem;
-      }
-    }
-  </style>
 </head>
 <body>
   <div class="events-container">
-    <div class="events-header">
-      <h1>Upcoming Events</h1>
-    </div>
-
     <div id="upcoming-events-section">
       <div class="event-cards" id="upcoming-events">
       </div>
@@ -191,10 +18,6 @@
     <div id="no-events-message" class="no-events" style="display: none;">
       <h2>No Upcoming Events</h2>
       <p>Check back soon for our next magical gathering!</p>
-    </div>
-
-    <div class="purchase-section" id="purchase-section" style="display: none;">
-      <button class="buy-tickets-btn" id="buy-tickets-btn">Select an Event</button>
     </div>
   </div>
 
@@ -216,15 +39,8 @@
         if (upcomingEvents.length === 0) {
           upcomingContainer.style.display = 'none';
           noEventsMessage.style.display = 'block';
-          purchaseSection.style.display = 'none';
         } else {
           upcomingContainer.innerHTML = upcomingEvents.map(event => createEventCard(event)).join('');
-          
-          if (upcomingEvents.length > 0) {
-            selectEvent(upcomingEvents[0].id);
-          }
-          
-          purchaseSection.style.display = 'block';
         }
 
       } catch (error) {
@@ -235,42 +51,21 @@
 
     function createEventCard(event) {
       return `
-        <div class="event-card upcoming-event" 
-             data-event-id="${event.id}"
-             onclick="selectEvent(${event.id})">
-          <h2>${event.name}</h2>
-          <div class="event-info">
-            <p><strong>Date:</strong> ${event.day}, ${event.date}</p>
-            <p><strong>Time:</strong> ${event.time}</p>
-            <p><strong>Location:</strong> ${event.address}</p>
-            ${event.description ? `<p class="event-description">${event.description}</p>` : ''}
-            <div class="event-price">$${event.ticketPrice.toFixed(2)} per ticket</div>
+        <div class="event-card" data-event-id="${event.id}">
+          <div class="event-content">
+            <h2>${event.name}</h2>
+            <div class="event-info">
+              <p class="event-datetime">${event.day}, ${event.date} at ${event.time}</p>
+              <p class="event-location">${event.address}</p>
+              ${event.description ? `<p class="event-description">${event.description}</p>` : ''}
+            </div>
+          </div>
+          <div class="event-footer">
+            <div class="event-price">$${event.ticketPrice.toFixed(2)}</div>
+            <button class="buy-btn" onclick="window.location.href='/purchase?event=${event.id}'">Buy</button>
           </div>
         </div>
       `;
-    }
-
-    function selectEvent(eventId) {
-      selectedEventId = eventId;
-      
-      document.querySelectorAll('.upcoming-event').forEach(card => {
-        if (parseInt(card.dataset.eventId) === eventId) {
-          card.classList.add('selected');
-        } else {
-          card.classList.remove('selected');
-        }
-      });
-
-      const selectedEvent = upcomingEvents.find(e => e.id === eventId);
-      const buyBtn = document.getElementById('buy-tickets-btn');
-      
-      if (selectedEvent) {
-        buyBtn.textContent = 'Buy Tickets';
-        buyBtn.disabled = false;
-        buyBtn.onclick = () => {
-          window.location.href = `/purchase?event=${eventId}`;
-        };
-      }
     }
 
     loadEvents();

@@ -1,4 +1,51 @@
-const stripe = Stripe('pk_test_51SC2u8GaeO9L2D8a0XXFh8DB9z0XwRPd2fDCA66xVOyegHBVXH4LL4K3HqAiYCW5A9ofvxJQd2Pko2DdYHp3asqC00dV2B05SY'); // Replace with your publishable key
+// Initialize Stripe with appropriate key based on test mode
+const isTestMode = sessionStorage.getItem('testMode') === 'true';
+let stripe = null; // Will be initialized after fetching key
+
+// Fetch Stripe publishable key from backend
+async function initializeStripe() {
+  const headers = {};
+  if (isTestMode) {
+    headers['X-Test-Mode'] = 'true';
+  }
+  
+  const response = await fetch('/api/stripe-key', { headers });
+  const { publishableKey } = await response.json();
+  stripe = Stripe(publishableKey);
+  
+  // Mount card element after Stripe is initialized
+  const elements = stripe.elements();
+  const cardElement = elements.create('card', {
+    style: {
+      base: {
+        color: '#ffffff',
+        fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
+        fontSize: '16px',
+        fontWeight: '400',
+        '::placeholder': {
+          color: '#cccccc'
+        }
+      },
+      invalid: {
+        color: '#ff6b6b'
+      }
+    }
+  });
+  cardElement.mount('#card-element');
+  
+  // Auto-fill test card notice if in test mode
+  if (isTestMode) {
+    const cardElementContainer = document.getElementById('card-element');
+    if (cardElementContainer) {
+      const testNotice = document.createElement('div');
+      testNotice.style.cssText = 'margin-top: 10px; padding: 10px; background: rgba(255, 152, 0, 0.2); border-radius: 8px; color: #ff9800; font-size: 14px; text-align: center;';
+      testNotice.innerHTML = 'Test Mode: Use card <strong>4242 4242 4242 4242</strong>, any future date, any CVC';
+      cardElementContainer.parentNode.insertBefore(testNotice, cardElementContainer.nextSibling);
+    }
+  }
+  
+  return cardElement;
+}
 
 // Global config
 let CURRENT_EVENT = null;
@@ -65,40 +112,8 @@ async function loadConfig() {
   }
 }
 
-// Configure Stripe Elements appearance for dark theme
-const appearance = {
-  variables: {
-    colorPrimary: '#4ecdc4',
-    colorBackground: 'rgba(255, 255, 255, 0.05)',
-    colorText: '#ffffff',
-    colorTextSecondary: '#e0e0e0',
-    colorTextPlaceholder: '#cccccc',
-    colorDanger: '#ff6b6b',
-    fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-    spacingUnit: '4px',
-    borderRadius: '10px',
-    fontSizeBase: '16px'
-  }
-};
-
-const elements = stripe.elements();
-const cardElement = elements.create('card', {
-  style: {
-    base: {
-      color: '#ffffff',
-      fontFamily: '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif',
-      fontSize: '16px',
-      fontWeight: '400',
-      '::placeholder': {
-        color: '#cccccc'
-      }
-    },
-    invalid: {
-      color: '#ff6b6b'
-    }
-  }
-});
-cardElement.mount('#card-element');
+// Initialize Stripe and card element (will be set after fetching key)
+let cardElement = null;
 
 const form = document.getElementById('payment-form');
 const submitButton = document.getElementById('submit-button');
@@ -114,8 +129,14 @@ const totalPriceElement = document.getElementById('total-price');
 // Sales tax rate
 const SALES_TAX_RATE = 0.09;
 
-// Load config on page load
-loadConfig();
+// Initialize the page
+async function initializePage() {
+  await loadConfig();
+  cardElement = await initializeStripe();
+}
+
+// Load config and Stripe on page load
+initializePage();
 
 // Update total price when quantity changes
 function updateTotalPrice() {
@@ -180,6 +201,11 @@ form.addEventListener('submit', async (event) => {
     return;
   }
 
+  if (!stripe || !cardElement) {
+    alert('Payment system is still loading. Please wait a moment and try again.');
+    return;
+  }
+
   submitButton.disabled = true;
   submitButton.textContent = 'Processing...';
 
@@ -189,15 +215,33 @@ form.addEventListener('submit', async (event) => {
 
   try {
     // Backend calculates amount with tax
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+    
+    // Add test mode header if enabled
+    if (isTestMode) {
+      headers['X-Test-Mode'] = 'true';
+    }
+    
     const response = await fetch('/create-payment-intent', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, quantity, eventId }),
+      headers: headers,
+      body: JSON.stringify({ email, quantity, eventId })
     });
 
-    const { clientSecret, pricing } = await response.json();
+    const responseData = await response.json();
+    
+    // Check for errors
+    if (!response.ok || responseData.error) {
+      throw new Error(responseData.error || 'Failed to create payment intent');
+    }
+    
+    const { clientSecret, pricing } = responseData;
+    
+    if (!clientSecret) {
+      throw new Error('No client secret received from server');
+    }
     
     // Verify the pricing matches what we displayed
     const displayedTotal = parseFloat(totalPriceElement.textContent);

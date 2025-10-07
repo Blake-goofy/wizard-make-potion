@@ -19,11 +19,77 @@
     .admin-header {
       text-align: center;
       margin-bottom: 40px;
+      position: relative;
     }
 
     .admin-header h1 {
       color: #4ecdc4;
       font-size: 2.5rem;
+    }
+
+    .test-mode-toggle {
+      position: absolute;
+      top: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 10px 15px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .test-mode-toggle label {
+      color: #ffffff;
+      font-weight: bold;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 26px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .3s;
+      border-radius: 26px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background-color: #ff9800;
+    }
+
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(24px);
     }
 
     .event-selector {
@@ -230,8 +296,11 @@
       background: rgba(26, 26, 26, 0.95) !important;
       backdrop-filter: blur(10px);
       border-radius: 10px !important;
-      padding: 15px 20px !important;
+      padding: 15px 24px !important;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+      font-weight: 600 !important;
+      min-width: 300px !important;
+      max-width: calc(100vw - 40px) !important;
     }
     
     .toastify.success {
@@ -242,6 +311,12 @@
     .toastify.error {
       background: linear-gradient(135deg, rgba(255, 107, 107, 0.95), rgba(238, 85, 85, 0.95)) !important;
       color: #fff !important;
+    }
+
+    @media (min-width: 769px) {
+      .toastify {
+        min-width: 400px !important;
+      }
     }
 
     .calculated-info {
@@ -278,10 +353,6 @@
   </div>
 
   <div class="admin-container" id="admin-section" style="display: none;">
-    <div class="admin-header">
-      <h1>Event Management</h1>
-      <p>Create, edit, and manage events</p>
-    </div>
 
     <div class="event-selector">
       <div class="selector-row">
@@ -365,11 +436,41 @@
       Toastify({
         text: message,
         duration: 3000,
-        gravity: 'top',
-        position: 'right',
+        gravity: 'bottom',
+        position: 'center',
         className: type,
-        stopOnFocus: true
+        stopOnFocus: true,
+        onClick: function() {
+          // Dismiss on click
+        }
       }).showToast();
+    }
+
+    // Test mode functions
+    function toggleTestMode() {
+      const isTestMode = document.getElementById('test-mode-switch').checked;
+      sessionStorage.setItem('testMode', isTestMode ? 'true' : 'false');
+      updateTestModeToggle();
+      
+      // Update nav bar if it exists
+      if (window.WizardNav && window.WizardNav.updateTestModeBanner) {
+        window.WizardNav.updateTestModeBanner();
+      }
+      
+      if (isTestMode) {
+        showToast('Test mode enabled', 'success');
+      } else {
+        showToast('Test mode disabled', 'success');
+      }
+    }
+
+    function updateTestModeToggle() {
+      const isTestMode = sessionStorage.getItem('testMode') === 'true';
+      const toggle = document.getElementById('test-mode-switch');
+      
+      if (toggle) {
+        toggle.checked = isTestMode;
+      }
     }
 
     // Check if already authenticated
@@ -383,6 +484,9 @@
       } else {
         document.getElementById('login-section').style.display = 'block';
       }
+      
+      // Initialize test mode toggle
+      updateTestModeToggle();
     };
 
     async function authenticate() {

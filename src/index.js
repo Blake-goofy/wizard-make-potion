@@ -2,11 +2,24 @@ import { Hono } from 'hono';
 
 const app = new Hono();
 
+// Helper function to get Stripe key based on test mode
+function getStripeKey(c, keyType = 'secret') {
+  const isTestMode = c.req.header('X-Test-Mode') === 'true';
+  
+  if (keyType === 'secret') {
+    return isTestMode ? c.env.STRIPE_SECRET_KEY_DEV : c.env.STRIPE_SECRET_KEY;
+  } else if (keyType === 'webhook') {
+    return isTestMode ? c.env.STRIPE_WEBHOOK_SECRET_DEV : c.env.STRIPE_WEBHOOK_SECRET;
+  }
+  
+  return c.env.STRIPE_SECRET_KEY; // Default to production
+}
+
 // Helper function to get event info from config
 function getEventInfo(config) {
   const eventDate = new Date(config.event.date);
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
   return {
     name: config.event.name,
@@ -107,7 +120,7 @@ function formatEvent(row) {
   const [year, month, day] = row.date.split('-').map(Number);
   const eventDate = new Date(year, month - 1, day);
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const isPast = eventDate < today;
@@ -185,6 +198,16 @@ app.get('/api/config', async (c) => {
   });
 });
 
+// API: Get Stripe publishable key based on test mode
+app.get('/api/stripe-key', async (c) => {
+  const isTestMode = c.req.header('X-Test-Mode') === 'true';
+  const publishableKey = isTestMode 
+    ? c.env.STRIPE_PUBLISHABLE_KEY_DEV 
+    : c.env.STRIPE_PUBLISHABLE_KEY;
+  
+  return c.json({ publishableKey });
+});
+
 // Create payment intent
 app.post('/create-payment-intent', async (c) => {
   const { amount, email, quantity = 1, eventId } = await c.req.json();
@@ -213,8 +236,9 @@ app.post('/create-payment-intent', async (c) => {
   // Convert to cents for Stripe
   const amountInCents = Math.round(totalAmount * 100);
   
-  // Initialize Stripe with secret from environment
-  const stripe = (await import('stripe')).default(c.env.STRIPE_SECRET_KEY);
+  // Initialize Stripe with appropriate key based on test mode
+  const stripeKey = getStripeKey(c, 'secret');
+  const stripe = (await import('stripe')).default(stripeKey);
   
   try {
     const paymentIntent = await stripe.paymentIntents.create({
@@ -254,7 +278,8 @@ app.post('/api/check-payment', async (c) => {
     return c.json({ error: 'Payment Intent ID is required' }, 400);
   }
   
-  const stripe = (await import('stripe')).default(c.env.STRIPE_SECRET_KEY);
+  const stripeKey = getStripeKey(c, 'secret');
+  const stripe = (await import('stripe')).default(stripeKey);
   
   try {
     // Get payment intent from Stripe
@@ -314,11 +339,13 @@ app.post('/api/stripe/webhook', async (c) => {
   const sig = c.req.header('stripe-signature');
   const body = await c.req.text();
   
-  const stripe = (await import('stripe')).default(c.env.STRIPE_SECRET_KEY);
+  const stripeKey = getStripeKey(c, 'secret');
+  const webhookSecret = getStripeKey(c, 'webhook');
+  const stripe = (await import('stripe')).default(stripeKey);
   
   let event;
   try {
-    event = stripe.webhooks.constructEvent(body, sig, c.env.STRIPE_WEBHOOK_SECRET);
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
     console.log(`Webhook signature verification failed.`, err.message);
     return c.text(`Webhook Error: ${err.message}`, 400);
@@ -392,12 +419,12 @@ async function sendTicketEmail(env, email, tickets, eventInfo, paymentIntentId, 
         </head>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #4ecdc4; margin-bottom: 10px;">🎟️ Your Tickets Are Ready!</h1>
+            <h1 style="color: #4ecdc4; margin-bottom: 10px;">Your Tickets Are Ready!</h1>
             <p style="color: #666; font-size: 18px;">${eventInfo.name}</p>
           </div>
           
           <div style="background: #e8f8f5; border: 2px solid #4ecdc4; border-radius: 10px; padding: 25px; margin: 30px 0; text-align: center;">
-            <h2 style="color: #4ecdc4; margin-top: 0;">✅ Payment Successful!</h2>
+            <h2 style="color: #4ecdc4; margin-top: 0;">Payment Successful!</h2>
             <p style="color: #333; font-size: 16px; margin: 15px 0;">
               <strong>You purchased ${tickets.length} ticket${tickets.length > 1 ? 's' : ''} for ${eventInfo.name}</strong>
             </p>
@@ -409,7 +436,7 @@ async function sendTicketEmail(env, email, tickets, eventInfo, paymentIntentId, 
             </p>
             
             <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #4ecdc4;">
-              <h3 style="color: #333; margin-top: 0;">💰 Payment Summary</h3>
+              <h3 style="color: #333; margin-top: 0;">Payment Summary</h3>
               <p style="color: #666; margin: 5px 0;">
                 Ticket Price: $${pricing.ticketPrice.toFixed(2)} × ${tickets.length} = $${pricing.subtotal.toFixed(2)}
               </p>
@@ -423,7 +450,7 @@ async function sendTicketEmail(env, email, tickets, eventInfo, paymentIntentId, 
           </div>
           
           <div style="background: #e8f8f5; border: 2px solid #4ecdc4; border-radius: 10px; padding: 25px; margin: 30px 0; text-align: center;">
-            <h3 style="color: #4ecdc4; margin-top: 0;">🎫 View Your Tickets</h3>
+            <h3 style="color: #4ecdc4; margin-top: 0;">View Your Tickets</h3>
             <p style="color: #333; margin: 15px 0;">
               Click the button below to view your tickets with QR codes:
             </p>
@@ -573,13 +600,13 @@ async function generateAndSendTickets(env, email, paymentIntentId, quantity = 1,
   console.log(`Generated ${quantity} tickets for ${email} for event ${eventId}`);
 }
 
-// Get confirmation page
-app.get('/confirmation', async (c) => {
+// Get tickets API endpoint
+app.get('/api/tickets', async (c) => {
   const paymentIntentId = c.req.query('payment_intent');
-  const email = c.req.query('email'); // Fallback for old links
+  const email = c.req.query('email');
   
   if (!paymentIntentId && !email) {
-    return c.text('Payment information is required', 400);
+    return c.json({ error: 'Payment intent or email is required' }, 400);
   }
 
   // Fetch tickets from D1 by payment_intent_id or email
@@ -591,290 +618,12 @@ app.get('/confirmation', async (c) => {
         'SELECT * FROM tickets WHERE email = ? ORDER BY ticket_number ASC'
       ).bind(email).all();
   
-  if (!results || results.length === 0) {
-    return c.html(`
-      <html>
-        <head>
-          <title>Processing Your Tickets</title>
-          <link rel="stylesheet" href="/styles.css">
-          <script src="/nav.js"></script>
-        </head>
-        <body>
-          <div style="text-align: center; padding: 50px; max-width: 600px; margin: 0 auto;">
-            <h1>Processing Your Tickets...</h1>
-            <p>Your payment was successful! We're generating your tickets now.</p>
-            <p>This page will automatically refresh in <span id="countdown">5</span> seconds...</p>
-            <div style="margin: 30px 0;">
-              <div style="width: 50px; height: 50px; border: 5px solid rgba(78, 205, 196, 0.3); border-top-color: #4ecdc4; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
-            </div>
-            <p style="color: rgba(255, 255, 255, 0.6); font-size: 0.9rem;">If tickets don't appear after 30 seconds, please check your email.</p>
-            <a href="/" class="buy-tickets-btn" style="display: inline-block; margin-top: 20px;">Return to Events</a>
-          </div>
-          <style>
-            @keyframes spin {
-              to { transform: rotate(360deg); }
-            }
-          </style>
-          <script>
-            let countdown = 3;
-            let attempts = 0;
-            const maxAttempts = 10;
-            const countdownEl = document.getElementById('countdown');
-            
-            // Get payment intent ID from URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const paymentIntentId = urlParams.get('payment_intent');
-            
-            async function checkTickets() {
-              attempts++;
-              
-              if (paymentIntentId) {
-                try {
-                  // Try to trigger ticket generation
-                  const response = await fetch('/api/check-payment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ paymentIntentId })
-                  });
-                  
-                  const data = await response.json();
-                  
-                  if (data.ready) {
-                    // Tickets are ready, reload page
-                    location.reload();
-                    return;
-                  }
-                } catch (e) {
-                  console.error('Check failed:', e);
-                }
-              }
-              
-              // If max attempts reached, just reload anyway
-              if (attempts >= maxAttempts) {
-                location.reload();
-              }
-            }
-            
-            const interval = setInterval(() => {
-              countdown--;
-              if (countdown <= 0) {
-                clearInterval(interval);
-                checkTickets();
-                countdown = 3; // Reset for next check
-                setInterval(checkTickets, 3000); // Check every 3 seconds
-              } else {
-                countdownEl.textContent = countdown;
-              }
-            }, 1000);
-          </script>
-        </body>
-      </html>
-    `);
-  }
+  return c.json({ tickets: results || [] });
+});
 
-  // Generate HTML for tickets
-  const ticketsHtml = results.map(ticket => `
-    <div class="ticket ${ticket.used ? 'used' : ''}">
-      <h3>Ticket ${ticket.ticket_number} of ${ticket.total_quantity}</h3>
-      <p style="color: rgba(255, 255, 255, 0.7); font-size: 0.9rem; margin-bottom: 15px;">💡 Show this QR code at the event entrance</p>
-      <div class="qr-code">
-        ${ticket.qr_code_data_url && ticket.qr_code_data_url.startsWith('data:image') 
-          ? `<img src="${ticket.qr_code_data_url}" alt="QR Code" onerror="this.parentElement.innerHTML='<p style=color:#666;>QR Code Error</p>';" />` 
-          : '<p style="color:#666;">QR Code not available</p>'}
-      </div>
-      <p style="margin-top: 15px;"><strong>Ticket ID:</strong> ${ticket.id}</p>
-      ${ticket.used ? `<p class="used-notice">⚠️ USED: ${new Date(ticket.used_at).toLocaleString()}</p>` : ''}
-    </div>
-  `).join('<div style="height: 30px;"></div>');
-
-  const firstTicket = results[0];
-  const ticketEmail = firstTicket.email;
-  
-  return c.html(`
-    <html>
-      <head>
-        <title>Your Tickets - ${firstTicket.event_name}</title>
-        <link rel="stylesheet" href="/styles.css">
-        <script src="/nav.js"></script>
-        <style>
-          body {
-            padding: 20px;
-          }
-          .confirmation-container {
-            max-width: 900px;
-            margin: 0 auto;
-          }
-          .back-link {
-            display: inline-block;
-            color: #4ecdc4;
-            text-decoration: none;
-            margin-bottom: 20px;
-            font-weight: 500;
-            transition: color 0.3s ease;
-          }
-          .back-link:hover {
-            color: #26d0ce;
-          }
-          .confirmation-header {
-            text-align: center;
-            margin-bottom: 40px;
-          }
-          .confirmation-header h1 {
-            color: #4ecdc4;
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-          }
-          .confirmation-header h2 {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 1.5rem;
-            font-weight: normal;
-          }
-          .info-box {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 30px;
-          }
-          .info-box h3 {
-            color: #4ecdc4;
-            margin-top: 0;
-            margin-bottom: 20px;
-          }
-          .info-box p {
-            color: rgba(255, 255, 255, 0.9);
-            margin: 10px 0;
-            line-height: 1.6;
-          }
-          .info-box strong {
-            color: #4ecdc4;
-          }
-          .ticket {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border: 2px solid rgba(255, 255, 255, 0.15);
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 30px;
-            text-align: center;
-          }
-          .ticket h3 {
-            color: #4ecdc4;
-            margin-top: 0;
-          }
-          .ticket p {
-            color: rgba(255, 255, 255, 0.9);
-            margin: 10px 0;
-          }
-          .ticket strong {
-            color: #4ecdc4;
-          }
-          .qr-code {
-            margin: 20px auto;
-            padding: 20px;
-            background: #ffffff;
-            border-radius: 15px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 320px;
-          }
-          .qr-code img {
-            display: block;
-            width: 300px;
-            height: 300px;
-          }
-          .email-notice {
-            background: rgba(78, 205, 196, 0.1);
-            border: 2px solid rgba(78, 205, 196, 0.3);
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 20px;
-          }
-          .email-notice strong {
-            color: #4ecdc4;
-          }
-          .action-buttons {
-            text-align: center;
-            margin: 30px 0;
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-          }
-          .action-btn {
-            display: inline-block;
-            padding: 12px 30px;
-            background: #4ecdc4;
-            color: #000;
-            text-decoration: none;
-            border-radius: 10px;
-            font-weight: bold;
-            transition: background 0.2s ease;
-            border: none;
-            cursor: pointer;
-            font-size: 16px;
-          }
-          .action-btn:hover {
-            background: #5eddd4;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="confirmation-container">
-          <a href="/" class="back-link">← Back to Events</a>
-
-          <div class="confirmation-header">
-            <h1>🎟️ Your Tickets</h1>
-            <h2>${firstTicket.event_name}</h2>
-          </div>
-          
-          <div class="email-notice">
-            <p><strong>✅ Confirmation Email Sent</strong></p>
-            <p>A confirmation email with a link to this page has been sent to <strong>${ticketEmail}</strong></p>
-            <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); margin-top: 10px;">
-              💡 Tip: Bookmark this page or save the link from your email to access your tickets anytime
-            </p>
-          </div>
-
-
-          ${ticketsHtml}
-
-          <div class="info-box">
-            <h3>📅 Event Details</h3>
-            <p><strong>When:</strong> ${firstTicket.event_day}, ${firstTicket.event_date} at ${firstTicket.event_time}</p>
-            <p><strong>Where:</strong> ${firstTicket.event_address}</p>
-            ${firstTicket.event_description ? `<p><strong>About:</strong> ${firstTicket.event_description}</p>` : ''}
-          </div>
-
-          <div class="info-box">
-            <h3>📧 Purchase Information</h3>
-            <p><strong>Email:</strong> ${ticketEmail}</p>
-            <p><strong>Total Tickets:</strong> ${results.length}</p>
-            <p><strong>Purchase Date:</strong> ${new Date(firstTicket.purchase_date).toLocaleString()}</p>
-          </div>
-
-          ${firstTicket.ticket_price ? `
-          <div class="info-box">
-            <h3>💰 Payment Summary</h3>
-            <p><strong>Ticket Price:</strong> $${firstTicket.ticket_price.toFixed(2)} × ${results.length} = $${firstTicket.subtotal.toFixed(2)}</p>
-            <p><strong>Estimated Sales Tax:</strong> $${firstTicket.sales_tax.toFixed(2)}</p>
-            <p style="font-size: 1.2rem; margin-top: 10px;"><strong>Total Paid:</strong> $${firstTicket.total_paid.toFixed(2)}</p>
-          </div>
-          ` : ''}
-
-          <div class="action-buttons">
-            <a href="/" class="action-btn">🎟️ Buy More Tickets</a>
-          </div>
-        </div>
-      </body>
-    </html>
-  `);
+// Get confirmation page - just serve the HTML file
+app.get('/confirmation', async (c) => {
+  return c.html(await c.env.ASSETS.fetch(new Request('https://example.com/confirmation.html')).then(r => r.text()));
 });
 
 // Validate ticket endpoint

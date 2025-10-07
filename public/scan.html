@@ -9,6 +9,20 @@
   <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
   <script src="/nav.js"></script>
   <style>
+    /* Toast Customization */
+    .toastify {
+      min-width: 300px !important;
+      max-width: calc(100vw - 40px) !important;
+      padding: 15px 24px !important;
+      font-weight: 600 !important;
+    }
+
+    @media (min-width: 769px) {
+      .toastify {
+        min-width: 400px !important;
+      }
+    }
+
     body {
       margin: 0;
       padding: 0;
@@ -336,7 +350,6 @@
   <!-- Login Screen -->
   <div id="login-screen">
     <div id="login-box">
-      <h2>🎟️ Ticket Scanner</h2>
       <p style="color: rgba(255,255,255,0.7); text-align: center; margin-bottom: 20px;">
         Enter admin password to access scanner
       </p>
@@ -349,10 +362,7 @@
   <!-- Scanner Screen -->
   <div id="scanner-screen">
     <div class="scan-container">
-      <a href="/" class="back-link">← Back to Events</a>
-      
       <div class="scan-header">
-        <h1>🎟️ Ticket Scanner</h1>
         <p>Point camera at QR code to scan tickets</p>
       </div>
 
@@ -562,8 +572,11 @@
       Toastify({
         text: message,
         duration: 3000,
-        gravity: "top",
+        gravity: "bottom",
         position: "center",
+        onClick: function() {
+          // Dismiss on click
+        },
         style: {
           background: backgroundColor,
           color: '#000',
