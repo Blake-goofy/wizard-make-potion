@@ -486,23 +486,21 @@ button:hover {
 
 .event-info p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.95rem;
   line-height: 1.4;
 }
 
 .event-datetime,
 .event-location {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5) !important;
+  font-size: 0.85rem !important;
 }
 
 .event-description {
-  margin-top: 12px;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 1rem;
-  line-height: 1.5;
-  font-weight: 400;
+  margin-top: 12px !important;
+  color: rgba(255, 255, 255, 0.95) !important;
+  font-size: 1.05rem !important;
+  line-height: 1.6 !important;
+  font-weight: 500 !important;
 }
 
 .event-footer {
