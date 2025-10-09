@@ -264,6 +264,10 @@
       background: #5eddd4;
     }
 
+    #toggle-torch.active {
+      background: #fbbf24;
+    }
+
     .controls button:disabled {
       background: #666;
       cursor: not-allowed;
@@ -395,6 +399,7 @@
       </div>
 
       <div class="controls">
+        <button id="toggle-torch" disabled>Flashlight Unavailable</button>
         <button id="reset-stats">Reset Stats</button>
       </div>
     </div>
@@ -447,6 +452,7 @@
     const cameraError = document.getElementById('camera-error');
     const resetBtn = document.getElementById('reset-stats');
     const scanRegion = document.getElementById('scan-region');
+    const torchButton = document.getElementById('toggle-torch');
     
     let scanning = true;
     let stats = {
@@ -457,6 +463,43 @@
     let lastScannedCode = null;
     let lastScanTime = 0;
     const SCAN_COOLDOWN = 3000; // 3 seconds between same code scans
+    let currentStream = null;
+    let torchOn = false;
+
+    function disableTorchButton() {
+      if (!torchButton) {
+        return;
+      }
+      torchButton.disabled = true;
+      torchButton.classList.remove('active');
+      torchButton.textContent = 'Flashlight Unavailable';
+    }
+
+    function setTorchAvailability(stream) {
+      if (!torchButton) {
+        return;
+      }
+
+      const [track] = stream.getVideoTracks();
+      torchOn = false;
+      torchButton.classList.remove('active');
+
+      if (!track || typeof track.getCapabilities !== 'function') {
+        disableTorchButton();
+        return;
+      }
+
+      const capabilities = track.getCapabilities();
+      if (!capabilities || !capabilities.torch) {
+        disableTorchButton();
+        return;
+      }
+
+      torchButton.disabled = false;
+      torchButton.textContent = 'Turn Flashlight On';
+    }
+
+    disableTorchButton();
 
     // Load stats from sessionStorage
     const savedStats = sessionStorage.getItem('scanStats');
@@ -468,6 +511,11 @@
     // Start camera
     async function startCamera() {
       try {
+        if (currentStream) {
+          currentStream.getTracks().forEach(track => track.stop());
+        }
+        currentStream = null;
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { 
             facingMode: 'environment', // Use back camera on mobile
@@ -475,14 +523,18 @@
             height: { ideal: 720 }
           }
         });
+        currentStream = stream;
         video.srcObject = stream;
         video.setAttribute('playsinline', true);
         await video.play();
+        setTorchAvailability(stream);
         requestAnimationFrame(scanFrame);
       } catch (err) {
         console.error('Camera error:', err);
+        currentStream = null;
         cameraError.style.display = 'block';
         document.getElementById('video-container').style.display = 'none';
+        disableTorchButton();
       }
     }
 
@@ -654,6 +706,29 @@
       oscillator.start(startAt);
       oscillator.stop(startAt + duration);
     }
+
+    torchButton?.addEventListener('click', async () => {
+      if (!currentStream) {
+        return;
+      }
+
+      const [track] = currentStream.getVideoTracks();
+      if (!track || typeof track.applyConstraints !== 'function') {
+        disableTorchButton();
+        return;
+      }
+
+      try {
+        torchOn = !torchOn;
+        await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+        torchButton.textContent = torchOn ? 'Turn Flashlight Off' : 'Turn Flashlight On';
+        torchButton.classList.toggle('active', torchOn);
+      } catch (error) {
+        console.error('Torch toggle failed:', error);
+        torchOn = false;
+        disableTorchButton();
+      }
+    });
 
     resetBtn?.addEventListener('click', () => {
       if (confirm('Reset all scan statistics?')) {
