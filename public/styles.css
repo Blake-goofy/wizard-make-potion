@@ -7,10 +7,7 @@
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('images/dj.png');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  background: #17131c;
   color: #ffffff;
   line-height: 1.6;
   min-height: 100vh;
@@ -19,10 +16,7 @@ body {
 /* Landing Page Hero */
 .hero {
   min-height: 100vh;
-  background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('images/dj.png');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  background: #17131c;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -40,7 +34,7 @@ body {
   font-weight: 700;
   margin-bottom: 20px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-  color: #4ecdc4;
+  color: #423257;
 }
 
 .event-details {
@@ -50,7 +44,7 @@ body {
 .event-date {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #4ecdc4;
+  color: #423257;
   margin-bottom: 10px;
 }
 
@@ -77,8 +71,8 @@ body {
 
 .buy-tickets-btn {
   display: inline-block;
-  background: #4ecdc4;
-  color: #000;
+  background: #423257;
+  color: #fff;
   padding: 18px 40px;
   text-decoration: none;
   border-radius: 10px;
@@ -91,7 +85,7 @@ body {
 }
 
 .buy-tickets-btn:hover {
-  background: #5eddd4;
+  background: #533d6a;
 }
 
 /* Purchase Page Styles */
@@ -108,7 +102,7 @@ body {
 
 .back-link {
   display: inline-block;
-  color: #4ecdc4;
+  color: #423257;
   text-decoration: none;
   margin-bottom: 20px;
   font-weight: 500;
@@ -116,11 +110,11 @@ body {
 }
 
 .back-link:hover {
-  color: #26d0ce;
+  color: #533d6a;
 }
 
 .container h1 {
-  color: #4ecdc4;
+  color: #423257;
   margin-bottom: 30px;
   text-align: center;
   font-size: 2.5rem;
@@ -135,7 +129,7 @@ body {
 }
 
 .event-details h2 {
-  color: #4ecdc4;
+  color: #423257;
   margin-bottom: 15px;
   text-align: center;
 }
@@ -192,7 +186,7 @@ body {
 
 .quantity-selector input:focus {
   outline: none;
-  border-color: #4ecdc4;
+  border-color: #423257;
 }
 
 .qty-btn {
@@ -224,8 +218,8 @@ body {
 }
 
 .qty-btn:hover:not(:disabled) {
-  background: rgba(78, 205, 196, 0.2);
-  color: #4ecdc4;
+  background: rgba(66, 50, 87, 0.2);
+  color: #423257;
   box-shadow: none;
   transform: none;
 }
@@ -256,7 +250,7 @@ body {
 .price-line.total-line {
   margin-top: 10px;
   padding-top: 15px;
-  border-top: 2px solid rgba(78, 205, 196, 0.3);
+  border-top: 2px solid rgba(66, 50, 87, 0.3);
   font-size: 1.2rem;
   color: #ffffff;
 }
@@ -285,7 +279,7 @@ body {
 
 .email-input input:focus {
   outline: none;
-  border-color: #4ecdc4;
+  border-color: #423257;
 }
 
 .email-input input::placeholder {
@@ -306,11 +300,11 @@ body {
   --stripe-color-text: #ffffff;
   --stripe-color-background: rgba(255, 255, 255, 0.05);
   --stripe-color-border: rgba(255, 255, 255, 0.2);
-  --stripe-color-focus: #4ecdc4;
+  --stripe-color-focus: #423257;
 }
 
 .StripeElement--focus {
-  border-color: #4ecdc4;
+  border-color: #423257;
   outline: none;
 }
 
@@ -330,8 +324,8 @@ body {
 button {
   width: 100%;
   padding: 16px;
-  background: #4ecdc4;
-  color: #000;
+  background: #423257;
+  color: #fff;
   border: none;
   border-radius: 10px;
   cursor: pointer;
@@ -343,7 +337,7 @@ button {
 }
 
 button:hover {
-  background: #5eddd4;
+  background: #533d6a;
 }
 
 #payment-result {
@@ -464,7 +458,7 @@ button:hover {
 }
 
 .event-card:hover {
-  border-color: #4ecdc4;
+  border-color: #423257;
 }
 
 .event-content {
@@ -472,7 +466,7 @@ button:hover {
 }
 
 .event-card h2 {
-  color: #4ecdc4;
+  color: #423257;
   margin: 0 0 12px 0;
   font-size: 1.5rem;
   line-height: 1.3;
@@ -513,13 +507,13 @@ button:hover {
 
 .event-price {
   font-size: 1.4rem;
-  color: #4ecdc4;
+  color: #423257;
   font-weight: bold;
 }
 
 .buy-btn {
-  background: #4ecdc4;
-  color: #000;
+  background: #423257;
+  color: #fff;
   border: none;
   padding: 10px 30px;
   border-radius: 8px;
@@ -533,7 +527,7 @@ button:hover {
 }
 
 .buy-btn:hover {
-  background: #5eddd4;
+  background: #533d6a;
 }
 
 

@@ -205,7 +205,7 @@
         }
 
         .mini-toggle-switch input:checked + .mini-toggle-slider {
-          background-color: #4ecdc4;
+          background-color: #423257;
         }
 
         .mini-toggle-switch input:checked + .mini-toggle-slider:before {
@@ -230,7 +230,7 @@
         .nav-brand {
           font-size: 1.5rem;
           font-weight: bold;
-          color: #4ecdc4;
+          color: #423257;
           text-decoration: none;
           display: flex;
           align-items: center;
@@ -238,7 +238,7 @@
         }
 
         .nav-brand:hover {
-          color: #3db5ac;
+          color: #533d6a;
         }
 
         .nav-toggle {
@@ -290,13 +290,13 @@
         }
 
         .nav-links a:hover {
-          background: rgba(78, 205, 196, 0.2);
-          color: #4ecdc4;
+          background: rgba(66, 50, 87, 0.2);
+          color: #423257;
         }
 
         .nav-links a.active {
-          background: rgba(78, 205, 196, 0.3);
-          color: #4ecdc4;
+          background: rgba(66, 50, 87, 0.3);
+          color: #423257;
         }
 
         .nav-logout {
@@ -391,7 +391,6 @@
 
           <ul class="nav-links" id="nav-links">
             <li><a href="/" data-page="home">Events</a></li>
-            <li><a href="/about" data-page="about">About</a></li>
             
             ${loggedIn ? `
               <li><a href="/admin" data-page="admin">Event Management</a></li>
