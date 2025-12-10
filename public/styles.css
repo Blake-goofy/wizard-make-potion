@@ -34,7 +34,7 @@ body {
   font-weight: 700;
   margin-bottom: 20px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-  color: #423257;
+  color: #ffffff;
 }
 
 .event-details {
@@ -44,7 +44,7 @@ body {
 .event-date {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #423257;
+  color: #ffffff;
   margin-bottom: 10px;
 }
 
@@ -102,7 +102,7 @@ body {
 
 .back-link {
   display: inline-block;
-  color: #423257;
+  color: #ffffff;
   text-decoration: none;
   margin-bottom: 20px;
   font-weight: 500;
@@ -110,11 +110,11 @@ body {
 }
 
 .back-link:hover {
-  color: #533d6a;
+  color: #cccccc;
 }
 
 .container h1 {
-  color: #423257;
+  color: #ffffff;
   margin-bottom: 30px;
   text-align: center;
   font-size: 2.5rem;
@@ -129,7 +129,7 @@ body {
 }
 
 .event-details h2 {
-  color: #423257;
+  color: #ffffff;
   margin-bottom: 15px;
   text-align: center;
 }
@@ -466,7 +466,7 @@ button:hover {
 }
 
 .event-card h2 {
-  color: #423257;
+  color: #ffffff;
   margin: 0 0 12px 0;
   font-size: 1.5rem;
   line-height: 1.3;
@@ -507,7 +507,7 @@ button:hover {
 
 .event-price {
   font-size: 1.4rem;
-  color: #423257;
+  color: #ffffff;
   font-weight: bold;
 }
 
