@@ -291,12 +291,12 @@
 
         .nav-links a:hover {
           background: rgba(66, 50, 87, 0.2);
-          color: #423257;
+          color: #ffffff;
         }
 
         .nav-links a.active {
           background: rgba(66, 50, 87, 0.3);
-          color: #423257;
+          color: #ffffff;
         }
 
         .nav-logout {
