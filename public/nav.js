@@ -391,6 +391,7 @@
 
           <ul class="nav-links" id="nav-links">
             <li><a href="/" data-page="home">Events</a></li>
+            <li><a href="/contact" data-page="contact">Contact</a></li>
             
             ${loggedIn ? `
               <li><a href="/admin" data-page="admin">Event Management</a></li>
