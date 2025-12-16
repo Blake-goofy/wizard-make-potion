@@ -48,8 +48,12 @@
       fill: white;
     }
 
+    .actions-spacer {
+      height: 70px;
+    }
+
     .page-container {
-      padding-top: 90px;
+      padding-top: 0;
       padding-left: 0;
       padding-right: 0;
       max-width: 100%;
@@ -68,7 +72,7 @@
       transition: all 0.3s ease;
       position: fixed;
       left: 0;
-      top: 90px;
+      top: 130px;
       bottom: 0;
       overflow-y: auto;
       z-index: 800;
@@ -418,10 +422,6 @@
         padding: 10px 15px;
       }
 
-      .page-container {
-        padding-top: 50px;
-      }
-
       .sidebar {
         display: none !important;
       }
@@ -439,8 +439,8 @@
         padding: 10px 15px;
       }
 
-      .page-container {
-        padding-top: 80px;
+      .actions-spacer {
+        height: 60px;
       }
 
       .mobile-table-row > div:last-child {
@@ -518,6 +518,8 @@
       </svg>
     </button>
   </div>
+
+  <div class="actions-spacer"></div>
 
   <div id="sales-section" class="page-container" style="display: none;">
     <div class="content-wrapper">
