@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket Sales - Admin</title>
+  <link rel="icon" type="image/x-icon" href="wizard.ico">
+  <link rel="stylesheet" href="styles.css">
+  <script src="/nav.js"></script>
+  <style>
+    body {
+      background: radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.12), transparent 35%),
+                  radial-gradient(circle at 90% 10%, rgba(16, 185, 129, 0.12), transparent 30%),
+                  #0f0f19;
+      color: #f5f5f7;
+      min-height: 100vh;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .page-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 90px 18px 40px;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    .page-header {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .page-title {
+      font-size: 1.8rem;
+      letter-spacing: -0.01em;
+    }
+
+    .page-subtitle {
+      color: rgba(245, 245, 247, 0.7);
+      font-size: 0.98rem;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+
+    .filters select,
+    .filters input,
+    .filters button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(15, 15, 25, 0.9);
+      color: #f5f5f7;
+      font-size: 0.98rem;
+      transition: border 0.2s ease, background 0.2s ease;
+    }
+
+    .filters select:focus,
+    .filters input:focus {
+      outline: none;
+      border-color: #6d7cff;
+      background: rgba(28, 28, 44, 0.95);
+    }
+
+    .filters button {
+      background: linear-gradient(135deg, #6d7cff, #4cc3ff);
+      color: #0b0b16;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+    }
+
+    .filters button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.95rem;
+      color: rgba(245, 245, 247, 0.8);
+      margin-bottom: 12px;
+    }
+
+    .tickets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 12px;
+    }
+
+    .ticket-card {
+      background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: transform 0.2s ease, border 0.2s ease;
+    }
+
+    .ticket-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(109, 124, 255, 0.4);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .event-name {
+      font-weight: 700;
+      color: #d2d6ff;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .ticket-number {
+      color: rgba(245, 245, 247, 0.75);
+      font-size: 0.95rem;
+      white-space: nowrap;
+    }
+
+    .card-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      font-size: 0.95rem;
+      color: rgba(245, 245, 247, 0.8);
+    }
+
+    .label {
+      color: rgba(245, 245, 247, 0.6);
+      font-size: 0.9rem;
+    }
+
+    .badge {
+      padding: 6px 10px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .badge.used {
+      background: rgba(255, 153, 102, 0.15);
+      color: #ffb685;
+      border: 1px solid rgba(255, 153, 102, 0.4);
+    }
+
+    .badge.unused {
+      background: rgba(82, 196, 147, 0.18);
+      color: #7be3b7;
+      border: 1px solid rgba(82, 196, 147, 0.45);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px 10px;
+      color: rgba(245, 245, 247, 0.6);
+    }
+
+    .loading {
+      color: rgba(245, 245, 247, 0.7);
+      font-size: 0.98rem;
+    }
+
+    .error-text {
+      color: #ff9b9b;
+      font-size: 0.95rem;
+      margin-top: 8px;
+    }
+
+    .login-card {
+      max-width: 420px;
+      margin: 120px auto 0;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 18px;
+      padding: 28px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    .login-card h2 {
+      margin-bottom: 10px;
+    }
+
+    .login-card input {
+      width: 100%;
+      padding: 12px;
+      margin: 14px 0;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(15, 15, 25, 0.9);
+      color: #f5f5f7;
+    }
+
+    .login-card button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #6d7cff, #4cc3ff);
+      color: #0b0b16;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    @media (max-width: 640px) {
+      .page-container {
+        padding-top: 76px;
+      }
+
+      .card-row {
+        grid-template-columns: 1fr;
+      }
+
+      .summary {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="login-section" class="login-card" style="display: none;">
+    <h2>Admin Login</h2>
+    <p style="color: rgba(245, 245, 247, 0.7);">Enter the admin password to view sales</p>
+    <input type="password" id="admin-password" placeholder="Admin Password" onkeypress="if(event.key === 'Enter') authenticate()">
+    <button onclick="authenticate()">Login</button>
+    <div id="login-error" class="error-text" style="display: none;"></div>
+  </div>
+
+  <div id="sales-section" class="page-container" style="display: none;">
+    <div class="panel">
+      <div class="page-header">
+        <div class="page-title">Ticket Sales</div>
+        <div class="page-subtitle">Filter by event or email and see status at a glance.</div>
+      </div>
+
+      <div class="filters">
+        <select id="filter-event">
+          <option value="">All events</option>
+        </select>
+        <input id="filter-email" type="text" placeholder="Filter by email" autocomplete="off">
+        <button id="filter-apply">Refresh</button>
+      </div>
+
+      <div class="summary">
+        <div id="ticket-count">Loading tickets...</div>
+        <div id="active-filters" style="color: rgba(245, 245, 247, 0.65);"></div>
+      </div>
+
+      <div id="tickets-state" class="loading" style="display: none;"></div>
+      <div id="tickets-container" class="tickets-grid"></div>
+    </div>
+  </div>
+
+  <script>
+    let adminPassword = '';
+    let events = [];
+    let loading = false;
+
+    function setLoggedInState() {
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('sales-section').style.display = 'block';
+    }
+
+    function setLoggedOutState(message = '') {
+      adminPassword = '';
+      sessionStorage.removeItem('adminPassword');
+      document.getElementById('sales-section').style.display = 'none';
+      document.getElementById('login-section').style.display = 'block';
+      const loginError = document.getElementById('login-error');
+      if (message) {
+        loginError.textContent = message;
+        loginError.style.display = 'block';
+      } else {
+        loginError.style.display = 'none';
+      }
+    }
+
+    function formatDate(value) {
+      if (!value) return '-';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return value;
+      return d.toLocaleString();
+    }
+
+    function renderTickets(tickets) {
+      const container = document.getElementById('tickets-container');
+      const count = document.getElementById('ticket-count');
+      const state = document.getElementById('tickets-state');
+
+      state.style.display = 'none';
+      container.innerHTML = '';
+
+      count.textContent = `${tickets.length} ticket${tickets.length === 1 ? '' : 's'}`;
+
+      if (!tickets.length) {
+        container.innerHTML = '<div class="empty-state">No tickets match these filters yet.</div>';
+        return;
+      }
+
+      tickets.forEach(ticket => {
+        const usedText = ticket.used ? `Used on ${formatDate(ticket.usedAt)}` : 'Unused';
+        const usedClass = ticket.used ? 'used' : 'unused';
+
+        const card = document.createElement('div');
+        card.className = 'ticket-card';
+        card.innerHTML = `
+          <div class="card-header">
+            <div class="event-name">${ticket.eventName || 'Event'}</div>
+            <div class="ticket-number">Ticket ${ticket.ticketNumber}</div>
+          </div>
+          <div class="card-row">
+            <div class="label">Email</div>
+            <div>${ticket.email}</div>
+          </div>
+          <div class="card-row">
+            <div class="label">Purchase</div>
+            <div>${formatDate(ticket.purchaseDate)}</div>
+          </div>
+          <div class="card-row">
+            <div class="label">Status</div>
+            <div><span class="badge ${usedClass}">${usedText}</span></div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function showLoading(message) {
+      const state = document.getElementById('tickets-state');
+      state.textContent = message;
+      state.style.display = 'block';
+    }
+
+    async function fetchTickets() {
+      if (!adminPassword) return;
+      if (loading) return;
+      loading = true;
+      showLoading('Loading tickets...');
+
+      try {
+        const eventId = document.getElementById('filter-event').value;
+        const email = document.getElementById('filter-email').value.trim();
+
+        const params = new URLSearchParams();
+        if (eventId) params.append('eventId', eventId);
+        if (email) params.append('email', email);
+
+        const activeFilters = [];
+        if (eventId) {
+          const selectedEvent = events.find(e => String(e.id) === String(eventId));
+          if (selectedEvent) {
+            activeFilters.push(selectedEvent.name);
+          }
+        }
+        if (email) {
+          activeFilters.push(`Email: ${email}`);
+        }
+        document.getElementById('active-filters').textContent = activeFilters.length ? activeFilters.join(' | ') : 'No filters applied';
+
+        const response = await fetch(`/api/admin/tickets?${params.toString()}`, {
+          headers: {
+            'X-Admin-Password': adminPassword
+          }
+        });
+
+        if (response.status === 401) {
+          setLoggedOutState('Session expired. Please log in again.');
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to load tickets');
+        }
+
+        const data = await response.json();
+        renderTickets(data.tickets || []);
+      } catch (error) {
+        const state = document.getElementById('tickets-state');
+        state.textContent = error.message || 'Error loading tickets';
+        state.style.display = 'block';
+      } finally {
+        loading = false;
+      }
+    }
+
+    async function loadEvents() {
+      if (!adminPassword) return;
+      try {
+        const response = await fetch('/api/admin/events', {
+          headers: {
+            'X-Admin-Password': adminPassword
+          }
+        });
+
+        if (response.status === 401) {
+          setLoggedOutState('Session expired. Please log in again.');
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to load events');
+        }
+
+        events = await response.json();
+        const select = document.getElementById('filter-event');
+        select.innerHTML = '<option value="">All events</option>';
+
+        events.forEach(event => {
+          const opt = document.createElement('option');
+          opt.value = event.id;
+          opt.textContent = `${event.name} (${event.date})`;
+          select.appendChild(opt);
+        });
+      } catch (error) {
+        const state = document.getElementById('tickets-state');
+        state.textContent = error.message || 'Error loading events';
+        state.style.display = 'block';
+      }
+    }
+
+    async function authenticate() {
+      const passwordInput = document.getElementById('admin-password');
+      const password = passwordInput.value.trim();
+
+      if (!password) {
+        const loginError = document.getElementById('login-error');
+        loginError.textContent = 'Please enter a password.';
+        loginError.style.display = 'block';
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/admin/events', {
+          headers: {
+            'X-Admin-Password': password
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Invalid password.');
+        }
+
+        adminPassword = password;
+        sessionStorage.setItem('adminPassword', password);
+        setLoggedInState();
+
+        if (window.WizardNav) {
+          window.WizardNav.refresh();
+        }
+
+        await loadEvents();
+        await fetchTickets();
+      } catch (error) {
+        const loginError = document.getElementById('login-error');
+        loginError.textContent = error.message || 'Authentication failed.';
+        loginError.style.display = 'block';
+      }
+    }
+
+    function attachHandlers() {
+      document.getElementById('filter-apply').addEventListener('click', fetchTickets);
+      document.getElementById('filter-event').addEventListener('change', fetchTickets);
+      document.getElementById('filter-email').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          fetchTickets();
+        }
+      });
+    }
+
+    window.onload = async () => {
+      attachHandlers();
+      const stored = sessionStorage.getItem('adminPassword');
+      if (stored) {
+        adminPassword = stored;
+        setLoggedInState();
+        if (window.WizardNav) {
+          window.WizardNav.refresh();
+        }
+        await loadEvents();
+        await fetchTickets();
+      } else {
+        setLoggedOutState();
+      }
+    };
+  </script>
+</body>
+</html>

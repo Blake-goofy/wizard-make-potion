@@ -115,15 +115,46 @@ async function requireAuth(c, next) {
 }
 
 // Helper to format event from DB row
+const EVENT_END_BUFFER_HOURS = 4; // keep event visible for late buyers
+
+function buildEventDateTime(dateStr, timeStr) {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+
+  let hours = 0;
+  let minutes = 0;
+
+  if (typeof timeStr === 'string' && timeStr.trim()) {
+    const time = timeStr.trim();
+    // Parse formats like "7:00 PM" or "19:00"
+    const match = time.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
+    if (match) {
+      hours = parseInt(match[1], 10);
+      minutes = parseInt(match[2], 10);
+      const meridiem = match[3];
+      if (meridiem) {
+        const upper = meridiem.toUpperCase();
+        if (upper === 'PM' && hours < 12) hours += 12;
+        if (upper === 'AM' && hours === 12) hours = 0;
+      }
+    }
+  }
+
+  return new Date(year, month - 1, day, hours, minutes, 0, 0);
+}
+
 function formatEvent(row) {
   // Parse date as local date to avoid timezone issues
   const [year, month, day] = row.date.split('-').map(Number);
   const eventDate = new Date(year, month - 1, day);
+  const eventDateTime = buildEventDateTime(row.date, row.time) || eventDate;
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const isPast = eventDate < today;
+  const now = new Date();
+  const bufferMs = EVENT_END_BUFFER_HOURS * 60 * 60 * 1000;
+  const cutoff = new Date(eventDateTime.getTime() + bufferMs);
+  const isPast = cutoff < now;
   
   return {
     id: row.id,
@@ -793,6 +824,61 @@ app.post('/api/admin/login', async (c) => {
   }
 });
 
+// Admin API: List tickets with filters
+app.get('/api/admin/tickets', async (c) => {
+  const password = c.req.header('X-Admin-Password');
+  if (password !== c.env.ADMIN_PASSWORD) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+
+  try {
+    const eventIdParam = c.req.query('eventId');
+    const emailParam = c.req.query('email');
+
+    const params = [];
+    let query = `
+      SELECT id, email, used, used_at, ticket_number, event_name, purchase_date, event_id
+      FROM tickets
+      WHERE 1=1
+    `;
+
+    const eventId = eventIdParam ? parseInt(eventIdParam, 10) : null;
+    if (Number.isFinite(eventId)) {
+      query += ' AND event_id = ?';
+      params.push(eventId);
+    }
+
+    if (emailParam && emailParam.trim()) {
+      query += ' AND email LIKE ?';
+      params.push(`%${emailParam.trim()}%`);
+    }
+
+    query += ' ORDER BY purchase_date DESC LIMIT 500';
+
+    const statement = params.length
+      ? c.env.DB.prepare(query).bind(...params)
+      : c.env.DB.prepare(query);
+
+    const { results } = await statement.all();
+
+    const tickets = (results || []).map(row => ({
+      id: row.id,
+      email: row.email,
+      used: row.used === 1,
+      usedAt: row.used_at,
+      ticketNumber: row.ticket_number,
+      eventName: row.event_name || 'Event',
+      purchaseDate: row.purchase_date,
+      eventId: row.event_id
+    }));
+
+    return c.json({ tickets });
+  } catch (error) {
+    console.error('Error loading tickets:', error);
+    return c.json({ error: 'Failed to load tickets' }, 500);
+  }
+});
+
 // Admin API: Get all events (including inactive)
 app.get('/api/admin/events', async (c) => {
   const password = c.req.header('X-Admin-Password');
@@ -911,6 +997,20 @@ app.delete('/api/admin/events/:id', async (c) => {
   }
 });
 
+// Sales page - serves HTML (auth checked client-side)
+app.get('/sales', async (c) => {
+  if (c.env.ASSETS) {
+    try {
+      const url = new URL(c.req.url);
+      const asset = await c.env.ASSETS.fetch(new URL('/sales.html', url.origin));
+      return asset;
+    } catch (e) {
+      return c.text('Sales page not found', 404);
+    }
+  }
+  return c.text('Sales page not found', 404);
+});
+
 // Admin page - serves HTML (auth checked client-side)
 app.get('/admin', async (c) => {
   if (c.env.ASSETS) {
@@ -1020,6 +1120,9 @@ app.get('*', async (c) => {
       // Handle routes that should serve HTML
       else if (assetPath === '/purchase') {
         assetPath = '/purchase.html';
+      }
+      else if (assetPath === '/sales') {
+        assetPath = '/sales.html';
       }
       
       const asset = await c.env.ASSETS.fetch(new URL(assetPath, url.origin));

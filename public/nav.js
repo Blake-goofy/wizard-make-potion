@@ -395,6 +395,7 @@
             
             ${loggedIn ? `
               <li><a href="/admin" data-page="admin">Event Management</a></li>
+              <li><a href="/sales" data-page="sales">Ticket Sales</a></li>
               <li><a href="/scan" data-page="scan">Scan Tickets</a></li>
             ` : ''}
           </ul>
