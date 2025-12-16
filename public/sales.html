@@ -16,29 +16,30 @@
       right: 0;
       background: #2d1f3d;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 12px 20px;
+      padding: 10px 20px;
       z-index: 900;
       display: flex;
       align-items: center;
-      gap: 15px;
+      gap: 10px;
     }
 
     .action-btn {
-      background: transparent;
+      background: rgba(255, 255, 255, 0.1);
       border: none;
       color: white;
       cursor: pointer;
-      padding: 8px 12px;
+      padding: 10px;
       border-radius: 8px;
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 0.95rem;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
       transition: background 0.2s;
     }
 
     .action-btn:hover {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.15);
     }
 
     .action-btn svg {
@@ -47,31 +48,37 @@
       fill: white;
     }
 
-    .play-btn {
-      margin-left: auto;
-    }
-
     .play-btn-mobile {
       position: fixed;
       top: 15px;
       right: 20px;
-      background: transparent;
+      background: rgba(255, 255, 255, 0.1);
       border: none;
       color: white;
       cursor: pointer;
       padding: 8px;
+      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       z-index: 1000;
       display: none;
     }
 
+    .play-btn-mobile:active {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
     .play-btn-mobile svg {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       fill: white;
     }
 
     .page-container {
-      padding-top: 120px;
+      padding-top: 110px;
       padding-left: 0;
       padding-right: 0;
       max-width: 100%;
@@ -134,9 +141,14 @@
       padding: 10px;
       border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(255, 255, 255, 0.05);
+      background: #1a1a2e;
       color: #ffffff;
       font-size: 0.9rem;
+    }
+
+    .filters select option {
+      background: #1a1a2e;
+      color: white;
     }
 
     .filters select:focus,
@@ -147,10 +159,7 @@
     }
 
     .summary {
-      padding: 15px 20px;
-      font-size: 0.9rem;
-      color: rgba(255, 255, 255, 0.7);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: none;
     }
 
     /* Desktop table */
@@ -459,17 +468,45 @@
       }
 
       .play-btn-mobile {
-        display: block;
+        display: flex;
       }
 
       .tickets-list {
         display: block;
       }
 
-      .summary {
-        padding: 10px 15px;
-        font-size: 0.8rem;
+      .actions-bar {
+        top: 60px;
       }
+
+      .page-container {
+        padding-top: 120px;
+      }
+
+      .mobile-table-row > div:last-child {
+        text-align: center;
+      }
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(83, 61, 106, 0.95);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      z-index: 10000;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
     }
   </style>
 </head>
@@ -514,7 +551,6 @@
       <svg viewBox="0 0 24 24">
         <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
       </svg>
-      <span>Filters</span>
     </button>
     <button class="action-btn play-btn" id="play-btn">
       <svg viewBox="0 0 24 24">
@@ -566,6 +602,8 @@
               <th>Ticket</th>
               <th>Event</th>
               <th>Purchase Date</th>
+              <th>Total Paid</th>
+              <th>Earnings</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -618,12 +656,41 @@
       return d.toLocaleString();
     }
 
+    function showToast(message) {
+      // Remove existing toast if any
+      const existingToast = document.querySelector('.toast');
+      if (existingToast) {
+        existingToast.remove();
+      }
+
+      // Create new toast
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      // Show toast
+      setTimeout(() => {
+        toast.classList.add('show');
+      }, 10);
+
+      // Hide and remove after 3 seconds
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+          toast.remove();
+        }, 300);
+      }, 3000);
+    }
+
     function showModal(ticket) {
       const modal = document.getElementById('modal-overlay');
       const modalBody = document.getElementById('modal-body');
       
       const usedText = ticket.used ? formatDate(ticket.usedAt) : 'Unused';
       const usedClass = ticket.used ? 'used' : 'unused';
+      const totalPaid = ticket.totalPaid || 0;
+      const earnings = totalPaid - (totalPaid * 0.029 + 0.30);
       
       modalBody.innerHTML = `
         <div class="modal-detail">
@@ -641,6 +708,14 @@
         <div class="modal-detail">
           <div class="modal-label">Purchase Date</div>
           <div class="modal-value">${formatDate(ticket.purchaseDate)}</div>
+        </div>
+        <div class="modal-detail">
+          <div class="modal-label">Total Paid</div>
+          <div class="modal-value">$${totalPaid.toFixed(2)}</div>
+        </div>
+        <div class="modal-detail">
+          <div class="modal-label">Earnings (after Stripe fee)</div>
+          <div class="modal-value">$${earnings.toFixed(2)}</div>
         </div>
         <div class="modal-detail">
           <div class="modal-label">Status</div>
@@ -674,21 +749,25 @@
       count.textContent = `${tickets.length} ticket${tickets.length === 1 ? '' : 's'}`;
 
       if (!tickets.length) {
-        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No tickets match these filters yet.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No tickets match these filters yet.</td></tr>';
         mobileBody.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No tickets match these filters yet.</div>';
         return;
       }
 
       tickets.forEach(ticket => {
         const usedClass = ticket.used ? 'used' : 'unused';
+        const totalPaid = ticket.totalPaid || 0;
+        const earnings = totalPaid - (totalPaid * 0.029 + 0.30);
 
         // Desktop table row
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${ticket.email}</td>
-          <td>Ticket ${ticket.ticketNumber}</td>
+          <td>${ticket.ticketNumber}</td>
           <td>${ticket.eventName || 'Event'}</td>
           <td>${formatDate(ticket.purchaseDate)}</td>
+          <td>$${totalPaid.toFixed(2)}</td>
+          <td>$${earnings.toFixed(2)}</td>
           <td><span class="badge ${usedClass}">${ticket.used ? 'Used' : 'Unused'}</span></td>
         `;
         row.addEventListener('click', () => showModal(ticket));
@@ -698,7 +777,7 @@
         const mobileRow = document.createElement('div');
         mobileRow.className = 'mobile-table-row';
         mobileRow.innerHTML = `
-          <div>Ticket ${ticket.ticketNumber}</div>
+          <div>${ticket.ticketNumber}</div>
           <div>${ticket.email}</div>
           <div><span class="badge ${usedClass}">${ticket.used ? 'Used' : 'Unused'}</span></div>
         `;
@@ -754,6 +833,7 @@
         }
 
         renderTickets(filteredTickets);
+        showToast(`Returned ${filteredTickets.length} result${filteredTickets.length === 1 ? '' : 's'}`);
       } catch (error) {
         const state = document.getElementById('tickets-state');
         state.textContent = error.message || 'Error loading tickets';

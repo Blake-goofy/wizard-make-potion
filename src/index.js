@@ -824,7 +824,7 @@ app.get('/api/admin/tickets', async (c) => {
 
     const params = [];
     let query = `
-      SELECT id, email, used, used_at, ticket_number, event_name, purchase_date, event_id
+      SELECT id, email, used, used_at, ticket_number, event_name, purchase_date, event_id, total_paid
       FROM tickets
       WHERE 1=1
     `;
@@ -856,7 +856,8 @@ app.get('/api/admin/tickets', async (c) => {
       ticketNumber: row.ticket_number,
       eventName: row.event_name || 'Event',
       purchaseDate: row.purchase_date,
-      eventId: row.event_id
+      eventId: row.event_id,
+      totalPaid: row.total_paid
     }));
 
     return c.json({ tickets });
