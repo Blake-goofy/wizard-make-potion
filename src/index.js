@@ -135,16 +135,15 @@ function formatEvent(row) {
     if (meridiem === 'PM' && hours !== 12) hours += 12;
     if (meridiem === 'AM' && hours === 12) hours = 0;
     
-    // Create date in UTC to avoid timezone issues
-    eventDateTime = Date.UTC(year, month - 1, day, hours, minutes);
+    eventDateTime = new Date(year, month - 1, day, hours, minutes);
   } else {
     // Default to end of day if parsing fails
-    eventDateTime = Date.UTC(year, month - 1, day, 23, 59);
+    eventDateTime = new Date(year, month - 1, day, 23, 59);
   }
   
   // Add 6-hour buffer after event time (6 hours in milliseconds)
-  const eventEndWithBuffer = eventDateTime + (6 * 60 * 60 * 1000);
-  const now = Date.now();
+  const eventEndWithBuffer = new Date(eventDateTime.getTime() + (6 * 60 * 60 * 1000));
+  const now = new Date();
   const isPast = now > eventEndWithBuffer;
   
   return {
