@@ -8,191 +8,149 @@
   <link rel="stylesheet" href="styles.css">
   <script src="/nav.js"></script>
   <style>
+    /* Actions Bar */
+    .actions-bar {
+      position: fixed;
+      top: 60px;
+      left: 0;
+      right: 0;
+      background: #2d1f3d;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 20px;
+      z-index: 900;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .action-btn {
+      background: transparent;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95rem;
+      transition: background 0.2s;
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .action-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: white;
+    }
+
+    .play-btn {
+      margin-left: auto;
+    }
+
+    .play-btn-mobile {
+      position: fixed;
+      top: 15px;
+      right: 20px;
+      background: transparent;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 8px;
+      z-index: 1000;
+      display: none;
+    }
+
+    .play-btn-mobile svg {
+      width: 20px;
+      height: 20px;
+      fill: white;
+    }
+
     .page-container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 90px 18px 40px;
+      padding-top: 120px;
+      padding-left: 0;
+      padding-right: 0;
+      max-width: 100%;
     }
 
     .content-wrapper {
       display: flex;
-      gap: 20px;
+      gap: 0;
     }
 
     .sidebar {
       width: 280px;
       flex-shrink: 0;
-      transition: width 0.3s ease, margin-left 0.3s ease;
+      background: rgba(255, 255, 255, 0.03);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
+      position: fixed;
+      left: 0;
+      top: 110px;
+      bottom: 0;
+      overflow-y: auto;
+      z-index: 800;
     }
 
     .sidebar.collapsed {
-      width: 0;
-      margin-left: -280px;
+      left: -280px;
     }
 
     .sidebar-panel {
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      padding: 25px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-      position: sticky;
-      top: 100px;
-    }
-
-    .sidebar-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
+      padding: 20px;
     }
 
     .sidebar-title {
-      color: #4ecdc4;
-      font-size: 1.2rem;
+      color: #b399d4;
+      font-size: 1.1rem;
       font-weight: bold;
-    }
-
-    .sidebar-collapse-btn {
-      background: transparent;
-      border: none;
-      color: rgba(255, 255, 255, 0.6);
-      cursor: pointer;
-      font-size: 1.2rem;
-      padding: 5px;
-      transition: color 0.2s;
-    }
-
-    .sidebar-collapse-btn:hover {
-      color: #4ecdc4;
+      margin-bottom: 20px;
     }
 
     .main-content {
       flex: 1;
       min-width: 0;
+      margin-left: 280px;
+      transition: margin-left 0.3s ease;
     }
 
-    .panel {
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      padding: 30px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-    }
-
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 25px;
-    }
-
-    .header-left {
-      flex: 1;
-    }
-
-    .page-title {
-      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      font-size: 2rem;
-      margin-bottom: 5px;
-    }
-
-    .page-subtitle {
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 0.95rem;
-    }
-
-    .filter-toggle-btn {
-      display: none;
-      background: #423257;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .filter-toggle-btn:hover {
-      background: #533d6a;
-    }
-
-    .sidebar-expand-btn {
-      display: none;
-      background: #423257;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: bold;
-      margin-bottom: 20px;
-    }
-
-    .sidebar-expand-btn:hover {
-      background: #533d6a;
-    }
-
-    .sidebar.collapsed + .main-content .sidebar-expand-btn {
-      display: block;
+    .sidebar.collapsed ~ .main-content {
+      margin-left: 0;
     }
 
     .filters {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 15px;
     }
 
     .filters select,
     .filters input {
       width: 100%;
-      padding: 12px;
-      border-radius: 10px;
+      padding: 10px;
+      border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.2);
       background: rgba(255, 255, 255, 0.05);
       color: #ffffff;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
     }
 
     .filters select:focus,
     .filters input:focus {
       outline: none;
-      border-color: #4ecdc4;
-      box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.2);
-    }
-
-    .filters button {
-      background: #423257;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: bold;
-      transition: background 0.2s;
-    }
-
-    .filters button:hover {
-      background: #533d6a;
-    }
-
-    .filters button:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
+      border-color: #b399d4;
+      box-shadow: 0 0 0 2px rgba(179, 153, 212, 0.2);
     }
 
     .summary {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.95rem;
-      color: rgba(255, 255, 255, 0.8);
-      margin-bottom: 20px;
+      padding: 15px 20px;
+      font-size: 0.9rem;
+      color: rgba(255, 255, 255, 0.7);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     /* Desktop table */
@@ -203,85 +161,143 @@
     }
 
     .tickets-table th {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 12px 20px;
       text-align: left;
       font-weight: bold;
-      color: #4ecdc4;
-      border-bottom: 2px solid rgba(78, 205, 196, 0.3);
-    }
-
-    .tickets-table td {
-      padding: 12px;
+      color: #b399d4;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .tickets-table tr:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    /* Mobile list */
-    .tickets-list {
-      display: none;
-    }
-
-    .ticket-row {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      padding: 15px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .ticket-row:hover {
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .ticket-row.expanded {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .ticket-row-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-weight: bold;
-    }
-
-    .ticket-row-details {
-      display: none;
-      margin-top: 15px;
-      padding-top: 15px;
-      border-top: 1px solid rgba(255, 255, 255, 0.2);
-    }
-
-    .ticket-row.expanded .ticket-row-details {
-      display: block;
-    }
-
-    .detail-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
       font-size: 0.9rem;
     }
 
-    .detail-label {
-      color: rgba(255, 255, 255, 0.6);
+    .tickets-table td {
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.95rem;
     }
 
-    .detail-value {
-      color: rgba(255, 255, 255, 0.9);
-      text-align: right;
+    .tickets-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.03);
+      cursor: pointer;
+    }
+
+    /* Mobile table */
+    .tickets-list {
+      display: none;
+      width: 100%;
+    }
+
+    .mobile-table-header {
+      display: grid;
+      grid-template-columns: 80px 1fr 100px;
+      padding: 10px 15px;
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-weight: bold;
+      color: #b399d4;
+      font-size: 0.8rem;
+    }
+
+    .mobile-table-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 100px;
+      padding: 12px 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+      font-size: 0.85rem;
+      align-items: center;
+    }
+
+    .mobile-table-row:active {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .mobile-divider {
+      width: 1px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      margin: 0 10px;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #1a1a2e;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 15px;
+      padding: 25px;
+      max-width: 500px;
+      width: 100%;
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 1.5rem;
+      cursor: pointer;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+
+    .modal-title {
+      color: #b399d4;
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+
+    .modal-detail {
+      margin-bottom: 15px;
+    }
+
+    .modal-label {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 0.85rem;
+      margin-bottom: 5px;
+    }
+
+    .modal-value {
+      color: white;
+      font-size: 0.95rem;
     }
 
     .badge {
       padding: 4px 10px;
       border-radius: 8px;
       font-weight: bold;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       display: inline-block;
     }
 
@@ -292,9 +308,9 @@
     }
 
     .badge.unused {
-      background: rgba(78, 205, 196, 0.2);
-      color: #4ecdc4;
-      border: 1px solid rgba(78, 205, 196, 0.4);
+      background: rgba(82, 196, 147, 0.2);
+      color: #7be3b7;
+      border: 1px solid rgba(82, 196, 147, 0.4);
     }
 
     .empty-state {
@@ -410,53 +426,49 @@
         display: table;
       }
 
-      .filter-toggle-btn {
-        display: none !important;
-      }
-
       .filter-overlay,
       .filter-panel {
         display: none !important;
       }
 
-      .sidebar {
-        display: block !important;
+      .play-btn-mobile {
+        display: none !important;
       }
     }
 
     @media (max-width: 768px) {
-      .page-container {
-        padding-top: 76px;
+      .actions-bar {
+        top: 0;
+        padding: 10px 15px;
       }
 
-      .content-wrapper {
-        flex-direction: column;
+      .page-container {
+        padding-top: 50px;
       }
 
       .sidebar {
         display: none !important;
       }
 
-      .sidebar-expand-btn {
-        display: none !important;
+      .main-content {
+        margin-left: 0 !important;
       }
 
-      .filter-toggle-btn {
+      .play-btn {
+        display: none;
+      }
+
+      .play-btn-mobile {
         display: block;
-      }
-
-      .filters {
-        display: flex;
       }
 
       .tickets-list {
         display: block;
       }
 
-      .page-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
+      .summary {
+        padding: 10px 15px;
+        font-size: 0.8rem;
       }
     }
   </style>
@@ -470,9 +482,10 @@
     <div id="login-error" class="error-text" style="display: none;"></div>
   </div>
 
+  <!-- Mobile filter overlay -->
   <div class="filter-overlay" id="filter-overlay"></div>
   <div class="filter-panel" id="filter-panel">
-    <h3>Filter Tickets</h3>
+    <h3 style="color: #b399d4; margin-bottom: 20px;">Filters</h3>
     <div class="filters">
       <select id="filter-event-mobile">
         <option value="">All events</option>
@@ -483,19 +496,46 @@
         <option value="unused">Unused only</option>
         <option value="used">Used only</option>
       </select>
-      <button id="filter-apply-mobile">Apply Filters</button>
     </div>
   </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-content" id="modal-content">
+      <button class="modal-close" id="modal-close">×</button>
+      <div class="modal-title">Ticket Details</div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Actions Bar -->
+  <div class="actions-bar" id="actions-bar" style="display: none;">
+    <button class="action-btn" id="filters-btn">
+      <svg viewBox="0 0 24 24">
+        <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+      </svg>
+      <span>Filters</span>
+    </button>
+    <button class="action-btn play-btn" id="play-btn">
+      <svg viewBox="0 0 24 24">
+        <path d="M8 5v14l11-7z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Mobile play button -->
+  <button class="play-btn-mobile" id="play-btn-mobile">
+    <svg viewBox="0 0 24 24">
+      <path d="M8 5v14l11-7z"/>
+    </svg>
+  </button>
 
   <div id="sales-section" class="page-container" style="display: none;">
     <div class="content-wrapper">
       <!-- Desktop sidebar -->
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-panel">
-          <div class="sidebar-header">
-            <div class="sidebar-title">Filters</div>
-            <button class="sidebar-collapse-btn" id="sidebar-collapse-btn" title="Collapse sidebar">×</button>
-          </div>
+          <div class="sidebar-title">Filters</div>
           <div class="filters">
             <select id="filter-event">
               <option value="">All events</option>
@@ -506,46 +546,40 @@
               <option value="unused">Unused only</option>
               <option value="used">Used only</option>
             </select>
-            <button id="filter-apply">Apply Filters</button>
           </div>
         </div>
       </aside>
 
       <!-- Main content -->
       <div class="main-content">
-        <button class="sidebar-expand-btn" id="sidebar-expand-btn">Show Filters</button>
+        <div class="summary">
+          <span id="ticket-count">Loading tickets...</span>
+        </div>
+
+        <div id="tickets-state" class="loading" style="display: none;"></div>
         
-        <div class="panel">
-          <div class="page-header">
-            <div class="header-left">
-              <div class="page-title">Ticket Sales</div>
-              <div class="page-subtitle">View and filter all ticket purchases</div>
-            </div>
-            <button class="filter-toggle-btn" id="filter-toggle-btn">Filters</button>
+        <!-- Desktop table -->
+        <table class="tickets-table" id="tickets-table">
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Ticket</th>
+              <th>Event</th>
+              <th>Purchase Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tickets-table-body"></tbody>
+        </table>
+
+        <!-- Mobile list -->
+        <div class="tickets-list" id="tickets-list">
+          <div class="mobile-table-header">
+            <div>Ticket #</div>
+            <div>Email</div>
+            <div>Status</div>
           </div>
-
-          <div class="summary">
-            <div id="ticket-count">Loading tickets...</div>
-          </div>
-
-          <div id="tickets-state" class="loading" style="display: none;"></div>
-          
-          <!-- Desktop table -->
-          <table class="tickets-table" id="tickets-table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Ticket</th>
-                <th>Event</th>
-                <th>Purchase Date</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="tickets-table-body"></tbody>
-          </table>
-
-          <!-- Mobile list -->
-          <div class="tickets-list" id="tickets-list"></div>
+          <div id="mobile-table-body"></div>
         </div>
       </div>
     </div>
@@ -559,12 +593,14 @@
     function setLoggedInState() {
       document.getElementById('login-section').style.display = 'none';
       document.getElementById('sales-section').style.display = 'block';
+      document.getElementById('actions-bar').style.display = 'flex';
     }
 
     function setLoggedOutState(message = '') {
       adminPassword = '';
       sessionStorage.removeItem('adminPassword');
       document.getElementById('sales-section').style.display = 'none';
+      document.getElementById('actions-bar').style.display = 'none';
       document.getElementById('login-section').style.display = 'block';
       const loginError = document.getElementById('login-error');
       if (message) {
@@ -582,26 +618,68 @@
       return d.toLocaleString();
     }
 
+    function showModal(ticket) {
+      const modal = document.getElementById('modal-overlay');
+      const modalBody = document.getElementById('modal-body');
+      
+      const usedText = ticket.used ? formatDate(ticket.usedAt) : 'Unused';
+      const usedClass = ticket.used ? 'used' : 'unused';
+      
+      modalBody.innerHTML = `
+        <div class="modal-detail">
+          <div class="modal-label">Ticket Number</div>
+          <div class="modal-value">Ticket ${ticket.ticketNumber}</div>
+        </div>
+        <div class="modal-detail">
+          <div class="modal-label">Email</div>
+          <div class="modal-value">${ticket.email}</div>
+        </div>
+        <div class="modal-detail">
+          <div class="modal-label">Event</div>
+          <div class="modal-value">${ticket.eventName || 'Event'}</div>
+        </div>
+        <div class="modal-detail">
+          <div class="modal-label">Purchase Date</div>
+          <div class="modal-value">${formatDate(ticket.purchaseDate)}</div>
+        </div>
+        <div class="modal-detail">
+          <div class="modal-label">Status</div>
+          <div class="modal-value"><span class="badge ${usedClass}">${ticket.used ? 'Used' : 'Unused'}</span></div>
+        </div>
+        ${ticket.used ? `
+          <div class="modal-detail">
+            <div class="modal-label">Used At</div>
+            <div class="modal-value">${usedText}</div>
+          </div>
+        ` : ''}
+      `;
+      
+      modal.classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal-overlay').classList.remove('active');
+    }
+
     function renderTickets(tickets) {
       const tableBody = document.getElementById('tickets-table-body');
-      const list = document.getElementById('tickets-list');
+      const mobileBody = document.getElementById('mobile-table-body');
       const count = document.getElementById('ticket-count');
       const state = document.getElementById('tickets-state');
 
       state.style.display = 'none';
       tableBody.innerHTML = '';
-      list.innerHTML = '';
+      mobileBody.innerHTML = '';
 
       count.textContent = `${tickets.length} ticket${tickets.length === 1 ? '' : 's'}`;
 
       if (!tickets.length) {
-        tableBody.innerHTML = '<tr><td colspan="5" class="empty-state">No tickets match these filters yet.</td></tr>';
-        list.innerHTML = '<div class="empty-state">No tickets match these filters yet.</div>';
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No tickets match these filters yet.</td></tr>';
+        mobileBody.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No tickets match these filters yet.</div>';
         return;
       }
 
       tickets.forEach(ticket => {
-        const usedText = ticket.used ? `Used ${formatDate(ticket.usedAt)}` : 'Unused';
         const usedClass = ticket.used ? 'used' : 'unused';
 
         // Desktop table row
@@ -613,37 +691,19 @@
           <td>${formatDate(ticket.purchaseDate)}</td>
           <td><span class="badge ${usedClass}">${ticket.used ? 'Used' : 'Unused'}</span></td>
         `;
+        row.addEventListener('click', () => showModal(ticket));
         tableBody.appendChild(row);
 
-        // Mobile list item
-        const listItem = document.createElement('div');
-        listItem.className = 'ticket-row';
-        listItem.innerHTML = `
-          <div class="ticket-row-header">
-            <span>${ticket.email}</span>
-            <span>Ticket ${ticket.ticketNumber}</span>
-          </div>
-          <div class="ticket-row-details">
-            <div class="detail-row">
-              <span class="detail-label">Event</span>
-              <span class="detail-value">${ticket.eventName || 'Event'}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Purchase Date</span>
-              <span class="detail-value">${formatDate(ticket.purchaseDate)}</span>
-            </div>
-            <div class="detail-row">
-              <span class="detail-label">Status</span>
-              <span class="detail-value"><span class="badge ${usedClass}">${usedText}</span></span>
-            </div>
-          </div>
+        // Mobile row
+        const mobileRow = document.createElement('div');
+        mobileRow.className = 'mobile-table-row';
+        mobileRow.innerHTML = `
+          <div>Ticket ${ticket.ticketNumber}</div>
+          <div>${ticket.email}</div>
+          <div><span class="badge ${usedClass}">${ticket.used ? 'Used' : 'Unused'}</span></div>
         `;
-        
-        listItem.addEventListener('click', () => {
-          listItem.classList.toggle('expanded');
-        });
-        
-        list.appendChild(listItem);
+        mobileRow.addEventListener('click', () => showModal(ticket));
+        mobileBody.appendChild(mobileRow);
       });
     }
 
@@ -815,28 +875,28 @@
     }
 
     function attachHandlers() {
-      // Desktop sidebar toggle
-      document.getElementById('sidebar-collapse-btn').addEventListener('click', toggleSidebar);
-      document.getElementById('sidebar-expand-btn').addEventListener('click', toggleSidebar);
+      // Play buttons
+      document.getElementById('play-btn').addEventListener('click', fetchTickets);
+      document.getElementById('play-btn-mobile').addEventListener('click', fetchTickets);
 
-      // Desktop filters
-      document.getElementById('filter-apply').addEventListener('click', fetchTickets);
-      document.getElementById('filter-event').addEventListener('change', fetchTickets);
-      document.getElementById('filter-status').addEventListener('change', fetchTickets);
-      document.getElementById('filter-email').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          fetchTickets();
+      // Filters button (desktop toggles sidebar, mobile opens panel)
+      document.getElementById('filters-btn').addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          toggleFilterPanel();
+        } else {
+          toggleSidebar();
         }
       });
 
-      // Mobile filters
-      document.getElementById('filter-toggle-btn').addEventListener('click', toggleFilterPanel);
+      // Mobile filter overlay
       document.getElementById('filter-overlay').addEventListener('click', toggleFilterPanel);
-      document.getElementById('filter-apply-mobile').addEventListener('click', () => {
-        syncFilters('mobile');
-        toggleFilterPanel();
-        fetchTickets();
+
+      // Modal
+      document.getElementById('modal-close').addEventListener('click', closeModal);
+      document.getElementById('modal-overlay').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('modal-overlay')) {
+          closeModal();
+        }
       });
 
       // Sync mobile changes to desktop
