@@ -116,15 +116,15 @@ async function requireAuth(c, next) {
 
 // Helper to format event from DB row
 function formatEvent(row) {
-  // Parse date as local date to avoid timezone issues
+  // Parse date components
   const [year, month, day] = row.date.split('-').map(Number);
   const eventDate = new Date(year, month - 1, day);
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
-  // Parse event time and add 4-hour buffer before marking as past
+  // Parse event time and add 6-hour buffer before marking as past
   const timeMatch = row.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  let eventDateTime = new Date(year, month - 1, day, 23, 59); // Default to end of day if parsing fails
+  let eventDateTime;
   
   if (timeMatch) {
     let hours = parseInt(timeMatch[1]);
@@ -135,12 +135,16 @@ function formatEvent(row) {
     if (meridiem === 'PM' && hours !== 12) hours += 12;
     if (meridiem === 'AM' && hours === 12) hours = 0;
     
-    eventDateTime = new Date(year, month - 1, day, hours, minutes);
+    // Create date in UTC to avoid timezone issues
+    eventDateTime = Date.UTC(year, month - 1, day, hours, minutes);
+  } else {
+    // Default to end of day if parsing fails
+    eventDateTime = Date.UTC(year, month - 1, day, 23, 59);
   }
   
-  // Add 6-hour buffer after event time
-  const eventEndWithBuffer = new Date(eventDateTime.getTime() + (6 * 60 * 60 * 1000));
-  const now = new Date();
+  // Add 6-hour buffer after event time (6 hours in milliseconds)
+  const eventEndWithBuffer = eventDateTime + (6 * 60 * 60 * 1000);
+  const now = Date.now();
   const isPast = now > eventEndWithBuffer;
   
   return {

@@ -49,7 +49,7 @@
     }
 
     .page-container {
-      padding-top: 130px;
+      padding-top: 110px;
       padding-left: 0;
       padding-right: 0;
       max-width: 100%;
@@ -68,7 +68,7 @@
       transition: all 0.3s ease;
       position: fixed;
       left: 0;
-      top: 130px;
+      top: 110px;
       bottom: 0;
       overflow-y: auto;
       z-index: 800;
@@ -558,6 +558,7 @@
               <th>Total Paid</th>
               <th>Earnings</th>
               <th>Status</th>
+              <th>Scanned</th>
             </tr>
           </thead>
           <tbody id="tickets-table-body"></tbody>
@@ -702,7 +703,7 @@
       count.textContent = `${tickets.length} ticket${tickets.length === 1 ? '' : 's'}`;
 
       if (!tickets.length) {
-        tableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No tickets match these filters yet.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No tickets match these filters yet.</td></tr>';
         mobileBody.innerHTML = '<div style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">No tickets match these filters yet.</div>';
         return;
       }
@@ -722,6 +723,7 @@
           <td>$${totalPaid.toFixed(2)}</td>
           <td>$${earnings.toFixed(2)}</td>
           <td><span class="badge ${usedClass}">${ticket.used ? 'Used' : 'Unused'}</span></td>
+          <td>${ticket.used ? formatDate(ticket.usedAt) : '-'}</td>
         `;
         row.addEventListener('click', () => showModal(ticket));
         tableBody.appendChild(row);
@@ -823,8 +825,7 @@
         select.innerHTML = '<option value="">All events</option>';
         selectMobile.innerHTML = '<option value="">All events</option>';
 
-        // Find next upcoming event
-        const now = new Date();
+        // Find next upcoming event (use isPast from backend which includes 6-hour buffer)
         let nextEventId = null;
         let closestFutureDate = null;
 
@@ -837,20 +838,20 @@
           const optMobile = opt.cloneNode(true);
           selectMobile.appendChild(optMobile);
 
-          // Check if this event is in the future
-          const eventDate = new Date(event.date + 'T' + (event.time || '00:00'));
-          if (eventDate > now) {
+          // Check if this event is not past (backend includes 6-hour buffer)
+          if (!event.isPast && event.rawDate) {
+            const eventDate = new Date(event.rawDate);
             if (!closestFutureDate || eventDate < closestFutureDate) {
               closestFutureDate = eventDate;
-              nextEventId = event.id;
+              nextEventId = String(event.id);
             }
           }
         });
 
         // Select the next upcoming event by default
         if (nextEventId) {
-          select.value = nextEventId;
-          selectMobile.value = nextEventId;
+          select.value = String(nextEventId);
+          selectMobile.value = String(nextEventId);
         }
       } catch (error) {
         const state = document.getElementById('tickets-state');
