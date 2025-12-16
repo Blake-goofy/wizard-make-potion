@@ -115,46 +115,33 @@ async function requireAuth(c, next) {
 }
 
 // Helper to format event from DB row
-const EVENT_END_BUFFER_HOURS = 4; // keep event visible for late buyers
-
-function buildEventDateTime(dateStr, timeStr) {
-  if (!dateStr) return null;
-  const [year, month, day] = dateStr.split('-').map(Number);
-  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
-
-  let hours = 0;
-  let minutes = 0;
-
-  if (typeof timeStr === 'string' && timeStr.trim()) {
-    const time = timeStr.trim();
-    // Parse formats like "7:00 PM" or "19:00"
-    const match = time.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
-    if (match) {
-      hours = parseInt(match[1], 10);
-      minutes = parseInt(match[2], 10);
-      const meridiem = match[3];
-      if (meridiem) {
-        const upper = meridiem.toUpperCase();
-        if (upper === 'PM' && hours < 12) hours += 12;
-        if (upper === 'AM' && hours === 12) hours = 0;
-      }
-    }
-  }
-
-  return new Date(year, month - 1, day, hours, minutes, 0, 0);
-}
-
 function formatEvent(row) {
   // Parse date as local date to avoid timezone issues
   const [year, month, day] = row.date.split('-').map(Number);
   const eventDate = new Date(year, month - 1, day);
-  const eventDateTime = buildEventDateTime(row.date, row.time) || eventDate;
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  // Parse event time and add 4-hour buffer before marking as past
+  const timeMatch = row.time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  let eventDateTime = new Date(year, month - 1, day, 23, 59); // Default to end of day if parsing fails
+  
+  if (timeMatch) {
+    let hours = parseInt(timeMatch[1]);
+    const minutes = parseInt(timeMatch[2]);
+    const meridiem = timeMatch[3].toUpperCase();
+    
+    // Convert to 24-hour format
+    if (meridiem === 'PM' && hours !== 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+    
+    eventDateTime = new Date(year, month - 1, day, hours, minutes);
+  }
+  
+  // Add 6-hour buffer after event time
+  const eventEndWithBuffer = new Date(eventDateTime.getTime() + (6 * 60 * 60 * 1000));
   const now = new Date();
-  const bufferMs = EVENT_END_BUFFER_HOURS * 60 * 60 * 1000;
-  const cutoff = new Date(eventDateTime.getTime() + bufferMs);
-  const isPast = cutoff < now;
+  const isPast = now > eventEndWithBuffer;
   
   return {
     id: row.id,
