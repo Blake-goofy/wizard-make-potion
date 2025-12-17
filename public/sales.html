@@ -699,19 +699,57 @@
 
     function copyTicketLink(paymentIntentId) {
       const url = `${window.location.origin}/confirmation?payment_intent=${paymentIntentId}`;
-      navigator.clipboard.writeText(url).then(() => {
-        // Visual feedback
-        const btn = event.target;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = 'Link Copied!';
-        btn.style.background = '#4CAF50';
-        setTimeout(() => {
-          btn.innerHTML = originalText;
-          btn.style.background = '#b399d4';
-        }, 2000);
-      }).catch(err => {
-        alert('Failed to copy link. Please try again.');
-      });
+      const btn = event.target;
+      const originalText = btn.innerHTML;
+      
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+          // Visual feedback
+          btn.innerHTML = 'Link Copied!';
+          btn.style.background = '#4CAF50';
+          setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.background = '#b399d4';
+          }, 2000);
+        }).catch(err => {
+          // Fall back to older method
+          fallbackCopyTextToClipboard(url, btn, originalText);
+        });
+      } else {
+        // Use fallback for older browsers
+        fallbackCopyTextToClipboard(url, btn, originalText);
+      }
+    }
+
+    function fallbackCopyTextToClipboard(text, btn, originalText) {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.top = '0';
+      textArea.style.left = '0';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          btn.innerHTML = 'Link Copied!';
+          btn.style.background = '#4CAF50';
+          setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.style.background = '#b399d4';
+          }, 2000);
+        } else {
+          showToast('Failed to copy link. Please try again.');
+        }
+      } catch (err) {
+        showToast('Failed to copy link. Please try again.');
+      }
+      
+      document.body.removeChild(textArea);
     }
 
     function renderTickets(tickets) {
