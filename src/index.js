@@ -575,7 +575,8 @@ async function generateAndSendTickets(env, email, paymentIntentId, quantity = 1,
     // Generate QR code with ticket ID
     const qrCodeDataUrl = await generateQRCode(ticketId);
     
-    // Insert ticket into D1 with event_id reference and pricing info
+    // Insert ticket into D1 with event_id reference and per-ticket pricing info
+    // Divide order-level amounts by quantity to get per-ticket amounts
     await env.DB.prepare(`
       INSERT INTO tickets (
         id, email, purchase_date, payment_intent_id, ticket_number, 
@@ -601,9 +602,9 @@ async function generateAndSendTickets(env, email, paymentIntentId, quantity = 1,
       eventInfo.description,
       eventId,
       pricing.ticketPrice,
-      pricing.subtotal,
-      pricing.salesTax,
-      pricing.total
+      Math.round(pricing.subtotal / quantity * 100) / 100,  // Per-ticket subtotal
+      Math.round(pricing.salesTax / quantity * 100) / 100,  // Per-ticket tax
+      Math.round(pricing.total / quantity * 100) / 100      // Per-ticket total
     ).run();
     
     generatedTickets.push({
@@ -827,7 +828,7 @@ app.get('/api/admin/tickets', async (c) => {
 
     const params = [];
     let query = `
-      SELECT id, email, used, used_at, ticket_number, event_name, purchase_date, event_id, total_paid
+      SELECT id, email, used, used_at, ticket_number, event_name, purchase_date, event_id, total_paid, payment_intent_id
       FROM tickets
       WHERE 1=1
     `;
@@ -860,7 +861,8 @@ app.get('/api/admin/tickets', async (c) => {
       eventName: row.event_name || 'Event',
       purchaseDate: row.purchase_date,
       eventId: row.event_id,
-      totalPaid: row.total_paid
+      totalPaid: row.total_paid,
+      paymentIntentId: row.payment_intent_id
     }));
 
     return c.json({ tickets });
