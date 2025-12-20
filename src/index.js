@@ -360,8 +360,20 @@ app.post('/api/stripe/webhook', async (c) => {
   const sig = c.req.header('stripe-signature');
   const body = await c.req.text();
   
-  const stripeKey = getStripeKey(c, 'secret');
-  const webhookSecret = getStripeKey(c, 'webhook');
+  // Detect test mode from the webhook event itself
+  // Stripe test events have specific ID patterns
+  let isTestMode = false;
+  try {
+    const eventData = JSON.parse(body);
+    // Test events have IDs starting with "evt_00000000000000" or "evt_3" for test mode
+    // Test payment intents start with "pi_" but livemode property is the most reliable
+    isTestMode = eventData.livemode === false;
+  } catch (e) {
+    console.log('Could not parse event body for test mode detection:', e.message);
+  }
+  
+  const stripeKey = isTestMode ? c.env.STRIPE_SECRET_KEY_DEV : c.env.STRIPE_SECRET_KEY;
+  const webhookSecret = isTestMode ? c.env.STRIPE_WEBHOOK_SECRET_DEV : c.env.STRIPE_WEBHOOK_SECRET;
   const stripe = (await import('stripe')).default(stripeKey);
   
   let event;
@@ -369,6 +381,8 @@ app.post('/api/stripe/webhook', async (c) => {
     event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
   } catch (err) {
     console.log(`Webhook signature verification failed.`, err.message);
+    console.log('Detected test mode:', isTestMode);
+    console.log('Using webhook secret:', webhookSecret ? '(configured)' : '(NOT SET)');
     return c.text(`Webhook Error: ${err.message}`, 400);
   }
 
