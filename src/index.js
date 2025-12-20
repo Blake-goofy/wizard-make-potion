@@ -378,7 +378,8 @@ app.post('/api/stripe/webhook', async (c) => {
   
   let event;
   try {
-    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
+    // Use constructEventAsync for Cloudflare Workers (Web Crypto API is async)
+    event = await stripe.webhooks.constructEventAsync(body, sig, webhookSecret);
   } catch (err) {
     console.log(`Webhook signature verification failed.`, err.message);
     console.log('Detected test mode:', isTestMode);
