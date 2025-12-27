@@ -393,6 +393,17 @@ app.post('/api/stripe/webhook', async (c) => {
     const quantity = parseInt(paymentIntent.metadata.quantity) || 1;
     const eventId = parseInt(paymentIntent.metadata.eventId);
     
+    // Check if tickets already exist for this payment intent (idempotency)
+    // This prevents duplicate tickets when Stripe retries webhooks
+    const { results } = await c.env.DB.prepare(
+      'SELECT id FROM tickets WHERE payment_intent_id = ? LIMIT 1'
+    ).bind(paymentIntent.id).all();
+    
+    if (results.length > 0) {
+      console.log(`Tickets already exist for payment intent ${paymentIntent.id}, skipping generation (webhook retry detected)`);
+      return c.json({ received: true, skipped: 'tickets_exist' });
+    }
+    
     // Extract pricing from metadata if available
     const pricingInfo = paymentIntent.metadata.ticketPrice ? {
       ticketPrice: parseFloat(paymentIntent.metadata.ticketPrice),
@@ -583,6 +594,7 @@ async function generateAndSendTickets(env, email, paymentIntentId, quantity = 1,
   }
   
   const generatedTickets = [];
+  let actuallyCreatedCount = 0;  // Track tickets we actually inserted
   
   for (let i = 0; i < quantity; i++) {
     const ticketId = generateUUID();
@@ -592,49 +604,66 @@ async function generateAndSendTickets(env, email, paymentIntentId, quantity = 1,
     
     // Insert ticket into D1 with event_id reference and per-ticket pricing info
     // Divide order-level amounts by quantity to get per-ticket amounts
-    await env.DB.prepare(`
-      INSERT INTO tickets (
-        id, email, purchase_date, payment_intent_id, ticket_number, 
-        total_quantity, used, used_at, qr_code_data_url,
-        event_name, event_date, event_day, event_time, event_address, event_description,
-        event_id, ticket_price, subtotal, sales_tax, total_paid
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      ticketId,
-      email,
-      new Date().toISOString(),
-      paymentIntentId,
-      i + 1,
-      quantity,
-      0,
-      null,
-      qrCodeDataUrl,
-      eventInfo.name,
-      eventInfo.date,
-      eventInfo.day,
-      eventInfo.time,
-      eventInfo.address,
-      eventInfo.description,
-      eventId,
-      pricing.ticketPrice,
-      Math.round(pricing.subtotal / quantity * 100) / 100,  // Per-ticket subtotal
-      Math.round(pricing.salesTax / quantity * 100) / 100,  // Per-ticket tax
-      Math.round(pricing.total / quantity * 100) / 100      // Per-ticket total
-    ).run();
-    
-    generatedTickets.push({
-      id: ticketId,
-      email,
-      ticketNumber: i + 1,
-      totalQuantity: quantity,
-      qrCodeDataUrl
-    });
+    try {
+      await env.DB.prepare(`
+        INSERT INTO tickets (
+          id, email, purchase_date, payment_intent_id, ticket_number, 
+          total_quantity, used, used_at, qr_code_data_url,
+          event_name, event_date, event_day, event_time, event_address, event_description,
+          event_id, ticket_price, subtotal, sales_tax, total_paid
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        ticketId,
+        email,
+        new Date().toISOString(),
+        paymentIntentId,
+        i + 1,
+        quantity,
+        0,
+        null,
+        qrCodeDataUrl,
+        eventInfo.name,
+        eventInfo.date,
+        eventInfo.day,
+        eventInfo.time,
+        eventInfo.address,
+        eventInfo.description,
+        eventId,
+        pricing.ticketPrice,
+        Math.round(pricing.subtotal / quantity * 100) / 100,  // Per-ticket subtotal
+        Math.round(pricing.salesTax / quantity * 100) / 100,  // Per-ticket tax
+        Math.round(pricing.total / quantity * 100) / 100      // Per-ticket total
+      ).run();
+      
+      actuallyCreatedCount++;  // Successfully created
+      generatedTickets.push({
+        id: ticketId,
+        email,
+        ticketNumber: i + 1,
+        totalQuantity: quantity,
+        qrCodeDataUrl
+      });
+    } catch (error) {
+      // Handle unique constraint violation (race condition with concurrent webhooks)
+      if (error.message && error.message.includes('UNIQUE constraint failed')) {
+        console.log(`Ticket ${i + 1} for payment intent ${paymentIntentId} already exists (concurrent webhook detected), skipping`);
+        // Don't add to generatedTickets array - we didn't create it
+        // This prevents sending duplicate emails
+      } else {
+        // Re-throw other errors
+        throw error;
+      }
+    }
   }
   
   // Send email with tickets and pricing info
-  await sendTicketEmail(env, email, generatedTickets, eventInfo, paymentIntentId, pricing);
-  
-  console.log(`Generated ${quantity} tickets for ${email} for event ${eventId}`);
+  // Only send if we actually created NEW tickets (not all were duplicates from concurrent webhooks)
+  if (actuallyCreatedCount > 0) {
+    await sendTicketEmail(env, email, generatedTickets, eventInfo, paymentIntentId, pricing);
+    console.log(`Generated ${actuallyCreatedCount} tickets for ${email} for event ${eventId}`);
+  } else {
+    console.log(`All tickets already existed for ${email} (payment intent ${paymentIntentId}), concurrent webhook detected, no email sent`);
+  }
 }
 
 // Get tickets API endpoint
