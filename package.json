@@ -1,0 +1,36 @@
+{
+  "name": "wizard-make-potion",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @potion/api\" \"npm run dev -w @potion/web\"",
+    "dev:api": "npm run dev -w @potion/api",
+    "dev:web": "npm run dev -w @potion/web",
+    "dev:db": "supabase start",
+    "db:reset": "supabase db reset",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "latest",
+    "@playwright/test": "latest",
+    "@types/node": "latest",
+    "concurrently": "latest",
+    "eslint": "latest",
+    "prettier": "latest",
+    "supabase": "^2.98.2",
+    "tsx": "latest",
+    "typescript": "latest",
+    "typescript-eslint": "latest",
+    "vitest": "latest"
+  }
+}

@@ -1,0 +1,21 @@
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+.vite/
+.env
+.env.*
+!.env.example
+*.log
+playwright-report/
+test-results/
+.DS_Store
+Thumbs.db
+
+# Local reference only. Do not commit the archived implementation.
+wizard-make-potion-archive/
+
+# Supabase local runtime artifacts
+supabase/.branches/
+supabase/.temp/

@@ -1,0 +1,21 @@
+{
+  "name": "@potion/email",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@potion/shared": "*",
+    "qrcode": "^1.5.4",
+    "resend": "^6.12.3"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6"
+  }
+}

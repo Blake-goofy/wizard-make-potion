@@ -1,0 +1,27 @@
+{
+  "name": "@potion/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/cors": "latest",
+    "@potion/db": "*",
+    "@potion/email": "*",
+    "@potion/shared": "*",
+    "dotenv": "latest",
+    "fastify": "latest",
+    "passkit-generator": "^3.5.7",
+    "pg": "latest",
+    "stripe": "^22.1.1",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/pg": "latest"
+  }
+}
