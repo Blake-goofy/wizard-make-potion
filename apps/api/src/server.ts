@@ -1,4 +1,8 @@
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import { ZodError } from 'zod';
 import { createEmailProvider } from '@potion/email';
@@ -17,8 +21,30 @@ import { createEmailQueueService } from './services/emailQueue.js';
 import { createOrderService } from './services/orders.js';
 import { createScannerService } from './services/scanner.js';
 
+function findWebDistDir() {
+  const startDirs = [process.cwd(), dirname(fileURLToPath(import.meta.url))];
+
+  for (const startDir of startDirs) {
+    let currentDir = resolve(startDir);
+
+    while (true) {
+      const candidateDir = join(currentDir, 'apps', 'web', 'dist');
+      const candidateIndex = join(candidateDir, 'index.html');
+
+      if (existsSync(candidateIndex)) return candidateDir;
+
+      const parentDir = dirname(currentDir);
+      if (parentDir === currentDir) break;
+      currentDir = parentDir;
+    }
+  }
+
+  return null;
+}
+
 export async function buildServer(config: AppConfig) {
   const server = Fastify({ logger: true });
+  const webDistDir = findWebDistDir();
 
   server.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
@@ -82,6 +108,22 @@ export async function buildServer(config: AppConfig) {
   await registerScannerRoutes(server, { scanner, auth });
   await registerAdminRoutes(server, { auth, db, emailQueue, scanner });
   await registerEmailRoutes(server, { auth, emailQueue });
+
+  if (webDistDir) {
+    await server.register(fastifyStatic, {
+      root: webDistDir,
+      wildcard: false,
+    });
+
+    server.get('/', async (_request, reply) => reply.sendFile('index.html'));
+    server.get('/*', async (request, reply) => {
+      if (request.url === '/api' || request.url.startsWith('/api/')) {
+        return reply.callNotFound();
+      }
+
+      return reply.sendFile('index.html');
+    });
+  }
 
   server.addHook('onClose', async () => {
     await db.close();
