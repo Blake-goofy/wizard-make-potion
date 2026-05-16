@@ -70,6 +70,7 @@ function readDatabaseUrl(env: Record<string, unknown>, appEnv: AppEnv) {
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_ENV: z.enum(['development', 'production']).optional(),
+  PORT: z.coerce.number().int().positive().optional(),
   API_PORT: z.coerce.number().int().positive().default(8787),
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
   DATABASE_URL_DEV: z.string().optional(),
@@ -100,7 +101,7 @@ export function loadConfig() {
   return {
     nodeEnv: env.NODE_ENV,
     appEnv,
-    apiPort: env.API_PORT,
+    apiPort: env.PORT ?? env.API_PORT,
     webOrigin: env.WEB_ORIGIN,
     databaseUrl: readDatabaseUrl(env, appEnv),
     authSessionSecret: env.AUTH_SESSION_SECRET ?? env.ADMIN_SESSION_SECRET ?? defaultAuthSessionSecret,

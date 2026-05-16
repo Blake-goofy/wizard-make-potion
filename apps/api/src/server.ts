@@ -112,6 +112,7 @@ export async function buildServer(config: AppConfig) {
   if (webDistDir) {
     await server.register(fastifyStatic, {
       root: webDistDir,
+      index: false,
       wildcard: false,
     });
 
