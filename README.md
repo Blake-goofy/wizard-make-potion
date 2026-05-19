@@ -36,6 +36,7 @@ The `wizard-make-potion-archive` folder is intentionally ignored by git and kept
    - `APP_ENV=production` requires `NODE_ENV=production` and uses production provider values from `*_PROD` keys.
    - Provider credentials are explicit per mode; unsuffixed Stripe and Resend keys are ignored.
    - The API uses `DATABASE_URL_DEV` in development and requires `DATABASE_URL_PROD` in production. `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are not consumed by this codebase today.
+   - The web build can use `VITE_API_BASE_URL` when the frontend and API run on different origins in production.
 
 3. Start Supabase locally:
 
@@ -75,6 +76,44 @@ npx --yes localtunnel --port 5173
 - Production deployments should set `NODE_ENV=production`, `APP_ENV=production`, production origins, `DATABASE_URL_PROD`, and production Stripe and Resend credentials.
 - The API rejects `APP_ENV=production` unless `NODE_ENV=production`, and rejects `APP_ENV=development` when `NODE_ENV=production`.
 - Keep secrets in deployment-specific `.env.local` files or secret stores. Do not commit live credentials.
+
+## Railway And Supabase Production Setup
+
+1. Create a Supabase project for production.
+2. In Supabase, open `Connect` and copy a Postgres connection string for your runtime:
+   - Prefer the Supavisor session pooler string as the safe default for a long-running Railway API service.
+   - Use the direct connection string instead if you have verified IPv6 connectivity from Railway and want a direct connection.
+   - Keep SSL enabled. Supabase recommends SSL for Postgres connections.
+3. In Railway, deploy `@potion/api` as one service and `@potion/web` as another.
+   - API build command: `npm run build -w @potion/api`
+   - API start command: `npm run start -w @potion/api`
+   - Web build command: `npm run build -w @potion/web`
+   - Web start command: `npm run preview -w @potion/web -- --host 0.0.0.0 --port $PORT`
+4. Set these environment variables on the Railway API service:
+   - `NODE_ENV=production`
+   - `APP_ENV=production`
+   - `PORT` is injected by Railway and already read by the app. Do not override it unless you have a specific reason.
+   - `WEB_ORIGIN=https://your-web-service-domain`
+   - `DATABASE_URL_PROD=postgresql://...` using the Supabase connection string from step 2
+   - `AUTH_SESSION_SECRET=...`
+   - `EMAIL_PROVIDER`, `EMAIL_FROM_ADDRESS_PROD`, `EMAIL_FROM_NAME_PROD`, `RESEND_API_KEY_PROD`
+   - `STRIPE_SECRET_KEY_PROD`, `STRIPE_PUBLISHABLE_KEY_PROD`, `STRIPE_WEBHOOK_SECRET_PROD`
+5. Set these environment variables on the Railway web service:
+   - `VITE_API_BASE_URL=https://your-api-service-domain`
+6. After linking the repo to your Supabase project, apply the checked-in SQL migrations to production:
+
+   ```powershell
+   supabase link --project-ref your-project-ref
+   npm run db:push
+   ```
+
+7. In Supabase dashboard production settings, review the production checklist items that matter for this app:
+   - Turn on SSL enforcement.
+   - Set network restrictions only after confirming Railway egress requirements.
+   - Use Security Advisor and Performance Advisor.
+   - Use a paid plan or another availability strategy if you cannot tolerate project pausing.
+
+The app does not use the Supabase JavaScript client for production traffic today. Supabase is only the hosted Postgres database for the API.
 
 ## Useful Commands
 

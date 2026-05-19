@@ -14,6 +14,7 @@
     "start": "npm run start -w @potion/api",
     "dev:db": "supabase start",
     "db:reset": "supabase db reset",
+    "db:push": "supabase db push",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "eslint . --max-warnings=0",

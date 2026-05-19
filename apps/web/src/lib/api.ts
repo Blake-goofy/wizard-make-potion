@@ -119,6 +119,22 @@ export type ConfirmationOrderView = {
   tickets: ConfirmationTicketView[];
 };
 
+const apiBaseUrl = resolveApiBaseUrl();
+
+function resolveApiBaseUrl() {
+  const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+
+  if (!configuredBaseUrl) return '';
+
+  return configuredBaseUrl.endsWith('/')
+    ? configuredBaseUrl.slice(0, -1)
+    : configuredBaseUrl;
+}
+
+function buildApiUrl(path: string) {
+  return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
+}
+
 async function getRequestErrorMessage(response: Response) {
   const fallbackMessages: Record<number, string> = {
     400: 'The request could not be completed. Please check your details and try again.',
@@ -159,7 +175,7 @@ async function getRequestErrorMessage(response: Response) {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(buildApiUrl(path), {
     ...init,
     headers: {
       'Content-Type': 'application/json',
