@@ -29,7 +29,7 @@
     "concurrently": "latest",
     "eslint": "latest",
     "prettier": "latest",
-    "supabase": "^2.98.2",
+    "supabase": "^2.100.1",
     "tsx": "latest",
     "typescript": "latest",
     "typescript-eslint": "latest",
