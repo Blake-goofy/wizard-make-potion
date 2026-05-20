@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import LoadingOverlay from '../components/LoadingOverlay';
+import ToastRegion from '../components/ToastRegion';
+import { useToast } from '../hooks/useToast';
 import { getAdminTickets, getScannerEvents, type AdminTicketView, type EventView } from '../lib/api';
 
 type SalesPageProps = {
@@ -52,6 +54,17 @@ export default function SalesPage({ token }: SalesPageProps) {
   const [openFilter, setOpenFilter] = useState<FilterKey>(null);
   const emailFilterRef = useRef<HTMLDivElement | null>(null);
   const statusFilterRef = useRef<HTMLDivElement | null>(null);
+  const {
+    toastMessage,
+    toastTone,
+    toastVersion,
+    isToastClosing,
+    showToast,
+    dismissToast,
+    handleToastTouchStart,
+    handleToastTouchEnd,
+    handleToastTouchCancel,
+  } = useToast();
 
   useEffect(() => {
     if (!token) return;
@@ -76,7 +89,8 @@ export default function SalesPage({ token }: SalesPageProps) {
         if (!isCurrent) return;
         setEvents([]);
         setSelectedEventId('');
-        setMessage(error instanceof Error ? error.message : 'Could not load events for ticket sales.');
+        setMessage('We could not load ticket sales right now.');
+        showToast(error instanceof Error ? error.message : 'Could not load events for ticket sales.', 'error');
       })
       .finally(() => {
         if (isCurrent) setIsLoadingEvents(false);
@@ -167,7 +181,8 @@ export default function SalesPage({ token }: SalesPageProps) {
       setTickets(result.tickets);
       setMessage(result.tickets.length ? '' : 'No ticket records found yet.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not load purchased tickets.');
+      setMessage('We could not load purchased tickets right now.');
+      showToast(error instanceof Error ? error.message : 'Could not load purchased tickets.', 'error');
     } finally {
       setIsLoadingTickets(false);
     }
@@ -198,6 +213,16 @@ export default function SalesPage({ token }: SalesPageProps) {
 
   return (
     <>
+    <ToastRegion
+      message={toastMessage}
+      tone={toastTone}
+      version={toastVersion}
+      isClosing={isToastClosing}
+      onDismiss={dismissToast}
+      onTouchStart={handleToastTouchStart}
+      onTouchEnd={handleToastTouchEnd}
+      onTouchCancel={handleToastTouchCancel}
+    />
     <section className="ticket-sales-page">
       {message ? <p className="status-text">{message}</p> : null}
       <div className="ticket-sales-toolbar">

@@ -3,6 +3,8 @@ import type { SessionUser } from '@potion/shared';
 import QRCode from 'qrcode';
 import ActionDialog from '../components/ActionDialog';
 import LoadingOverlay from '../components/LoadingOverlay';
+import ToastRegion from '../components/ToastRegion';
+import { useToast } from '../hooks/useToast';
 import { getOrderConfirmation, updateTicketUsage, type ConfirmationOrderView } from '../lib/api';
 
 type ConfirmationPageProps = {
@@ -95,7 +97,6 @@ function TicketQrCode({ scanToken }: { scanToken: string }) {
 export default function ConfirmationPage({ orderId, token, user }: ConfirmationPageProps) {
   const [order, setOrder] = useState<ConfirmationOrderView | null>(null);
   const [message, setMessage] = useState('Loading purchased tickets.');
-  const [actionMessage, setActionMessage] = useState('');
   const [pendingUsageAction, setPendingUsageAction] = useState<{
     ticket: ConfirmationOrderView['tickets'][number];
     nextUsed: boolean;
@@ -103,6 +104,17 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
   const [isLoadingOrder, setIsLoadingOrder] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const ticketScrollerRef = useRef<HTMLDivElement | null>(null);
+  const {
+    toastMessage,
+    toastTone,
+    toastVersion,
+    isToastClosing,
+    showToast,
+    dismissToast,
+    handleToastTouchStart,
+    handleToastTouchEnd,
+    handleToastTouchCancel,
+  } = useToast();
 
   const canManageTicketUsage = Boolean(token && (user?.role === 'admin' || user?.role === 'scanner'));
 
@@ -112,7 +124,6 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
     void getOrderConfirmation(orderId)
       .then((result) => {
         setOrder(result.order);
-        setActionMessage('');
         setMessage(
           result.order.status === 'pending'
             ? 'Payment is processing. Tickets will appear here once Stripe confirms the order.'
@@ -121,8 +132,8 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
       })
       .catch((error) => {
         setOrder(null);
-        setActionMessage('');
-        setMessage(error instanceof Error ? error.message : 'Could not load purchased tickets.');
+        setMessage('We could not load your purchased tickets right now.');
+        showToast(error instanceof Error ? error.message : 'Could not load purchased tickets.', 'error');
       })
       .finally(() => {
         setIsLoadingOrder(false);
@@ -136,7 +147,6 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
       void getOrderConfirmation(orderId)
         .then((result) => {
           setOrder(result.order);
-          setActionMessage('');
           setMessage(
             result.order.status === 'pending'
               ? 'Payment is processing. Tickets will appear here once Stripe confirms the order.'
@@ -144,7 +154,7 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
           );
         })
         .catch((error) => {
-          setMessage(error instanceof Error ? error.message : 'Could not load purchased tickets.');
+          showToast(error instanceof Error ? error.message : 'Could not load purchased tickets.', 'error');
         });
     }, 3000);
 
@@ -155,7 +165,6 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
 
   function openTicketUsageDialog(ticket: ConfirmationOrderView['tickets'][number]) {
     setPendingUsageAction({ ticket, nextUsed: !ticket.usedAt });
-    setActionMessage('');
   }
 
   async function handleConfirmTicketUsage() {
@@ -181,10 +190,9 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
           ),
         };
       });
-      setActionMessage('');
       setPendingUsageAction(null);
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : 'Could not update ticket status.');
+      showToast(error instanceof Error ? error.message : 'Could not update ticket status.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -192,6 +200,16 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
 
   return (
     <>
+      <ToastRegion
+        message={toastMessage}
+        tone={toastTone}
+        version={toastVersion}
+        isClosing={isToastClosing}
+        onDismiss={dismissToast}
+        onTouchStart={handleToastTouchStart}
+        onTouchEnd={handleToastTouchEnd}
+        onTouchCancel={handleToastTouchCancel}
+      />
       <section className="content-panel confirmation-page">
         {order ? (
           <>
@@ -206,7 +224,6 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
                 <CopyableAddress address={order.eventAddress} />
               </div>
               {message ? <p className="status-text">{message}</p> : null}
-              {actionMessage ? <p className="status-text">{actionMessage}</p> : null}
             </div>
             {order.tickets.length ? (
               <div className="confirmation-ticket-section">

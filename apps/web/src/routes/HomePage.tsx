@@ -2,6 +2,8 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import type { SessionUser } from '@potion/shared';
 import ButtonArrowIcon from '../components/ButtonArrowIcon';
 import LoadingOverlay from '../components/LoadingOverlay';
+import ToastRegion from '../components/ToastRegion';
+import { useToast } from '../hooks/useToast';
 import { createStripeCheckout, type DevOrderResult, type EventView, getActiveEvent } from '../lib/api';
 
 function formatCurrency(cents: number) {
@@ -21,6 +23,17 @@ export function HomePage({ user }: HomePageProps) {
   const [isLoadingEvent, setIsLoadingEvent] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const checkoutAttemptIdRef = useRef<string | null>(null);
+  const {
+    toastMessage,
+    toastTone,
+    toastVersion,
+    isToastClosing,
+    showToast,
+    dismissToast,
+    handleToastTouchStart,
+    handleToastTouchEnd,
+    handleToastTouchCancel,
+  } = useToast();
 
   useEffect(() => {
     let isCurrent = true;
@@ -36,7 +49,8 @@ export function HomePage({ user }: HomePageProps) {
       .catch((error) => {
         if (!isCurrent) return;
         setEvent(null);
-        setStatus(error instanceof Error ? error.message : 'Could not load the active event.');
+        setStatus('We could not load the active event right now.');
+        showToast(error instanceof Error ? error.message : 'Could not load the active event.', 'error');
       })
       .finally(() => {
         if (isCurrent) setIsLoadingEvent(false);
@@ -64,7 +78,7 @@ export function HomePage({ user }: HomePageProps) {
       const result = await createStripeCheckout({ eventId: event.id, customerEmail: email, quantity }, checkoutAttemptId);
       window.location.assign(result.checkoutUrl);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not open Stripe checkout.');
+      showToast(error instanceof Error ? error.message : 'Could not open Stripe checkout.', 'error');
       checkoutAttemptIdRef.current = null;
       setIsSubmitting(false);
     }
@@ -80,6 +94,16 @@ export function HomePage({ user }: HomePageProps) {
   if (!event) {
     return (
       <>
+        <ToastRegion
+          message={toastMessage}
+          tone={toastTone}
+          version={toastVersion}
+          isClosing={isToastClosing}
+          onDismiss={dismissToast}
+          onTouchStart={handleToastTouchStart}
+          onTouchEnd={handleToastTouchEnd}
+          onTouchCancel={handleToastTouchCancel}
+        />
         <section className="content-panel loading-page-shell">
           <p className="status-text">{status || 'No active event is configured yet.'}</p>
         </section>
@@ -98,6 +122,16 @@ export function HomePage({ user }: HomePageProps) {
 
   return (
     <>
+    <ToastRegion
+      message={toastMessage}
+      tone={toastTone}
+      version={toastVersion}
+      isClosing={isToastClosing}
+      onDismiss={dismissToast}
+      onTouchStart={handleToastTouchStart}
+      onTouchEnd={handleToastTouchEnd}
+      onTouchCancel={handleToastTouchCancel}
+    />
     <section className="purchase-layout">
       <div className="event-summary">
         <h1>{event.name}</h1>
@@ -157,7 +191,6 @@ export function HomePage({ user }: HomePageProps) {
               </article>
             ))}
           </div>
-          {status ? <p className="status-text">{status}</p> : null}
         </div>
       ) : (
         <form className="purchase-form" onSubmit={handleSubmit}>
@@ -184,7 +217,6 @@ export function HomePage({ user }: HomePageProps) {
             <span>{isSubmitting ? 'Opening Stripe' : 'Pay With Stripe'}</span>
             {!isSubmitting ? <ButtonArrowIcon /> : null}
           </button>
-          {!isSubmitting && status ? <p className="status-text">{status}</p> : null}
         </form>
       )}
     </section>

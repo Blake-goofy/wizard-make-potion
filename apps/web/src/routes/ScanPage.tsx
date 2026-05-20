@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { ScanEventAttendance, ScanTicketResult, SessionUser } from '@potion/shared';
 import ActionDialog from '../components/ActionDialog';
 import LoadingOverlay from '../components/LoadingOverlay';
+import ToastRegion from '../components/ToastRegion';
+import { useToast } from '../hooks/useToast';
 import { getScannerAttendance, getScannerEvents, scanTicket, updateTicketUsage, type EventView } from '../lib/api';
 import { useQrScanner } from '../hooks/useQrScanner';
 
@@ -135,12 +137,22 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
   const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning'>('idle');
   const [notice, setNotice] = useState<ScanNotice | null>(null);
-  const [actionMessage, setActionMessage] = useState('');
   const [pendingUsageAction, setPendingUsageAction] = useState<{
     ticket: UsageActionTicket;
     nextUsed: boolean;
   } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    toastMessage,
+    toastTone,
+    toastVersion,
+    isToastClosing,
+    showToast,
+    dismissToast,
+    handleToastTouchStart,
+    handleToastTouchEnd,
+    handleToastTouchCancel,
+  } = useToast();
   const scanner = useQrScanner({ onScan: handleScan, cooldownMs: 3000 });
   const scannedTicket = scanResult?.ticket ?? null;
   const attendance = scanResult?.attendance ?? lastAttendance;
@@ -203,7 +215,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
       })
       .catch((error) => {
         if (!isCurrent) return;
-        setActionMessage(error instanceof Error ? error.message : 'Could not load events for scanning.');
+        showToast(error instanceof Error ? error.message : 'Could not load events for scanning.', 'error');
       })
       .finally(() => {
         if (isCurrent) setIsLoadingEvents(false);
@@ -231,7 +243,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
       .catch((error) => {
         if (!isCurrent) return;
         setLastAttendance(null);
-        setActionMessage(error instanceof Error ? error.message : 'Could not load event attendance.');
+        showToast(error instanceof Error ? error.message : 'Could not load event attendance.', 'error');
       })
       .finally(() => {
         if (isCurrent) setIsLoadingAttendance(false);
@@ -254,7 +266,6 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
     }
 
     setScanStatus('scanning');
-    setActionMessage('');
 
     try {
       const result = await scanTicket({ scanToken, eventId: selectedEventId, scannerLabel: user?.email ?? 'local-scanner' }, token);
@@ -268,7 +279,6 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
 
   function openUsageDialog(ticket: UsageActionTicket) {
     setPendingUsageAction({ ticket, nextUsed: !ticket.usedAt });
-    setActionMessage('');
   }
 
   async function handleConfirmUsageAction() {
@@ -291,10 +301,9 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
         };
       });
       setLastAttendance(result.attendance);
-      setActionMessage('');
       setPendingUsageAction(null);
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : 'Could not update ticket usage.');
+      showToast(error instanceof Error ? error.message : 'Could not update ticket usage.', 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -309,6 +318,16 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
 
   return (
     <>
+      <ToastRegion
+        message={toastMessage}
+        tone={toastTone}
+        version={toastVersion}
+        isClosing={isToastClosing}
+        onDismiss={dismissToast}
+        onTouchStart={handleToastTouchStart}
+        onTouchEnd={handleToastTouchEnd}
+        onTouchCancel={handleToastTouchCancel}
+      />
       <section className="scanner-layout">
         {isScanPending ? (
           <div className="scan-notice scan-notice-scanning" role="status" aria-live="polite" aria-label="Checking ticket">
@@ -373,7 +392,6 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
                 Ticket {scannedTicket.ticketNumber} for {scannedTicket.customerEmail}
               </p>
             ) : null}
-            {actionMessage ? <p className="status-text">{actionMessage}</p> : null}
           </div>
           <div className="scan-attendance-card" aria-label="Event attendance scan count">
             <label className="scan-attendance-select">
@@ -385,7 +403,6 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
                   setSelectedEventId(event.target.value);
                   setScanResult(null);
                   setNotice(null);
-                  setActionMessage('');
                 }}
               >
                 {events.length === 0 ? <option value="">No events</option> : null}

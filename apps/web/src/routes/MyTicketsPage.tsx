@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import LoadingOverlay from '../components/LoadingOverlay';
+import ToastRegion from '../components/ToastRegion';
+import { useToast } from '../hooks/useToast';
 import { getAccountOrders, type AccountOrderView } from '../lib/api';
 
 type MyTicketsPageProps = {
@@ -22,6 +24,17 @@ export default function MyTicketsPage({ token }: MyTicketsPageProps) {
   const [orders, setOrders] = useState<AccountOrderView[]>([]);
   const [message, setMessage] = useState('Loading tickets.');
   const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+  const {
+    toastMessage,
+    toastTone,
+    toastVersion,
+    isToastClosing,
+    showToast,
+    dismissToast,
+    handleToastTouchStart,
+    handleToastTouchEnd,
+    handleToastTouchCancel,
+  } = useToast();
 
   useEffect(() => {
     if (!token) return;
@@ -38,7 +51,8 @@ export default function MyTicketsPage({ token }: MyTicketsPageProps) {
       })
       .catch((error) => {
         if (!isCurrent) return;
-        setMessage(error instanceof Error ? error.message : 'Could not load tickets.');
+        setMessage('We could not load your tickets right now.');
+        showToast(error instanceof Error ? error.message : 'Could not load tickets.', 'error');
       })
       .finally(() => {
         if (isCurrent) setIsLoadingOrders(false);
@@ -66,6 +80,16 @@ export default function MyTicketsPage({ token }: MyTicketsPageProps) {
 
   return (
     <>
+    <ToastRegion
+      message={toastMessage}
+      tone={toastTone}
+      version={toastVersion}
+      isClosing={isToastClosing}
+      onDismiss={dismissToast}
+      onTouchStart={handleToastTouchStart}
+      onTouchEnd={handleToastTouchEnd}
+      onTouchCancel={handleToastTouchCancel}
+    />
     <section className="account-tickets-page">
       <p className="status-text">Click a purchase record to view your ticket QR code.</p>
       <div className="account-tickets-table-shell">
