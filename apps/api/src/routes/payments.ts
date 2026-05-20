@@ -1,11 +1,12 @@
-import { randomUUID } from 'node:crypto';
-import type { FastifyInstance } from 'fastify';
+import { createHmac } from 'node:crypto';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import Stripe from 'stripe';
 import { createOrderInputSchema } from '@potion/shared';
 import type { AppConfig } from '../config.js';
 import type { OrderService } from '../services/orders.js';
 
 const stripeCheckoutUnavailableMessage = 'Could not open Stripe checkout. Please try again.';
+const idempotencyKeyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type HttpError = Error & { statusCode: number; expose?: boolean };
 
 function createHttpError(message: string, statusCode: number, options?: { cause?: unknown; expose?: boolean }) {
@@ -28,15 +29,39 @@ function getStripe(config: AppConfig) {
   return new Stripe(config.stripeSecretKey);
 }
 
+function formatUuid(bytes: Buffer) {
+  const hex = bytes.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function createCheckoutOrderId(config: AppConfig, idempotencyKey: string) {
+  const bytes = Buffer.from(createHmac('sha256', config.authSessionSecret).update(`stripe-checkout:${idempotencyKey}`).digest().subarray(0, 16));
+  bytes.writeUInt8((bytes.readUInt8(6) & 0x0f) | 0x40, 6);
+  bytes.writeUInt8((bytes.readUInt8(8) & 0x3f) | 0x80, 8);
+  return formatUuid(bytes);
+}
+
+function readCheckoutIdempotencyKey(request: FastifyRequest) {
+  const header = request.headers['idempotency-key'];
+  const value = Array.isArray(header) ? header[0] : header;
+
+  if (typeof value !== 'string' || !idempotencyKeyPattern.test(value)) {
+    throw createHttpError('Checkout idempotency key is required.', 400, { expose: true });
+  }
+
+  return value.toLowerCase();
+}
+
 export async function registerPaymentRoutes(
   server: FastifyInstance,
   deps: { config: AppConfig; orders: OrderService },
 ) {
   server.post('/api/payments/stripe-checkout', async (request, reply) => {
     const input = createOrderInputSchema.parse(request.body);
+    const checkoutIdempotencyKey = readCheckoutIdempotencyKey(request);
     const stripe = getStripe(deps.config);
     const { event, quote } = await deps.orders.quoteOrder(input);
-    const orderId = randomUUID();
+    const orderId = createCheckoutOrderId(deps.config, checkoutIdempotencyKey);
     const metadata = {
       orderId,
       eventId: input.eventId,
@@ -80,7 +105,7 @@ export async function registerPaymentRoutes(
         payment_intent_data: { metadata },
         success_url: `${deps.config.webOrigin}/?order=${orderId}`,
         cancel_url: deps.config.webOrigin,
-      });
+      }, { idempotencyKey: `stripe-checkout:${checkoutIdempotencyKey}` });
     } catch (error) {
       throw createStripeCheckoutError(error);
     }
@@ -94,6 +119,7 @@ export async function registerPaymentRoutes(
       input,
       quote,
       providerReference: session.id,
+      checkoutIdempotencyKey,
     });
 
     return reply.code(201).send({ orderId, checkoutUrl: session.url });

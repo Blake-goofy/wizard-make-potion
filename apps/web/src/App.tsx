@@ -11,9 +11,8 @@ const MyTicketsPage = lazy(() => import('./routes/MyTicketsPage'));
 const AuthPage = lazy(() => import('./routes/AuthPage'));
 const ConfirmationPage = lazy(() => import('./routes/ConfirmationPage'));
 const ScanPage = lazy(() => import('./routes/ScanPage'));
-const EmailOutboxPage = lazy(() => import('./routes/EmailOutboxPage'));
 
-type RouteKey = 'home' | 'myTickets' | 'account' | 'auth' | 'scan' | 'sales' | 'email' | 'confirmation';
+type RouteKey = 'home' | 'myTickets' | 'account' | 'auth' | 'scan' | 'sales' | 'confirmation';
 
 const sessionTokenKey = 'sessionToken';
 const routeHashByKey: Record<Exclude<RouteKey, 'confirmation'>, string> = {
@@ -23,7 +22,6 @@ const routeHashByKey: Record<Exclude<RouteKey, 'confirmation'>, string> = {
   auth: 'sign-in',
   scan: 'scan',
   sales: 'sales',
-  email: 'email-outbox',
 };
 const routeKeyByHash: Record<string, Exclude<RouteKey, 'confirmation'>> = {
   '': 'home',
@@ -36,7 +34,6 @@ const routeKeyByHash: Record<string, Exclude<RouteKey, 'confirmation'>> = {
   scanner: 'scan',
   sales: 'sales',
   'ticket-sales': 'sales',
-  'email-outbox': 'email',
 };
 
 function getConfirmationOrderIdFromLocation() {
@@ -83,7 +80,6 @@ function getRouteTitle(route: RouteKey) {
   if (route === 'auth') return 'Sign In';
   if (route === 'scan') return 'Scan Tickets';
   if (route === 'sales') return 'Ticket Sales';
-  if (route === 'email') return 'Email Outbox';
   if (route === 'confirmation') return 'Order Confirmation';
   return 'Wizard Make Potion';
 }
@@ -195,15 +191,6 @@ function SignInIcon() {
   );
 }
 
-function EmailIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
-      <path d="m5 7 7 6 7-6" />
-    </svg>
-  );
-}
-
 export function App() {
   const initialConfirmationOrderId = getConfirmationOrderIdFromLocation();
   const initialToken = localStorage.getItem(sessionTokenKey) ?? '';
@@ -266,37 +253,18 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (!accountOpen) return;
-
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (accountShellRef.current?.contains(target)) return;
-      setAccountOpen(false);
-    }
-
-    window.addEventListener('pointerdown', handlePointerDown);
-
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown);
-    };
-  }, [accountOpen]);
-
-  useEffect(() => {
     if (isCheckingSession) return;
 
     if (route === 'scan' && !isScanner) {
       setRouteAndSyncUrl(user ? 'myTickets' : 'home');
     } else if (route === 'sales' && !canViewTicketSales) {
       setRouteAndSyncUrl('home');
-    } else if (route === 'email' && !isAdmin) {
-      setRouteAndSyncUrl('home');
     } else if (route === 'account' && !user) {
       setRouteAndSyncUrl('auth');
     } else if (route === 'myTickets' && !user) {
       setRouteAndSyncUrl('auth');
     }
-  }, [canViewTicketSales, isAdmin, isCheckingSession, isScanner, route, user]);
+  }, [canViewTicketSales, isCheckingSession, isScanner, route, user]);
 
   const currentView = useMemo(() => {
     if (route === 'auth') return <AuthPage onSession={handleSession} />;
@@ -306,7 +274,6 @@ export function App() {
     if (route === 'myTickets') return token ? <MyTicketsPage token={token} /> : <AuthPage onSession={handleSession} />;
     if (route === 'scan') return <ScanPage token={token} user={user} onViewOrder={openConfirmationOrder} />;
     if (route === 'sales') return <SalesPage token={token} />;
-    if (route === 'email') return <EmailOutboxPage token={token} />;
     if (route === 'confirmation') {
       return confirmationOrderId ? <ConfirmationPage orderId={confirmationOrderId} token={token} user={user} /> : <HomePage user={user} />;
     }
@@ -449,6 +416,7 @@ export function App() {
           ) : null}
         </div>
       </header>
+      {user && accountOpen ? <button className="drawer-backdrop" type="button" aria-label="Close account menu" onClick={() => setAccountOpen(false)} /> : null}
       {menuOpen ? <button className="drawer-backdrop" type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} /> : null}
       <aside className={`side-drawer${menuOpen ? ' is-open' : ''}`} aria-label="Primary menu" aria-hidden={!menuOpen}>
         <div className="drawer-header">
@@ -478,11 +446,6 @@ export function App() {
           {canViewTicketSales ? (
             <DrawerItem active={route === 'sales'} icon={<SalesIcon />} onClick={() => navigate('sales')}>
               Sales
-            </DrawerItem>
-          ) : null}
-          {isAdmin ? (
-            <DrawerItem active={route === 'email'} icon={<EmailIcon />} onClick={() => navigate('email')}>
-              Email Outbox
             </DrawerItem>
           ) : null}
         </nav>

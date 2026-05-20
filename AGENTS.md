@@ -10,7 +10,7 @@ This repo is the primary Wizard Make Potion codebase. Use environment configurat
 - Use Supabase local migrations as the database source of truth.
 - The browser should call `apps/api` for ticket, order, scanner, and admin operations.
 - Shared request and response contracts live in `packages/shared`.
-- Email provider logic lives in `packages/email`; default local development uses the local outbox.
+- Email provider logic lives in `packages/email`; delivery goes through Resend.
 
 ## UI Rules
 

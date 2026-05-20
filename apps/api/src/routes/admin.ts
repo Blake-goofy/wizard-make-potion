@@ -9,9 +9,18 @@ import {
   verifyAccountInputSchema,
 } from '@potion/shared';
 import { z } from 'zod';
+import { createRateLimitGuard } from '../security/rateLimit.js';
 import type { AuthService } from '../services/auth.js';
 import type { EmailQueueService } from '../services/emailQueue.js';
 import type { ScannerService } from '../services/scanner.js';
+
+const authRateLimitMessage = 'Too many attempts. Please wait a moment and try again.';
+
+const limitLoginAttempts = createRateLimitGuard({ maxAttempts: 10, windowMs: 10 * 60 * 1000, message: authRateLimitMessage });
+const limitAccountCreationAttempts = createRateLimitGuard({ maxAttempts: 3, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
+const limitVerificationAttempts = createRateLimitGuard({ maxAttempts: 8, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
+const limitPasswordResetRequests = createRateLimitGuard({ maxAttempts: 3, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
+const limitPasswordResetConfirmations = createRateLimitGuard({ maxAttempts: 8, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
 
 function createHttpError(message: string, statusCode: number) {
   const error = new Error(message) as Error & { statusCode: number };
@@ -25,6 +34,7 @@ export async function registerAdminRoutes(
 ) {
   server.post('/api/auth/login', async (request, reply) => {
     const input = loginInputSchema.parse(request.body);
+    limitLoginAttempts(request, [input.email]);
     const session = await deps.auth.login(input);
 
     return reply.send(session);
@@ -32,6 +42,7 @@ export async function registerAdminRoutes(
 
   server.post('/api/auth/register', async (request, reply) => {
     const input = createAccountInputSchema.parse(request.body);
+    limitAccountCreationAttempts(request, [input.email]);
     const result = await deps.auth.createAccount(input);
     await deps.emailQueue.processPending();
 
@@ -40,6 +51,7 @@ export async function registerAdminRoutes(
 
   server.post('/api/auth/verify', async (request, reply) => {
     const input = verifyAccountInputSchema.parse(request.body);
+    limitVerificationAttempts(request, [input.email]);
     const session = await deps.auth.verifyAccount(input);
 
     return reply.send(session);
@@ -47,6 +59,7 @@ export async function registerAdminRoutes(
 
   server.post('/api/auth/password-reset/request', async (request, reply) => {
     const input = requestPasswordResetInputSchema.parse(request.body);
+    limitPasswordResetRequests(request, [input.email]);
     const result = await deps.auth.requestPasswordReset(input);
 
     return reply.send(result);
@@ -54,6 +67,7 @@ export async function registerAdminRoutes(
 
   server.post('/api/auth/password-reset/confirm', async (request, reply) => {
     const input = resetPasswordInputSchema.parse(request.body);
+    limitPasswordResetConfirmations(request, [input.email]);
     const result = await deps.auth.resetPassword(input);
 
     return reply.send(result);

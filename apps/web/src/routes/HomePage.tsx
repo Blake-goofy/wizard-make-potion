@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import type { SessionUser } from '@potion/shared';
 import ButtonArrowIcon from '../components/ButtonArrowIcon';
 import LoadingOverlay from '../components/LoadingOverlay';
@@ -20,6 +20,7 @@ export function HomePage({ user }: HomePageProps) {
   const [order, setOrder] = useState<DevOrderResult | null>(null);
   const [isLoadingEvent, setIsLoadingEvent] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const checkoutAttemptIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let isCurrent = true;
@@ -52,16 +53,19 @@ export function HomePage({ user }: HomePageProps) {
 
   async function handleSubmit(formEvent: FormEvent) {
     formEvent.preventDefault();
-    if (!event) return;
+    if (!event || checkoutAttemptIdRef.current) return;
 
+    const checkoutAttemptId = crypto.randomUUID();
+    checkoutAttemptIdRef.current = checkoutAttemptId;
     setIsSubmitting(true);
     setStatus('');
 
     try {
-      const result = await createStripeCheckout({ eventId: event.id, customerEmail: email, quantity });
+      const result = await createStripeCheckout({ eventId: event.id, customerEmail: email, quantity }, checkoutAttemptId);
       window.location.assign(result.checkoutUrl);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not open Stripe checkout.');
+      checkoutAttemptIdRef.current = null;
       setIsSubmitting(false);
     }
   }
@@ -96,7 +100,6 @@ export function HomePage({ user }: HomePageProps) {
     <>
     <section className="purchase-layout">
       <div className="event-summary">
-        <p className="eyebrow">Ticketing</p>
         <h1>{event.name}</h1>
         <p>{new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(event.startsAt))}</p>
         <p>{event.address}</p>

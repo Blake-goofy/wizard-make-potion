@@ -75,19 +75,6 @@ export function createEmailQueueService(deps: { db: Database; emailProvider: Ema
       );
     },
 
-    async listOutbox() {
-      const result = await deps.db.query(
-        `select id, order_id as "orderId", to_email as "toEmail", subject, status,
-                provider_message_id as "providerMessageId", last_error as "lastError",
-                html_body as "htmlBody", text_body as "textBody",
-                created_at as "createdAt", sent_at as "sentAt"
-         from email_outbox
-         order by created_at desc
-         limit 100`,
-      );
-      return { emails: result.rows };
-    },
-
     async processPending() {
       const result = await deps.db.query(
         `select id, to_email as "toEmail", subject, html_body as "htmlBody", text_body as "textBody", attachments

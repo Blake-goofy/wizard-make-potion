@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/packages/email/src/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

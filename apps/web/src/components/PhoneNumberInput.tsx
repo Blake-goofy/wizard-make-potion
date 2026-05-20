@@ -1,4 +1,4 @@
-import type { ChangeEvent, FocusEvent, KeyboardEvent } from 'react';
+import type { ChangeEvent, FocusEvent, KeyboardEvent, ReactNode } from 'react';
 
 const phoneMaskTemplate = '(   )    -    ';
 const phoneDigitSlots = [1, 2, 3, 6, 7, 8, 10, 11, 12, 13] as const;
@@ -67,17 +67,49 @@ function queueCaret(input: HTMLInputElement, caret: number) {
   });
 }
 
-function normalizeCaret(input: HTMLInputElement) {
+function getNextInputCaret(value: string) {
+  const digitsLength = getPhoneDigits(value).length;
+
+  if (digitsLength <= 0) {
+    return phoneDigitSlots[0] ?? 0;
+  }
+
+  if (digitsLength >= phoneDigitSlots.length) {
+    return phoneMaskTemplate.length;
+  }
+
+  return getCaretFromDigitSlot(digitsLength);
+}
+
+function normalizeCaret(input: HTMLInputElement, value: string) {
   const start = input.selectionStart ?? 0;
   const end = input.selectionEnd ?? start;
+  const digitsLength = getPhoneDigits(value).length;
+  const nextInputCaret = getNextInputCaret(value);
 
   if (start !== end) return;
-  if (start === 0 || start === phoneMaskTemplate.length) return;
-  if (phoneDigitSlots.includes(start as (typeof phoneDigitSlots)[number])) return;
+  if (digitsLength < phoneDigitSlots.length && start > nextInputCaret) {
+    queueCaret(input, nextInputCaret);
+    return;
+  }
+
+  if (start === nextInputCaret) return;
+
+  if (start === phoneMaskTemplate.length && digitsLength >= phoneDigitSlots.length) {
+    return;
+  }
+
+  if (phoneDigitSlots.includes(start as (typeof phoneDigitSlots)[number])) {
+    return;
+  }
 
   const nextSlot = phoneDigitSlots.find((slot) => slot > start);
   const previousSlot = [...phoneDigitSlots].reverse().find((slot) => slot < start);
-  const caret = nextSlot ?? previousSlot ?? 0;
+  const caret = nextSlot !== undefined && nextSlot <= nextInputCaret
+    ? nextSlot
+    : start < nextInputCaret
+      ? previousSlot ?? nextInputCaret
+      : nextInputCaret;
 
   queueCaret(input, caret);
 }
@@ -94,9 +126,12 @@ type PhoneNumberInputProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  trailingActions?: ReactNode;
+  onEnter?: () => void;
+  onEscape?: () => void;
 };
 
-export function PhoneNumberInput({ label, value, onChange }: PhoneNumberInputProps) {
+export function PhoneNumberInput({ label, value, onChange, trailingActions, onEnter, onEscape }: PhoneNumberInputProps) {
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     onChange(createPhoneMask(event.target.value));
   }
@@ -105,6 +140,18 @@ export function PhoneNumberInput({ label, value, onChange }: PhoneNumberInputPro
     const input = event.currentTarget;
     const start = input.selectionStart ?? 0;
     const end = input.selectionEnd ?? start;
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      onEnter?.();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onEscape?.();
+      return;
+    }
 
     if (event.altKey || event.ctrlKey || event.metaKey) return;
 
@@ -182,7 +229,7 @@ export function PhoneNumberInput({ label, value, onChange }: PhoneNumberInputPro
   return (
     <label>
       {label}
-      <div className="phone-input-shell">
+      <div className={`phone-input-shell${trailingActions ? ' has-field-actions' : ''}`}>
         <div className="phone-input-mask" aria-hidden="true">
           {displayValue.map((part, index) => (
             <span key={`${part.char}-${index}`} className={part.isPlaceholder ? 'phone-input-placeholder' : undefined}>
@@ -193,15 +240,24 @@ export function PhoneNumberInput({ label, value, onChange }: PhoneNumberInputPro
         <input
           className="phone-input-control"
           type="tel"
+          name="phoneNumber"
           inputMode="numeric"
-          autoComplete="tel"
+          autoComplete="tel-national"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          data-lpignore="true"
+          data-1p-ignore="true"
+          data-bwignore="true"
           aria-label={label}
           value={value}
           onChange={handleChange}
-          onClick={(event) => normalizeCaret(event.currentTarget)}
+          onClick={(event) => normalizeCaret(event.currentTarget, value)}
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
+          onSelect={(event) => normalizeCaret(event.currentTarget, value)}
         />
+        {trailingActions ? <div className="field-editor-actions">{trailingActions}</div> : null}
       </div>
     </label>
   );

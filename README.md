@@ -7,7 +7,7 @@ Primary codebase for the Wizard Make Potion ticketing site. This repository supp
 - One TypeScript backend in `apps/api`.
 - Mobile-first React frontend in `apps/web`.
 - Supabase Postgres with local migrations and deployment-specific connection strings.
-- Resend-ready email with local outbox support for development and stage-specific provider credentials.
+- Resend email with stage-specific provider credentials.
 - Fast public pages with scanner and admin code lazy-loaded.
 - Central theme tokens instead of scattered color values.
 - No emoji in the website or emails.
@@ -56,7 +56,7 @@ The `wizard-make-potion-archive` folder is intentionally ignored by git and kept
    npm run dev
    ```
 
-   To send through Resend, set `EMAIL_PROVIDER=resend`, set the app-mode `EMAIL_FROM_ADDRESS` to a verified sender or `onboarding@resend.dev`, and provide a real `RESEND_API_KEY_DEV` or `RESEND_API_KEY_PROD` value that matches `APP_ENV`.
+   Email always sends through Resend. Set the app-mode `EMAIL_FROM_ADDRESS` to a verified sender or `onboarding@resend.dev`, and provide a real `RESEND_API_KEY_DEV` or `RESEND_API_KEY_PROD` value that matches `APP_ENV`.
 
 6. Start Stripe webhook forwarding for the current environment
 
@@ -96,7 +96,7 @@ npx --yes localtunnel --port 5173
    - `WEB_ORIGIN=https://your-web-service-domain`
    - `DATABASE_URL_PROD=postgresql://...` using the Supabase connection string from step 2
    - `AUTH_SESSION_SECRET=...`
-   - `EMAIL_PROVIDER`, `EMAIL_FROM_ADDRESS_PROD`, `EMAIL_FROM_NAME_PROD`, `RESEND_API_KEY_PROD`
+   - `EMAIL_FROM_ADDRESS_PROD`, `EMAIL_FROM_NAME_PROD`, `RESEND_API_KEY_PROD`
    - `STRIPE_SECRET_KEY_PROD`, `STRIPE_PUBLISHABLE_KEY_PROD`, `STRIPE_WEBHOOK_SECRET_PROD`
 5. Set these environment variables on the Railway web service:
    - `VITE_API_BASE_URL=https://your-api-service-domain`

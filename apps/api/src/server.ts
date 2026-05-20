@@ -10,7 +10,6 @@ import { createDatabase } from '@potion/db';
 import type { AppConfig } from './config.js';
 import { registerAccountRoutes } from './routes/account.js';
 import { registerAdminRoutes } from './routes/admin.js';
-import { registerEmailRoutes } from './routes/email.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerOrderRoutes } from './routes/orders.js';
@@ -88,7 +87,6 @@ export async function buildServer(config: AppConfig) {
 
   const db = createDatabase({ connectionString: config.databaseUrl });
   const emailProvider = createEmailProvider({
-    provider: config.emailProvider,
     fromAddress: config.emailFromAddress,
     fromName: config.emailFromName,
     resendApiKey: config.resendApiKey,
@@ -108,7 +106,6 @@ export async function buildServer(config: AppConfig) {
   await registerOrderRoutes(server, { auth, orders });
   await registerScannerRoutes(server, { scanner, auth });
   await registerAdminRoutes(server, { auth, db, emailQueue, scanner });
-  await registerEmailRoutes(server, { auth, emailQueue });
 
   if (webDistDir) {
     await server.register(fastifyStatic, {

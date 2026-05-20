@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, TouchEvent, useEffect, useRef, useState } from 'react';
 import type { SessionUser } from '@potion/shared';
 import ButtonArrowIcon from '../components/ButtonArrowIcon';
 import LoadingOverlay from '../components/LoadingOverlay';
@@ -11,6 +11,12 @@ type AuthPageProps = {
   onSession: (token: string, user: SessionUser) => void;
 };
 
+function isExistingAccountError(message: string) {
+  const normalizedMessage = message.trim().toLowerCase();
+
+  return normalizedMessage.includes('account already exists') && normalizedMessage.includes('email');
+}
+
 export default function AuthPage({ onSession }: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>('sign-in');
   const [email, setEmail] = useState('');
@@ -21,25 +27,142 @@ export default function AuthPage({ onSession }: AuthPageProps) {
   const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(''));
   const [code, setCode] = useState('');
   const [message, setMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastVersion, setToastVersion] = useState(0);
+  const [isToastClosing, setIsToastClosing] = useState(false);
+  const [hasEmailConflict, setHasEmailConflict] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const toastDismissTimeoutRef = useRef<number | null>(null);
+  const toastCloseTimeoutRef = useRef<number | null>(null);
+  const toastTouchStartYRef = useRef<number | null>(null);
+  const isSubmittingRef = useRef(false);
+
+  function clearToastTimers() {
+    if (toastDismissTimeoutRef.current !== null) {
+      window.clearTimeout(toastDismissTimeoutRef.current);
+      toastDismissTimeoutRef.current = null;
+    }
+
+    if (toastCloseTimeoutRef.current !== null) {
+      window.clearTimeout(toastCloseTimeoutRef.current);
+      toastCloseTimeoutRef.current = null;
+    }
+  }
+
+  function dismissToast() {
+    if (!toastMessage || isToastClosing) {
+      return;
+    }
+
+    clearToastTimers();
+    setIsToastClosing(true);
+    toastCloseTimeoutRef.current = window.setTimeout(() => {
+      setToastMessage('');
+      setIsToastClosing(false);
+      toastCloseTimeoutRef.current = null;
+    }, 220);
+  }
+
+  useEffect(() => {
+    if (!toastMessage) {
+      clearToastTimers();
+      return undefined;
+    }
+
+    setIsToastClosing(false);
+    clearToastTimers();
+    toastDismissTimeoutRef.current = window.setTimeout(() => {
+      dismissToast();
+    }, 5000);
+
+    return () => {
+      if (toastDismissTimeoutRef.current !== null) {
+        window.clearTimeout(toastDismissTimeoutRef.current);
+        toastDismissTimeoutRef.current = null;
+      }
+    };
+  }, [toastMessage, toastVersion]);
+
+  useEffect(() => {
+    return () => {
+      clearToastTimers();
+    };
+  }, []);
+
+  function showError(nextMessage: string, options?: { highlightEmail?: boolean }) {
+    setMessage('');
+    clearToastTimers();
+    setIsToastClosing(false);
+    setToastMessage(nextMessage);
+    setToastVersion((currentVersion) => currentVersion + 1);
+
+    if (options?.highlightEmail) {
+      setHasEmailConflict(true);
+    }
+  }
 
   function selectMode(nextMode: AuthMode) {
     setMode(nextMode);
     setMessage('');
+    clearToastTimers();
+    setToastMessage('');
+    setIsToastClosing(false);
+
+    if (nextMode !== 'create') {
+      setHasEmailConflict(false);
+    }
+  }
+
+  function clearEmailConflict() {
+    if (hasEmailConflict) {
+      setHasEmailConflict(false);
+    }
+  }
+
+  function beginSubmission(nextMessage: string) {
+    if (isSubmittingRef.current) return false;
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    setMessage(nextMessage);
+    return true;
+  }
+
+  function endSubmission() {
+    isSubmittingRef.current = false;
+    setIsSubmitting(false);
+  }
+
+  function handleToastTouchStart(event: TouchEvent<HTMLDivElement>) {
+    toastTouchStartYRef.current = event.changedTouches[0]?.clientY ?? null;
+  }
+
+  function handleToastTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const startY = toastTouchStartYRef.current;
+    const endY = event.changedTouches[0]?.clientY ?? null;
+
+    toastTouchStartYRef.current = null;
+
+    if (startY === null || endY === null) {
+      return;
+    }
+
+    if (endY - startY >= 36) {
+      dismissToast();
+    }
   }
 
   async function handleSignIn(event: FormEvent) {
     event.preventDefault();
-    setIsSubmitting(true);
-    setMessage('Signing in');
+    if (!beginSubmission('Signing in')) return;
 
     try {
       const result = await loginUser({ email, password });
       onSession(result.token, result.user);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Sign-in failed.');
+      showError(error instanceof Error ? error.message : 'Sign-in failed.');
     } finally {
-      setIsSubmitting(false);
+      endSubmission();
     }
   }
 
@@ -49,44 +172,44 @@ export default function AuthPage({ onSession }: AuthPageProps) {
     const nextPhoneNumber = getStoredPhoneNumber(phoneNumber);
 
     if (digits.length > 0 && digits.length !== 10) {
-      setMessage('Enter a 10-digit phone number.');
+      showError('Enter a 10-digit phone number.');
       return;
     }
 
-    setIsSubmitting(true);
-    setMessage('Creating account');
+    if (!beginSubmission('Creating account')) return;
 
     try {
       const result = await createAccount({ email, displayName, password, phoneNumber: nextPhoneNumber || undefined });
       setEmail(result.email);
+      setHasEmailConflict(false);
       setMode('verify');
-      setMessage('Enter the code sent to your email. If this environment uses the local outbox, open it to view the message.');
+      setMessage('Enter the code sent to your email.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Account creation failed.');
+      const nextMessage = error instanceof Error ? error.message : 'Account creation failed.';
+
+      showError(nextMessage, { highlightEmail: isExistingAccountError(nextMessage) });
     } finally {
-      setIsSubmitting(false);
+      endSubmission();
     }
   }
 
   async function handleVerify(event: FormEvent) {
     event.preventDefault();
-    setIsSubmitting(true);
-    setMessage('Verifying code');
+    if (!beginSubmission('Verifying code')) return;
 
     try {
       const result = await verifyAccount({ email, code });
       onSession(result.token, result.user);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Verification failed.');
+      showError(error instanceof Error ? error.message : 'Verification failed.');
     } finally {
-      setIsSubmitting(false);
+      endSubmission();
     }
   }
 
   async function handleRequestPasswordReset(event: FormEvent) {
     event.preventDefault();
-    setIsSubmitting(true);
-    setMessage('Sending reset code');
+    if (!beginSubmission('Sending reset code')) return;
 
     try {
       const result = await requestPasswordReset({ email });
@@ -95,11 +218,11 @@ export default function AuthPage({ onSession }: AuthPageProps) {
       setResetPassword('');
       setResetPasswordConfirm('');
       setMode('reset');
-      setMessage('Enter the reset code sent to your email. If this environment uses the local outbox, open it to view the message.');
+      setMessage('Enter the reset code sent to your email.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not send reset code.');
+      showError(error instanceof Error ? error.message : 'Could not send reset code.');
     } finally {
-      setIsSubmitting(false);
+      endSubmission();
     }
   }
 
@@ -107,17 +230,16 @@ export default function AuthPage({ onSession }: AuthPageProps) {
     event.preventDefault();
 
     if (resetPassword.length < 8) {
-      setMessage('New password must be at least 8 characters.');
+      showError('New password must be at least 8 characters.');
       return;
     }
 
     if (resetPassword !== resetPasswordConfirm) {
-      setMessage('New passwords do not match.');
+      showError('New passwords do not match.');
       return;
     }
 
-    setIsSubmitting(true);
-    setMessage('Resetting password');
+    if (!beginSubmission('Resetting password')) return;
 
     try {
       await confirmPasswordReset({ email, code, newPassword: resetPassword });
@@ -128,14 +250,31 @@ export default function AuthPage({ onSession }: AuthPageProps) {
       setMode('sign-in');
       setMessage('Password reset. Sign in with your new password.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Password reset failed.');
+      showError(error instanceof Error ? error.message : 'Password reset failed.');
     } finally {
-      setIsSubmitting(false);
+      endSubmission();
     }
   }
 
   return (
     <>
+    {toastMessage ? (
+      <div className="toast-stack" aria-live="assertive" aria-atomic="true">
+        <div
+          key={toastVersion}
+          className={`toast-message toast-message-error${isToastClosing ? ' toast-message-closing' : ''}`}
+          role="alert"
+          onClick={dismissToast}
+          onTouchStart={handleToastTouchStart}
+          onTouchEnd={handleToastTouchEnd}
+          onTouchCancel={() => {
+            toastTouchStartYRef.current = null;
+          }}
+        >
+          {toastMessage}
+        </div>
+      </div>
+    ) : null}
     <section className="content-panel auth-panel">
       <div className="segmented-control auth-mode-switch" aria-label="Account mode">
         <button className={mode === 'sign-in' || mode === 'forgot' || mode === 'reset' ? 'active' : ''} type="button" onClick={() => selectMode('sign-in')}>
@@ -177,7 +316,15 @@ export default function AuthPage({ onSession }: AuthPageProps) {
           <PhoneNumberInput label="Phone Number (Optional)" value={phoneNumber} onChange={setPhoneNumber} />
           <label>
             Email
-            <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+            <input
+              className={hasEmailConflict ? 'input-error' : undefined}
+              type="email"
+              required
+              aria-invalid={hasEmailConflict || undefined}
+              value={email}
+              onFocus={clearEmailConflict}
+              onChange={(event) => setEmail(event.target.value)}
+            />
           </label>
           <label>
             Password

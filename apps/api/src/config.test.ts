@@ -9,7 +9,7 @@ afterEach(() => {
 });
 
 describe('loadConfig', () => {
-  it('uses dev Stripe and Resend values for local app mode', () => {
+  it('uses dev Stripe and Resend values for development app mode', () => {
     vi.stubEnv('NODE_ENV', 'development');
     vi.stubEnv('APP_ENV', 'development');
     vi.stubEnv('STRIPE_SECRET_KEY_DEV', 'sk_dev');
@@ -89,6 +89,7 @@ describe('loadConfig', () => {
     vi.stubEnv('STRIPE_SECRET_KEY_DEV', 'sk_dev');
     vi.stubEnv('STRIPE_PUBLISHABLE_KEY_DEV', 'pk_dev');
     vi.stubEnv('STRIPE_WEBHOOK_SECRET_DEV', 'whsec_dev');
+    vi.stubEnv('EMAIL_FROM_ADDRESS_DEV', 'dev@wizardmakepotion.com');
     vi.stubEnv('ADMIN_SESSION_SECRET', 'legacy-secret');
 
     const config = loadConfig();

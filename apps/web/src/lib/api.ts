@@ -69,20 +69,6 @@ export type AdminTicketView = {
   scanToken: string;
 };
 
-export type EmailOutboxItem = {
-  id: string;
-  orderId: string | null;
-  toEmail: string;
-  subject: string;
-  status: string;
-  providerMessageId: string | null;
-  lastError: string | null;
-  htmlBody: string;
-  textBody: string;
-  createdAt: string;
-  sentAt: string | null;
-};
-
 export type AccountTicketView = {
   id: string;
   ticketNumber: number;
@@ -204,9 +190,10 @@ export function createDevOrder(input: CreateOrderInput) {
   });
 }
 
-export function createStripeCheckout(input: CreateOrderInput) {
+export function createStripeCheckout(input: CreateOrderInput, checkoutAttemptId = crypto.randomUUID()) {
   return request<StripeCheckoutResult>('/api/payments/stripe-checkout', {
     method: 'POST',
+    headers: { 'Idempotency-Key': checkoutAttemptId },
     body: JSON.stringify(input),
   });
 }
@@ -303,19 +290,6 @@ export function getScannerAttendance(eventId: string, token: string) {
 
 export function getAccountOrders(token: string) {
   return request<{ orders: AccountOrderView[] }>('/api/account/orders', {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-}
-
-export function getEmailOutbox(token: string) {
-  return request<{ emails: EmailOutboxItem[] }>('/api/dev/email-outbox', {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-}
-
-export function processEmailOutbox(token: string) {
-  return request<{ processed: number }>('/api/dev/email-outbox/process', {
-    method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
   });
 }

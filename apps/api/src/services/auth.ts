@@ -317,13 +317,15 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
 
     async updateAccount(request: FastifyRequest, input: UpdateAccountInput) {
       const user = await requireUser(request);
+      const nextDisplayName = input.displayName.trim();
       const result = await db.query(
         `update users
-         set phone_number = $2,
+         set display_name = $2,
+             phone_number = $3,
              updated_at = now()
          where id = $1 and is_active = true
          returning id, email, display_name as "displayName", role, phone_number as "phoneNumber"`,
-        [user.id, input.phoneNumber],
+        [user.id, nextDisplayName, input.phoneNumber],
       );
 
       const updatedUser = result.rows[0];

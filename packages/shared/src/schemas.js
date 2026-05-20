@@ -63,7 +63,7 @@ export const loginInputSchema = z.object({
     email: z.string().email(),
     password: z.string().min(1),
 });
-const passwordSchema = z.string().min(8);
+const passwordSchema = z.string().min(8).max(128);
 const phoneNumberSchema = z
     .string()
     .trim()
@@ -93,6 +93,7 @@ export const accountProfileSchema = z.object({
     phoneNumber: phoneNumberSchema.nullable(),
 });
 export const updateAccountInputSchema = z.object({
+    displayName: z.string().trim().min(1).max(120),
     phoneNumber: phoneNumberSchema.nullable(),
 });
 export const changePasswordInputSchema = z.object({

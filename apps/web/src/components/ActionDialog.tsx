@@ -1,7 +1,11 @@
+import type { ReactNode } from 'react';
+
 type ActionDialogProps = {
   title: string;
-  description: string;
+  description?: string;
+  children?: ReactNode;
   confirmLabel: string;
+  submittingLabel?: string;
   isOpen: boolean;
   isSubmitting: boolean;
   confirmTone?: 'default' | 'danger';
@@ -12,7 +16,9 @@ type ActionDialogProps = {
 export default function ActionDialog({
   title,
   description,
+  children,
   confirmLabel,
+  submittingLabel = 'Saving',
   isOpen,
   isSubmitting,
   confirmTone = 'default',
@@ -32,8 +38,9 @@ export default function ActionDialog({
       >
         <div className="modal-panel-copy">
           <h2 id="action-dialog-title">{title}</h2>
-          <p>{description}</p>
+          {description ? <p>{description}</p> : null}
         </div>
+        {children ? children : null}
         <div className="action-row">
           <button disabled={isSubmitting} type="button" onClick={onClose}>
             Cancel
@@ -44,7 +51,7 @@ export default function ActionDialog({
             type="button"
             onClick={onConfirm}
           >
-            {isSubmitting ? 'Saving' : confirmLabel}
+            {isSubmitting ? submittingLabel : confirmLabel}
           </button>
         </div>
       </div>

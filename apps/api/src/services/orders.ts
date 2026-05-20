@@ -116,11 +116,13 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
       input: CreateOrderInput;
       quote: PricingQuote;
       providerReference: string;
+      checkoutIdempotencyKey: string;
     }) {
       await deps.db.query(
         `insert into orders (id, event_id, customer_email, quantity, subtotal_cents, tax_cents,
-                             total_cents, status, payment_provider, payment_provider_reference)
-         values ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', $8)`,
+                             total_cents, status, payment_provider, payment_provider_reference, checkout_idempotency_key)
+         values ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', $8, $9)
+         on conflict (checkout_idempotency_key) do nothing`,
         [
           options.orderId,
           options.input.eventId,
@@ -130,6 +132,7 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
           options.quote.taxCents,
           options.quote.totalCents,
           options.providerReference,
+          options.checkoutIdempotencyKey,
         ],
       );
     },

@@ -87,7 +87,12 @@ label {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 0 var(--space-3);
+  font-family: ui-monospace, SFMono-Regular, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
   background: var(--color-surface);
+}
+
+.phone-input-shell.has-field-actions {
+  padding-right: 5.75rem;
 }
 
 .phone-input-shell:focus-within {
@@ -108,6 +113,10 @@ label {
   padding: 0 var(--space-3);
   color: var(--color-text);
   pointer-events: none;
+}
+
+.phone-input-shell.has-field-actions .phone-input-mask {
+  right: 5.75rem;
 }
 
 .phone-input-placeholder {
@@ -489,6 +498,131 @@ label {
   margin: 0;
 }
 
+.toast-stack {
+  position: fixed;
+  bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  z-index: 100;
+  width: min(calc(100vw - var(--space-4) * 2), 32rem);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast-message {
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-strong);
+  box-shadow: var(--shadow-panel);
+  pointer-events: auto;
+  cursor: pointer;
+  touch-action: pan-x;
+  animation: toast-message-enter 180ms ease-out;
+}
+
+.toast-message-error {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 12%, var(--color-surface) 88%);
+}
+
+.toast-message-success {
+  color: var(--color-success);
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface) 88%);
+}
+
+.toast-message-closing {
+  animation: toast-message-exit 220ms ease-in forwards;
+}
+
+@keyframes toast-message-enter {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-message-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(0.85rem);
+  }
+}
+
+.input-error {
+  border-color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, var(--color-surface) 90%);
+}
+
+.field-editor-shell {
+  position: relative;
+}
+
+.field-editor-shell.has-field-actions input {
+  padding-right: 5.25rem;
+}
+
+.field-editor-actions {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  z-index: 2;
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  transform: translateY(-50%);
+}
+
+.field-editor-button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  color: var(--color-muted-text);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.field-editor-button:hover:not(:disabled),
+.field-editor-button:focus-visible {
+  color: var(--color-text);
+  background: transparent;
+}
+
+.field-editor-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.field-editor-button-confirm {
+  color: var(--color-success);
+}
+
+.field-editor-button-confirm:hover:not(:disabled),
+.field-editor-button-confirm:focus-visible {
+  color: color-mix(in srgb, var(--color-success) 70%, white 30%);
+}
+
 .event-summary h1,
 .content-panel h1,
 .confirmation-panel h2 {
@@ -560,7 +694,9 @@ label {
 
 .account-actions {
   display: flex;
+  gap: var(--space-3);
   justify-content: flex-start;
+  flex-wrap: wrap;
 }
 
 .account-danger-zone {
