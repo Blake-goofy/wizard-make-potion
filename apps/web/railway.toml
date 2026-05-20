@@ -1,0 +1,8 @@
+[build]
+buildCommand = "npm run build -w @potion/web"
+
+[deploy]
+startCommand = "npm run preview -w @potion/web -- --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10

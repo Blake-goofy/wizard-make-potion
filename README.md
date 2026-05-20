@@ -85,10 +85,13 @@ npx --yes localtunnel --port 5173
    - Use the direct connection string instead if you have verified IPv6 connectivity from Railway and want a direct connection.
    - Keep SSL enabled. Supabase recommends SSL for Postgres connections.
 3. In Railway, deploy `@potion/api` as one service and `@potion/web` as another.
-   - API build command: `npm run build -w @potion/api`
-   - API start command: `npm run start -w @potion/api`
-   - Web build command: `npm run build -w @potion/web`
-   - Web start command: `npm run preview -w @potion/web -- --host 0.0.0.0 --port $PORT`
+   - Preferred: set the API service custom config file to `/apps/api/railway.toml` and the web service custom config file to `/apps/web/railway.toml`.
+   - If you keep the commands in the dashboard instead, use:
+     - API build command: `npm run build -w @potion/api`
+     - API start command: `npm run start -w @potion/api`
+     - Web build command: `npm run build -w @potion/web`
+     - Web start command: `npm run preview -w @potion/web -- --host 0.0.0.0 --port $PORT`
+   - The API build script now compiles the internal shared, db, and email workspaces before compiling the API so Railway has the package `dist` files available at runtime.
 4. Set these environment variables on the Railway API service:
    - `NODE_ENV=production`
    - `APP_ENV=production`

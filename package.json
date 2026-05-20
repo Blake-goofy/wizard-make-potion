@@ -12,6 +12,7 @@
     "dev:api": "npm run dev -w @potion/api",
     "dev:web": "npm run dev -w @potion/web",
     "start": "npm run start -w @potion/api",
+    "build:api:deps": "npm run build -w @potion/shared && npm run build -w @potion/db && npm run build -w @potion/email",
     "dev:db": "supabase start",
     "db:reset": "supabase db reset",
     "db:push": "supabase db push",

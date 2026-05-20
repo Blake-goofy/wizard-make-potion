@@ -1,0 +1,8 @@
+[build]
+buildCommand = "npm run build -w @potion/api"
+
+[deploy]
+startCommand = "npm run start -w @potion/api"
+healthcheckPath = "/api/health"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
