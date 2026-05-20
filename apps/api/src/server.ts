@@ -97,7 +97,11 @@ export async function buildServer(config: AppConfig) {
   const orders = createOrderService({ db, emailQueue, config });
   const scanner = createScannerService({ db });
 
-  await server.register(cors, { origin: config.webOrigin, credentials: true });
+  await server.register(cors, {
+    origin: config.webOrigin,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  });
 
   await registerHealthRoutes(server, { db });
   await registerAccountRoutes(server, { auth });
