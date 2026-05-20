@@ -73,6 +73,22 @@ describe('loadConfig', () => {
     expect(config.stripeWebhookSecret).toBeUndefined();
   });
 
+  it('uses the canonical web origin plus extra CORS origins', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('APP_ENV', 'development');
+    vi.stubEnv('WEB_ORIGIN', 'https://wizardmakepotion.com');
+    vi.stubEnv('WEB_ORIGINS', 'https://www.wizardmakepotion.com, https://potionweb-development.up.railway.app, https://wizardmakepotion.com');
+
+    const config = loadConfig();
+
+    expect(config.webOrigin).toBe('https://wizardmakepotion.com');
+    expect(config.corsOrigins).toEqual([
+      'https://wizardmakepotion.com',
+      'https://www.wizardmakepotion.com',
+      'https://potionweb-development.up.railway.app',
+    ]);
+  });
+
   it('requires a production database URL for production app mode', () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('APP_ENV', 'production');

@@ -99,6 +99,7 @@ npx --yes localtunnel --port 5173
    - `APP_ENV=production`
    - `PORT` is injected by Railway and already read by the app. Do not override it unless you have a specific reason.
    - `WEB_ORIGIN=https://your-web-service-domain`
+   - `WEB_ORIGINS=https://your-web-service-domain,https://your-other-allowed-web-domain` when the API must accept CORS requests from additional web origins.
    - `DATABASE_URL_PROD=postgresql://...` using the Supabase connection string from step 2
    - `AUTH_SESSION_SECRET=...`
    - `EMAIL_FROM_ADDRESS_PROD`, `EMAIL_FROM_NAME_PROD`, `RESEND_API_KEY_PROD`

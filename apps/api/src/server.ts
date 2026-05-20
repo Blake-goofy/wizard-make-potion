@@ -98,7 +98,7 @@ export async function buildServer(config: AppConfig) {
   const scanner = createScannerService({ db });
 
   await server.register(cors, {
-    origin: config.webOrigin,
+    origin: config.corsOrigins,
     credentials: true,
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });

@@ -67,12 +67,22 @@ function readDatabaseUrl(env: Record<string, unknown>, appEnv: AppEnv) {
   throw new Error('DATABASE_URL_PROD is required when APP_ENV=production');
 }
 
+function readCorsOrigins(webOrigin: string, webOrigins?: string) {
+  const origins = webOrigins
+    ?.split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0) ?? [];
+
+  return Array.from(new Set([webOrigin, ...origins]));
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_ENV: z.enum(['development', 'production']).optional(),
   PORT: z.coerce.number().int().positive().optional(),
   API_PORT: z.coerce.number().int().positive().default(8787),
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
+  WEB_ORIGINS: z.string().optional(),
   DATABASE_URL_DEV: z.string().optional(),
   DATABASE_URL_PROD: z.string().optional(),
   AUTH_SESSION_SECRET: z.string().optional(),
@@ -102,6 +112,7 @@ export function loadConfig() {
     appEnv,
     apiPort: env.PORT ?? env.API_PORT,
     webOrigin: env.WEB_ORIGIN,
+    corsOrigins: readCorsOrigins(env.WEB_ORIGIN, env.WEB_ORIGINS),
     databaseUrl: readDatabaseUrl(env, appEnv),
     authSessionSecret: env.AUTH_SESSION_SECRET ?? env.ADMIN_SESSION_SECRET ?? defaultAuthSessionSecret,
     emailFromAddress: readAppModeValue(env, 'EMAIL_FROM_ADDRESS', appEnv) ?? 'onboarding@resend.dev',

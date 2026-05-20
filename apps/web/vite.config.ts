@@ -15,7 +15,7 @@ export default defineConfig({
   preview: {
     host: '0.0.0.0',
     port: Number.isFinite(previewPort) ? previewPort : 4173,
-    allowedHosts: ['.railway.app', 'wizardmakepotion.com', 'www.wizardmakepotion.com'],
+    allowedHosts: ['.railway.app', '.up.railway.app', 'wizardmakepotion.com', 'www.wizardmakepotion.com'],
   },
   build: {
     target: 'es2022',
