@@ -1,10 +1,11 @@
 import { FormEvent, useState } from 'react';
 import type { SessionUser } from '@potion/shared';
+import ButtonArrowIcon from '../components/ButtonArrowIcon';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { PhoneNumberInput, createPhoneMask, getPhoneDigits, getStoredPhoneNumber } from '../components/PhoneNumberInput';
-import { createAccount, loginUser, verifyAccount } from '../lib/api';
+import { confirmPasswordReset, createAccount, loginUser, requestPasswordReset, verifyAccount } from '../lib/api';
 
-type AuthMode = 'sign-in' | 'create' | 'verify';
+type AuthMode = 'sign-in' | 'create' | 'verify' | 'forgot' | 'reset';
 
 type AuthPageProps = {
   onSession: (token: string, user: SessionUser) => void;
@@ -15,10 +16,17 @@ export default function AuthPage({ onSession }: AuthPageProps) {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
   const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(''));
   const [code, setCode] = useState('');
-  const [message, setMessage] = useState('Sign in or create an account to view purchases.');
+  const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function selectMode(nextMode: AuthMode) {
+    setMode(nextMode);
+    setMessage('');
+  }
 
   async function handleSignIn(event: FormEvent) {
     event.preventDefault();
@@ -75,22 +83,69 @@ export default function AuthPage({ onSession }: AuthPageProps) {
     }
   }
 
+  async function handleRequestPasswordReset(event: FormEvent) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setMessage('Sending reset code');
+
+    try {
+      const result = await requestPasswordReset({ email });
+      setEmail(result.email);
+      setCode('');
+      setResetPassword('');
+      setResetPasswordConfirm('');
+      setMode('reset');
+      setMessage('Enter the reset code sent to your email. If this environment uses the local outbox, open it to view the message.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not send reset code.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleResetPassword(event: FormEvent) {
+    event.preventDefault();
+
+    if (resetPassword.length < 8) {
+      setMessage('New password must be at least 8 characters.');
+      return;
+    }
+
+    if (resetPassword !== resetPasswordConfirm) {
+      setMessage('New passwords do not match.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setMessage('Resetting password');
+
+    try {
+      await confirmPasswordReset({ email, code, newPassword: resetPassword });
+      setPassword('');
+      setResetPassword('');
+      setResetPasswordConfirm('');
+      setCode('');
+      setMode('sign-in');
+      setMessage('Password reset. Sign in with your new password.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Password reset failed.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <>
     <section className="content-panel auth-panel">
-      <div>
-        <p className="eyebrow">Account</p>
-        <h1>{mode === 'create' ? 'Create Account' : mode === 'verify' ? 'Verify Email' : 'Sign In'}</h1>
-        <p className="status-text">{message}</p>
-      </div>
-      <div className="segmented-control" aria-label="Account mode">
-        <button className={mode === 'sign-in' ? 'active' : ''} type="button" onClick={() => setMode('sign-in')}>
+      <div className="segmented-control auth-mode-switch" aria-label="Account mode">
+        <button className={mode === 'sign-in' || mode === 'forgot' || mode === 'reset' ? 'active' : ''} type="button" onClick={() => selectMode('sign-in')}>
           Sign In
         </button>
-        <button className={mode === 'create' ? 'active' : ''} type="button" onClick={() => setMode('create')}>
+        <button className={mode === 'create' || mode === 'verify' ? 'active' : ''} type="button" onClick={() => selectMode('create')}>
           Create Account
         </button>
       </div>
+      {message ? <p className="status-text auth-status-text">{message}</p> : null}
       {mode === 'sign-in' ? (
         <form className="stack-form" onSubmit={handleSignIn}>
           <label>
@@ -101,8 +156,15 @@ export default function AuthPage({ onSession }: AuthPageProps) {
             Password
             <input type="password" required value={password} onChange={(event) => setPassword(event.target.value)} />
           </label>
-          <button type="submit" disabled={isSubmitting}>
-            Sign In
+          <button className="button-with-arrow" type="submit" disabled={isSubmitting}>
+            <span>Sign In</span>
+            <ButtonArrowIcon />
+          </button>
+          <button className="text-button" type="button" disabled={isSubmitting} onClick={() => {
+            setMode('forgot');
+            setMessage('Enter your account email and we will send a reset code.');
+          }}>
+            Forgot password?
           </button>
         </form>
       ) : null}
@@ -138,6 +200,46 @@ export default function AuthPage({ onSession }: AuthPageProps) {
           </label>
           <button type="submit" disabled={isSubmitting}>
             Verify Account
+          </button>
+        </form>
+      ) : null}
+      {mode === 'forgot' ? (
+        <form className="stack-form" onSubmit={handleRequestPasswordReset}>
+          <label>
+            Email
+            <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+          </label>
+          <button type="submit" disabled={isSubmitting}>
+            Send Reset Code
+          </button>
+          <button className="text-button" type="button" disabled={isSubmitting} onClick={() => setMode('sign-in')}>
+            Back to Sign In
+          </button>
+        </form>
+      ) : null}
+      {mode === 'reset' ? (
+        <form className="stack-form" onSubmit={handleResetPassword}>
+          <label>
+            Email
+            <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+          </label>
+          <label>
+            Reset code
+            <input inputMode="numeric" pattern="[0-9]{6}" required value={code} onChange={(event) => setCode(event.target.value)} />
+          </label>
+          <label>
+            New Password
+            <input type="password" required minLength={8} value={resetPassword} onChange={(event) => setResetPassword(event.target.value)} />
+          </label>
+          <label>
+            Confirm New Password
+            <input type="password" required minLength={8} value={resetPasswordConfirm} onChange={(event) => setResetPasswordConfirm(event.target.value)} />
+          </label>
+          <button type="submit" disabled={isSubmitting}>
+            Reset Password
+          </button>
+          <button className="text-button" type="button" disabled={isSubmitting} onClick={() => setMode('forgot')}>
+            Send Another Code
           </button>
         </form>
       ) : null}

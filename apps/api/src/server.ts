@@ -59,9 +59,10 @@ export async function buildServer(config: AppConfig) {
       return reply.code(400).send({ message: 'Please check your details and try again.' });
     }
 
-    const errorShape = error as { statusCode?: unknown; message?: unknown };
+    const errorShape = error as { statusCode?: unknown; message?: unknown; expose?: unknown };
     const statusCode = typeof errorShape.statusCode === 'number' ? errorShape.statusCode : 500;
-    const message = statusCode >= 500 || typeof errorShape.message !== 'string'
+    const canExposeMessage = statusCode < 500 || errorShape.expose === true;
+    const message = !canExposeMessage || typeof errorShape.message !== 'string'
       ? 'Something went wrong on the server. Please try again.'
       : errorShape.message;
 

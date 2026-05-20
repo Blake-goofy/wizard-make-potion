@@ -54,19 +54,27 @@ function CopyableAddress({ address }: { address: string }) {
   );
 }
 
+function getThemeColor(cssVariableName: string, fallback: string) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(cssVariableName).trim();
+
+  return value || fallback;
+}
+
 function TicketQrCode({ scanToken }: { scanToken: string }) {
   const [qrCodeUrl, setQrCodeUrl] = useState('');
 
   useEffect(() => {
     let isCurrent = true;
+    const qrDark = getThemeColor('--color-background', '#17131c');
+    const qrLight = getThemeColor('--color-surface-inverse', '#f8f4ff');
 
     void QRCode.toDataURL(scanToken, {
       errorCorrectionLevel: 'M',
       margin: 2,
       width: 220,
       color: {
-        dark: '#17131c',
-        light: '#ffffff',
+        dark: qrDark,
+        light: qrLight,
       },
     }).then((url) => {
       if (isCurrent) setQrCodeUrl(url);

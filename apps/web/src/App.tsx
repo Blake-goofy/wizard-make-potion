@@ -76,6 +76,18 @@ function getRouteLoadingVariant(route: RouteKey): LoadingSkeletonVariant {
   return route;
 }
 
+function getRouteTitle(route: RouteKey) {
+  if (route === 'home') return 'Wizard Make Potion';
+  if (route === 'myTickets') return 'My Tickets';
+  if (route === 'account') return 'Account';
+  if (route === 'auth') return 'Sign In';
+  if (route === 'scan') return 'Scan Tickets';
+  if (route === 'sales') return 'Ticket Sales';
+  if (route === 'email') return 'Email Outbox';
+  if (route === 'confirmation') return 'Order Confirmation';
+  return 'Wizard Make Potion';
+}
+
 function DrawerItem({
   active,
   children,
@@ -204,9 +216,11 @@ export function App() {
   const [isCheckingSession, setIsCheckingSession] = useState(Boolean(initialToken));
   const [accountMessage, setAccountMessage] = useState('');
   const [confirmationOrderId, setConfirmationOrderId] = useState(initialConfirmationOrderId);
+  const [isHatAnimating, setIsHatAnimating] = useState(false);
   const isAdmin = user?.role === 'admin';
   const isScanner = user?.role === 'scanner' || isAdmin;
   const canViewTicketSales = isScanner;
+  const routeTitle = getRouteTitle(route);
 
   useEffect(() => {
     if (!token) {
@@ -347,7 +361,7 @@ export function App() {
     setUser(nextUser);
     setIsCheckingSession(false);
     setAccountMessage(`Signed in as ${nextUser.displayName}.`);
-    setRouteAndSyncUrl('myTickets');
+    setRouteAndSyncUrl('home');
   }
 
   function handleUserChange(nextUser: SessionUser) {
@@ -372,23 +386,36 @@ export function App() {
     clearSession('Signed out.');
   }
 
+  function handleHatClick() {
+    if (isHatAnimating) {
+      setIsHatAnimating(false);
+      requestAnimationFrame(() => setIsHatAnimating(true));
+      return;
+    }
+
+    setIsHatAnimating(true);
+  }
+
   return (
     <div className={`app-shell${route === 'scan' ? ' app-shell-scanner' : ''}`}>
       <header className="app-header">
-        <button className="icon-button" type="button" aria-label="Open menu" onClick={handleMenuButtonClick}>
-          <MenuIcon />
-        </button>
-        <a
-          className="brand"
-          href="/"
-          onClick={(event) => {
-            event.preventDefault();
-            navigate('home');
-          }}
-        >
-          <WizardHatMark />
-          <span>Wizard Make Potion</span>
-        </a>
+        <div className="app-header-leading">
+          <button className="icon-button" type="button" aria-label="Open menu" onClick={handleMenuButtonClick}>
+            <MenuIcon />
+          </button>
+          <button
+            aria-label="Animate logo"
+            className={`brand-mark-button${isHatAnimating ? ' is-animating' : ''}`}
+            type="button"
+            onAnimationEnd={() => setIsHatAnimating(false)}
+            onClick={handleHatClick}
+          >
+            <WizardHatMark />
+          </button>
+        </div>
+        <div className="app-title" aria-live="polite">
+          <span>{routeTitle}</span>
+        </div>
         <div className="account-shell" ref={accountShellRef}>
           <button
             className="icon-button"

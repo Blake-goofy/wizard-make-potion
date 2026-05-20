@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import type { AccountProfile, SessionUser } from '@potion/shared';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { PhoneNumberInput, createPhoneMask, getPhoneDigits, getStoredPhoneNumber } from '../components/PhoneNumberInput';
-import { deleteAccount, getAccountProfile, updateAccount } from '../lib/api';
+import { changePassword, deleteAccount, getAccountProfile, updateAccount } from '../lib/api';
 
 type AccountPageProps = {
   token: string;
@@ -15,6 +15,9 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
   const [profile, setProfile] = useState<AccountProfile | null>(user);
   const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(user?.phoneNumber));
   const [message, setMessage] = useState('Loading account settings.');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -55,23 +58,56 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     event.preventDefault();
     const digits = getPhoneDigits(phoneNumber);
     const nextPhoneNumber = getStoredPhoneNumber(phoneNumber);
+    const isChangingPassword = Boolean(currentPassword || newPassword || confirmPassword);
 
     if (digits.length > 0 && digits.length !== 10) {
       setMessage('Enter a 10-digit phone number.');
       return;
     }
 
+    if (isChangingPassword) {
+      if (!currentPassword) {
+        setMessage('Enter your current password.');
+        return;
+      }
+
+      if (newPassword.length < 8) {
+        setMessage('New password must be at least 8 characters.');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        setMessage('New passwords do not match.');
+        return;
+      }
+    }
+
+    if (nextPhoneNumber === profile?.phoneNumber && !isChangingPassword) {
+      setMessage('No account changes to save.');
+      return;
+    }
+
     setIsSaving(true);
-    setMessage('Saving account settings.');
+    setMessage('Saving account changes.');
 
     try {
-      const result = await updateAccount({ phoneNumber: nextPhoneNumber ? nextPhoneNumber : null }, token);
-      setProfile(result.account);
-      setPhoneNumber(createPhoneMask(result.account.phoneNumber));
-      onUserChange(result.account);
-      setMessage('Account settings saved.');
+      if (isChangingPassword) {
+        await changePassword({ currentPassword, newPassword }, token);
+      }
+
+      if (nextPhoneNumber !== profile?.phoneNumber) {
+        const result = await updateAccount({ phoneNumber: nextPhoneNumber ? nextPhoneNumber : null }, token);
+        setProfile(result.account);
+        setPhoneNumber(createPhoneMask(result.account.phoneNumber));
+        onUserChange(result.account);
+      }
+
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setMessage('Account changes saved.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Could not save account settings.');
+      setMessage(error instanceof Error ? error.message : 'Could not save account changes.');
     } finally {
       setIsSaving(false);
     }
@@ -94,7 +130,7 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     }
   }
 
-  const loadingLabel = isDeleting ? 'Deleting account' : isSaving ? 'Saving account settings' : 'Loading account settings';
+  const loadingLabel = isDeleting ? 'Deleting account' : isSaving ? 'Saving account changes' : 'Loading account settings';
   const loadingDetail = isDeleting
     ? 'Removing your account and signing you out.'
     : isSaving
@@ -107,7 +143,7 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
       <div>
         <p className="eyebrow">Account</p>
         <h1>Settings</h1>
-        <p className="status-text">Manage the phone number we keep on file and deactivate this account.</p>
+        <p className="status-text">Manage contact details, password, and account access.</p>
       </div>
 
       <div className="account-meta-grid">
@@ -123,9 +159,24 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
 
       <form className="stack-form account-settings-form" onSubmit={handleSave}>
         <PhoneNumberInput label="Phone Number (Optional)" value={phoneNumber} onChange={setPhoneNumber} />
+        <section className="account-password-fields" aria-label="Change password">
+          <h2>Change Password</h2>
+          <label>
+            Current Password
+            <input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+          </label>
+          <label>
+            New Password
+            <input type="password" minLength={8} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+          </label>
+          <label>
+            Confirm New Password
+            <input type="password" minLength={8} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+          </label>
+        </section>
         <div className="account-actions">
           <button type="submit" disabled={isSaving || isDeleting}>
-            {isSaving ? 'Saving' : 'Save Phone Number'}
+            {isSaving ? 'Saving' : 'Save Changes'}
           </button>
         </div>
       </form>

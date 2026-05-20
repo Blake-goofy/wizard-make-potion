@@ -27,6 +27,7 @@
     "@playwright/test": "latest",
     "@types/node": "latest",
     "concurrently": "latest",
+    "cross-env": "^10.1.0",
     "eslint": "latest",
     "prettier": "latest",
     "supabase": "^2.100.1",

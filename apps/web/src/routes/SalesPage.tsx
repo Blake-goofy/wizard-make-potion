@@ -343,15 +343,15 @@ export default function SalesPage({ token }: SalesPageProps) {
               <td colSpan={3}>
                 <div className="ticket-sales-summary-grid">
                   <div className="ticket-sales-summary-cell">
-                    <span className="ticket-sales-summary-label">Tickets total</span>
+                    <span className="ticket-sales-summary-label">Tickets</span>
                     <strong>{filteredSummary.ticketCount}</strong>
                   </div>
                   <div className="ticket-sales-summary-cell">
-                    <span className="ticket-sales-summary-label">Used total</span>
+                    <span className="ticket-sales-summary-label">Used</span>
                     <strong>{filteredSummary.usedCount}</strong>
                   </div>
                   <div className="ticket-sales-summary-cell">
-                    <span className="ticket-sales-summary-label">Expected earnings</span>
+                    <span className="ticket-sales-summary-label">Earnings</span>
                     <strong>{formatCurrency(filteredSummary.expectedEarningsCents)}</strong>
                   </div>
                 </div>

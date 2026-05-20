@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import type { SessionUser } from '@potion/shared';
+import ButtonArrowIcon from '../components/ButtonArrowIcon';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { createStripeCheckout, type DevOrderResult, type EventView, getActiveEvent } from '../lib/api';
 
@@ -178,6 +179,7 @@ export function HomePage({ user }: HomePageProps) {
           <button className="stripe-checkout-button" type="submit" disabled={isSubmitting}>
             {isSubmitting ? <span aria-hidden="true" className="stripe-checkout-spinner" /> : null}
             <span>{isSubmitting ? 'Opening Stripe' : 'Pay With Stripe'}</span>
+            {!isSubmitting ? <ButtonArrowIcon /> : null}
           </button>
           {!isSubmitting && status ? <p className="status-text">{status}</p> : null}
         </form>

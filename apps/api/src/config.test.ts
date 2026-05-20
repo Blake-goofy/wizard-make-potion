@@ -76,6 +76,7 @@ describe('loadConfig', () => {
   it('requires a production database URL for production app mode', () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('APP_ENV', 'production');
+    delete process.env.DATABASE_URL_PROD;
 
     expect(() => loadConfig()).toThrow('DATABASE_URL_PROD is required when APP_ENV=production');
   });

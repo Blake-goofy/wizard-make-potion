@@ -15,6 +15,10 @@ export type AccountVerificationEmailInput = {
   code: string;
 };
 
+export type PasswordResetEmailInput = {
+  code: string;
+};
+
 export function renderAccountVerificationEmail(input: AccountVerificationEmailInput) {
   return {
     subject: 'Your Wizard Make Potion verification code',
@@ -26,6 +30,20 @@ export function renderAccountVerificationEmail(input: AccountVerificationEmailIn
       </main>
     `,
     textBody: `Your Wizard Make Potion verification code is ${input.code}. This code expires in 15 minutes.`,
+  };
+}
+
+export function renderPasswordResetEmail(input: PasswordResetEmailInput) {
+  return {
+    subject: 'Reset your Wizard Make Potion password',
+    htmlBody: `
+      <main>
+        <h1>Reset your password</h1>
+        <p>Your password reset code is <strong>${escapeHtml(input.code)}</strong>.</p>
+        <p>This code expires in 15 minutes. If you did not request it, you can ignore this email.</p>
+      </main>
+    `,
+    textBody: `Your Wizard Make Potion password reset code is ${input.code}. This code expires in 15 minutes. If you did not request it, you can ignore this email.`,
   };
 }
 

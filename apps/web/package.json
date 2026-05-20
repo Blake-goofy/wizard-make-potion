@@ -4,9 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "sync:theme": "node ./scripts/sync-theme.mjs",
+    "predev": "npm run sync:theme",
     "dev": "vite --host 0.0.0.0",
+    "prebuild": "npm run sync:theme",
     "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
+    "pretypecheck": "npm run sync:theme",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },

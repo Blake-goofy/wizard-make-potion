@@ -3,6 +3,8 @@ import type { Database } from '@potion/db';
 import {
   createAccountInputSchema,
   loginInputSchema,
+  requestPasswordResetInputSchema,
+  resetPasswordInputSchema,
   updateTicketUsageInputSchema,
   verifyAccountInputSchema,
 } from '@potion/shared';
@@ -41,6 +43,20 @@ export async function registerAdminRoutes(
     const session = await deps.auth.verifyAccount(input);
 
     return reply.send(session);
+  });
+
+  server.post('/api/auth/password-reset/request', async (request, reply) => {
+    const input = requestPasswordResetInputSchema.parse(request.body);
+    const result = await deps.auth.requestPasswordReset(input);
+
+    return reply.send(result);
+  });
+
+  server.post('/api/auth/password-reset/confirm', async (request, reply) => {
+    const input = resetPasswordInputSchema.parse(request.body);
+    const result = await deps.auth.resetPassword(input);
+
+    return reply.send(result);
   });
 
   server.get('/api/auth/me', async (request) => {

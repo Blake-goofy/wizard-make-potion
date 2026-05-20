@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { updateAccountInputSchema } from '@potion/shared';
+import { changePasswordInputSchema, updateAccountInputSchema } from '@potion/shared';
 import type { AuthService } from '../services/auth.js';
 
 export async function registerAccountRoutes(server: FastifyInstance, deps: { auth: AuthService }) {
@@ -12,6 +12,12 @@ export async function registerAccountRoutes(server: FastifyInstance, deps: { aut
     const input = updateAccountInputSchema.parse(request.body);
     const account = await deps.auth.updateAccount(request, input);
     return { account };
+  });
+
+  server.put('/api/account/password', async (request) => {
+    const input = changePasswordInputSchema.parse(request.body);
+    const result = await deps.auth.changePassword(request, input);
+    return result;
   });
 
   server.delete('/api/account', async (request) => {

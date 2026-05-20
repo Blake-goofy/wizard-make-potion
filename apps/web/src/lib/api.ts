@@ -1,9 +1,12 @@
 import type {
   AccountProfile,
+  ChangePasswordInput,
   CreateAccountInput,
   CreateOrderInput,
   LoginInput,
   LoginResponse,
+  RequestPasswordResetInput,
+  ResetPasswordInput,
   ScanEventAttendance,
   ScanTicketDetail,
   ScanTicketInput,
@@ -229,6 +232,20 @@ export function verifyAccount(input: VerifyAccountInput) {
   });
 }
 
+export function requestPasswordReset(input: RequestPasswordResetInput) {
+  return request<{ email: string; message: string }>('/api/auth/password-reset/request', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function confirmPasswordReset(input: ResetPasswordInput) {
+  return request<{ reset: true }>('/api/auth/password-reset/confirm', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export function getCurrentUser(token: string) {
   return request<{ user: SessionUser }>('/api/auth/me', {
     headers: { Authorization: `Bearer ${token}` },
@@ -243,6 +260,14 @@ export function getAccountProfile(token: string) {
 
 export function updateAccount(input: UpdateAccountInput, token: string) {
   return request<{ account: AccountProfile }>('/api/account', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
+  });
+}
+
+export function changePassword(input: ChangePasswordInput, token: string) {
+  return request<{ changed: true }>('/api/account/password', {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(input),

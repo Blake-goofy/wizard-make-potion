@@ -39,7 +39,7 @@ export default function ActionDialog({
             Cancel
           </button>
           <button
-            className={confirmTone === 'danger' ? 'danger-button' : undefined}
+            className={confirmTone === 'danger' ? 'danger-button' : 'primary-button'}
             disabled={isSubmitting}
             type="button"
             onClick={onConfirm}

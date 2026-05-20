@@ -2,14 +2,17 @@ import { createHmac, pbkdf2Sync, randomBytes, randomInt, timingSafeEqual } from 
 import type { FastifyRequest } from 'fastify';
 import {
   accountProfileSchema,
+  type ChangePasswordInput,
   sessionUserSchema,
   type CreateAccountInput,
   type LoginInput,
+  type RequestPasswordResetInput,
+  type ResetPasswordInput,
   type UpdateAccountInput,
   type SessionUser,
   type VerifyAccountInput,
 } from '@potion/shared';
-import { renderAccountVerificationEmail } from '@potion/email';
+import { renderAccountVerificationEmail, renderPasswordResetEmail } from '@potion/email';
 import type { Database } from '@potion/db';
 import type { AppConfig } from '../config.js';
 import type { EmailQueueService } from './emailQueue.js';
@@ -218,6 +221,73 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
       return { token: createToken(sessionUser.id), user: sessionUser };
     },
 
+    async requestPasswordReset(input: RequestPasswordResetInput) {
+      const email = normalizeEmail(input.email);
+      const result = await db.query(`select id from users where lower(email) = $1 and is_active = true`, [email]);
+      const user = result.rows[0];
+
+      if (user) {
+        const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
+        const codeHash = hashVerificationCode(email, code);
+        const resetEmail = renderPasswordResetEmail({ code });
+
+        await db.transaction(async (client) => {
+          await client.query(
+            `insert into password_reset_codes (user_id, email, code_hash, expires_at)
+             values ($1, $2, $3, now() + interval '15 minutes')`,
+            [user.id, email, codeHash],
+          );
+
+          await client.query(
+            `insert into email_outbox (to_email, subject, html_body, text_body, status)
+             values ($1, $2, $3, $4, 'pending')`,
+            [email, resetEmail.subject, resetEmail.htmlBody, resetEmail.textBody],
+          );
+        });
+
+        await emailQueue.processPending();
+      }
+
+      return { email, message: 'If an account exists for that email, a reset code has been queued for delivery.' };
+    },
+
+    async resetPassword(input: ResetPasswordInput) {
+      const email = normalizeEmail(input.email);
+      const result = await db.query(
+        `select prc.id, prc.code_hash as "codeHash", u.id as "userId"
+         from password_reset_codes prc
+         join users u on u.id = prc.user_id
+         where lower(prc.email) = $1
+           and lower(u.email) = $1
+           and u.is_active = true
+           and prc.consumed_at is null
+           and prc.expires_at > now()
+         order by prc.created_at desc
+         limit 1`,
+        [email],
+      );
+      const resetCode = result.rows[0];
+
+      if (!resetCode || !safeCompare(Buffer.from(resetCode.codeHash), Buffer.from(hashVerificationCode(email, input.code)))) {
+        throw createHttpError('Invalid or expired reset code.', 401);
+      }
+
+      const passwordHash = hashPassword(input.newPassword);
+
+      await db.transaction(async (client) => {
+        await client.query(`update password_reset_codes set consumed_at = now() where id = $1`, [resetCode.id]);
+        await client.query(
+          `update users
+           set password_hash = $2,
+               updated_at = now()
+           where id = $1 and is_active = true`,
+          [resetCode.userId, passwordHash],
+        );
+      });
+
+      return { reset: true as const };
+    },
+
     async requireUser(request: FastifyRequest) {
       return requireUser(request);
     },
@@ -260,6 +330,32 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
       if (!updatedUser) throw createHttpError('Account was not found.', 404);
 
       return accountProfileSchema.parse(updatedUser);
+    },
+
+    async changePassword(request: FastifyRequest, input: ChangePasswordInput) {
+      const user = await requireUser(request);
+      const result = await db.query(
+        `select password_hash as "passwordHash"
+         from users
+         where id = $1 and is_active = true`,
+        [user.id],
+      );
+      const account = result.rows[0];
+
+      if (!account) throw createHttpError('Account was not found.', 404);
+      if (!verifyPassword(input.currentPassword, account.passwordHash)) {
+        throw createHttpError('Current password was not accepted.', 401);
+      }
+
+      await db.query(
+        `update users
+         set password_hash = $2,
+             updated_at = now()
+         where id = $1 and is_active = true`,
+        [user.id, hashPassword(input.newPassword)],
+      );
+
+      return { changed: true as const };
     },
 
     async deleteAccount(request: FastifyRequest) {

@@ -75,6 +75,8 @@ export const loginInputSchema = z.object({
   password: z.string().min(1),
 });
 
+const passwordSchema = z.string().min(8);
+
 const phoneNumberSchema = z
   .string()
   .trim()
@@ -83,7 +85,7 @@ const phoneNumberSchema = z
 export const createAccountInputSchema = z.object({
   email: z.string().email(),
   displayName: z.string().min(1).max(120),
-  password: z.string().min(8),
+  password: passwordSchema,
   phoneNumber: phoneNumberSchema.optional(),
 });
 
@@ -112,6 +114,21 @@ export const updateAccountInputSchema = z.object({
   phoneNumber: phoneNumberSchema.nullable(),
 });
 
+export const changePasswordInputSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: passwordSchema,
+});
+
+export const requestPasswordResetInputSchema = z.object({
+  email: z.string().email(),
+});
+
+export const resetPasswordInputSchema = z.object({
+  email: z.string().email(),
+  code: z.string().regex(/^\d{6}$/),
+  newPassword: passwordSchema,
+});
+
 export const loginResponseSchema = z.object({
   token: z.string().min(1),
   user: sessionUserSchema,
@@ -133,3 +150,6 @@ export type SessionUser = z.infer<typeof sessionUserSchema>;
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
 export type AccountProfile = z.infer<typeof accountProfileSchema>;
 export type UpdateAccountInput = z.infer<typeof updateAccountInputSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>;
+export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetInputSchema>;
+export type ResetPasswordInput = z.infer<typeof resetPasswordInputSchema>;

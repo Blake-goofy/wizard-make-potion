@@ -5,15 +5,24 @@ import { createOrderInputSchema } from '@potion/shared';
 import type { AppConfig } from '../config.js';
 import type { OrderService } from '../services/orders.js';
 
-function createHttpError(message: string, statusCode: number) {
-  const error = new Error(message) as Error & { statusCode: number };
+const stripeCheckoutUnavailableMessage = 'Could not open Stripe checkout. Please try again.';
+type HttpError = Error & { statusCode: number; expose?: boolean };
+
+function createHttpError(message: string, statusCode: number, options?: { cause?: unknown; expose?: boolean }) {
+  const error = new Error(message) as HttpError;
   error.statusCode = statusCode;
+  if (options?.cause !== undefined) error.cause = options.cause;
+  if (options?.expose !== undefined) error.expose = options.expose;
   return error;
+}
+
+function createStripeCheckoutError(cause?: unknown) {
+  return createHttpError(stripeCheckoutUnavailableMessage, 502, { cause, expose: true });
 }
 
 function getStripe(config: AppConfig) {
   if (!config.stripeSecretKey) {
-    throw createHttpError('Stripe is not configured for this environment.', 500);
+    throw createStripeCheckoutError();
   }
 
   return new Stripe(config.stripeSecretKey);
@@ -35,43 +44,49 @@ export async function registerPaymentRoutes(
       quantity: String(input.quantity),
     };
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      customer_email: input.customerEmail,
-      line_items: [
-        {
-          quantity: input.quantity,
-          price_data: {
-            currency: 'usd',
-            unit_amount: event.ticketPriceCents,
-            product_data: {
-              name: `${event.name} admission`,
+    let session: Stripe.Checkout.Session;
+
+    try {
+      session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        customer_email: input.customerEmail,
+        line_items: [
+          {
+            quantity: input.quantity,
+            price_data: {
+              currency: 'usd',
+              unit_amount: event.ticketPriceCents,
+              product_data: {
+                name: `${event.name} admission`,
+              },
             },
           },
-        },
-        ...(quote.taxCents > 0
-          ? [
-              {
-                quantity: 1,
-                price_data: {
-                  currency: 'usd',
-                  unit_amount: quote.taxCents,
-                  product_data: {
-                    name: 'Tax',
+          ...(quote.taxCents > 0
+            ? [
+                {
+                  quantity: 1,
+                  price_data: {
+                    currency: 'usd',
+                    unit_amount: quote.taxCents,
+                    product_data: {
+                      name: 'Tax',
+                    },
                   },
                 },
-              },
-            ]
-          : []),
-      ],
-      metadata,
-      payment_intent_data: { metadata },
-      success_url: `${deps.config.webOrigin}/?order=${orderId}`,
-      cancel_url: deps.config.webOrigin,
-    });
+              ]
+            : []),
+        ],
+        metadata,
+        payment_intent_data: { metadata },
+        success_url: `${deps.config.webOrigin}/?order=${orderId}`,
+        cancel_url: deps.config.webOrigin,
+      });
+    } catch (error) {
+      throw createStripeCheckoutError(error);
+    }
 
     if (!session.url) {
-      throw createHttpError('Stripe did not return a checkout URL.', 502);
+      throw createStripeCheckoutError();
     }
 
     await deps.orders.createPendingStripeOrder({
