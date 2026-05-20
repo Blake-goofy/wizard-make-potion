@@ -93,7 +93,7 @@ npx --yes localtunnel --port 5173
        - Web start command: `npm run preview -w @potion/web`
    - The API build script now compiles the internal shared, db, and email workspaces before compiling the API so Railway has the package `dist` files available at runtime.
     - The web preview server now reads `PORT` directly from the environment in Vite config, which avoids shell-specific `$PORT` expansion issues in Railway start commands.
-   - The web preview server explicitly allows Railway hostnames in `preview.allowedHosts`, which is required for Railway healthchecks against `healthcheck.railway.app` on Vite 8.
+    - The web preview server explicitly allows Railway hostnames plus the production web domains in `preview.allowedHosts`, which is required for Railway healthchecks against `healthcheck.railway.app` on Vite 8 and for serving the site through `wizardmakepotion.com`.
 4. Set these environment variables on the Railway API service:
    - `NODE_ENV=production`
    - `APP_ENV=production`
