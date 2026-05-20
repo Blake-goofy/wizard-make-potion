@@ -9,25 +9,40 @@ type SalesPageProps = {
 };
 
 type FilterKey = 'email' | 'status' | null;
-type ArrivalStatus = 'unused' | 'used';
+type ArrivalStatus = 'unused' | 'partial' | 'used';
+
+type AdminOrderView = {
+  id: string;
+  customerEmail: string;
+  totalCents: number;
+  createdAt: string;
+  eventName: string;
+  eventStartsAt: string;
+  ticketCount: number;
+  usedCount: number;
+};
 
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 }
 
-function getTicketArrivalStatus(ticket: Pick<AdminTicketView, 'usedAt'>): ArrivalStatus {
-  return ticket.usedAt ? 'used' : 'unused';
+function getOrderArrivalStatus(order: Pick<AdminOrderView, 'ticketCount' | 'usedCount'>): ArrivalStatus {
+  if (order.usedCount === 0) return 'unused';
+  if (order.usedCount >= order.ticketCount) return 'used';
+  return 'partial';
 }
 
-function formatTicketArrivalStatus(ticket: Pick<AdminTicketView, 'usedAt'>) {
-  const status = getTicketArrivalStatus(ticket);
+function formatOrderArrivalStatus(order: Pick<AdminOrderView, 'ticketCount' | 'usedCount'>) {
+  const status = getOrderArrivalStatus(order);
 
   if (status === 'used') return 'Used';
+  if (status === 'partial') return 'Partially used';
   return 'Unused';
 }
 
 function getTicketStatusClassName(status: ArrivalStatus) {
   if (status === 'used') return 'is-used';
+  if (status === 'partial') return 'is-partial';
   return 'is-unused';
 }
 
@@ -49,10 +64,12 @@ export default function SalesPage({ token }: SalesPageProps) {
   const [emailFilter, setEmailFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<Record<ArrivalStatus, boolean>>({
     unused: true,
+    partial: true,
     used: true,
   });
   const [openFilter, setOpenFilter] = useState<FilterKey>(null);
   const emailFilterRef = useRef<HTMLDivElement | null>(null);
+  const emailFilterInputRef = useRef<HTMLInputElement | null>(null);
   const statusFilterRef = useRef<HTMLDivElement | null>(null);
   const {
     toastMessage,
@@ -116,7 +133,7 @@ export default function SalesPage({ token }: SalesPageProps) {
   useEffect(() => {
     if (!openFilter) return;
 
-    function handlePointerDown(event: MouseEvent) {
+    function handlePointerDown(event: PointerEvent) {
       const target = event.target;
 
       if (!(target instanceof Node)) return;
@@ -132,45 +149,93 @@ export default function SalesPage({ token }: SalesPageProps) {
       if (event.key === 'Escape') setOpenFilter(null);
     }
 
-    window.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('pointerdown', handlePointerDown, true);
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      window.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('pointerdown', handlePointerDown, true);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [openFilter]);
 
-  const filteredTickets = useMemo(() => {
+  useEffect(() => {
+    if (openFilter !== 'email') return;
+
+    const input = emailFilterInputRef.current;
+
+    if (!input || emailFilter.length === 0) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [emailFilter.length, openFilter]);
+
+  const orders = useMemo(() => {
+    const ordersById = new Map<string, AdminOrderView>();
+
+    for (const ticket of tickets) {
+      const existingOrder = ordersById.get(ticket.orderId);
+
+      if (existingOrder) {
+        existingOrder.ticketCount += 1;
+        if (ticket.usedAt) {
+          existingOrder.usedCount += 1;
+        }
+        continue;
+      }
+
+      ordersById.set(ticket.orderId, {
+        id: ticket.orderId,
+        customerEmail: ticket.customerEmail,
+        totalCents: ticket.totalCents,
+        createdAt: ticket.createdAt,
+        eventName: ticket.eventName,
+        eventStartsAt: ticket.eventStartsAt,
+        ticketCount: 1,
+        usedCount: ticket.usedAt ? 1 : 0,
+      });
+    }
+
+    return Array.from(ordersById.values());
+  }, [tickets]);
+
+  const filteredOrders = useMemo(() => {
     const normalizedEmailFilter = emailFilter.trim().toLowerCase();
 
-    return tickets.filter((ticket) => {
+    return orders.filter((order) => {
       const matchesEmail =
-        normalizedEmailFilter.length === 0 || ticket.customerEmail.toLowerCase().includes(normalizedEmailFilter);
-      const matchesStatus = statusFilter[getTicketArrivalStatus(ticket)];
+        normalizedEmailFilter.length === 0 || order.customerEmail.toLowerCase().includes(normalizedEmailFilter);
+      const matchesStatus = statusFilter[getOrderArrivalStatus(order)];
 
       return matchesEmail && matchesStatus;
     });
-  }, [emailFilter, statusFilter, tickets]);
+  }, [emailFilter, orders, statusFilter]);
 
   const filteredSummary = useMemo(
     () => {
-      const seenOrders = new Set<string>();
       let expectedEarningsCents = 0;
+      let ticketCount = 0;
+      let usedTicketCount = 0;
 
-      for (const ticket of filteredTickets) {
-        if (seenOrders.has(ticket.orderId)) continue;
-        seenOrders.add(ticket.orderId);
-        expectedEarningsCents += estimateNetCents(ticket.totalCents);
+      for (const order of filteredOrders) {
+        expectedEarningsCents += estimateNetCents(order.totalCents);
+        ticketCount += order.ticketCount;
+        usedTicketCount += order.usedCount;
       }
 
       return {
-        ticketCount: filteredTickets.length,
-        usedCount: filteredTickets.filter((ticket) => ticket.usedAt !== null).length,
+        orderCount: filteredOrders.length,
+        ticketCount,
+        usedTicketCount,
         expectedEarningsCents,
       };
     },
-    [filteredTickets],
+    [filteredOrders],
   );
 
   async function loadTickets(authToken: string, eventId: string) {
@@ -179,7 +244,7 @@ export default function SalesPage({ token }: SalesPageProps) {
     try {
       const result = await getAdminTickets(authToken, eventId);
       setTickets(result.tickets);
-      setMessage(result.tickets.length ? '' : 'No ticket records found yet.');
+      setMessage(result.tickets.length ? '' : 'No order records found yet.');
     } catch (error) {
       setMessage('We could not load purchased tickets right now.');
       showToast(error instanceof Error ? error.message : 'Could not load purchased tickets.', 'error');
@@ -194,7 +259,7 @@ export default function SalesPage({ token }: SalesPageProps) {
 
   function toggleStatusOption(key: ArrivalStatus) {
     setStatusFilter((current) => {
-      const selectedCount = Number(current.unused) + Number(current.used);
+      const selectedCount = Object.values(current).filter(Boolean).length;
 
       if (current[key] && selectedCount === 1) {
         return current;
@@ -209,6 +274,11 @@ export default function SalesPage({ token }: SalesPageProps) {
 
   function openTicketConfirmation(orderId: string) {
     window.location.assign(buildTicketLink(orderId));
+  }
+
+  function clearEmailFilter() {
+    setEmailFilter('');
+    emailFilterInputRef.current?.focus();
   }
 
   return (
@@ -272,22 +342,29 @@ export default function SalesPage({ token }: SalesPageProps) {
                       </div>
                       <input
                         autoFocus
+                        ref={emailFilterInputRef}
                         placeholder="Contains email"
                         type="text"
                         value={emailFilter}
                         onChange={(event) => setEmailFilter(event.target.value)}
                       />
+                      <div className="table-filter-actions">
+                        <button className="table-filter-action" type="button" onClick={clearEmailFilter}>
+                          Clear filter
+                        </button>
+                      </div>
                     </div>
                   ) : null}
                 </div>
               </th>
               <th scope="col">Paid</th>
+              <th scope="col">People</th>
               <th scope="col">
                 <div className="ticket-sales-filter ticket-sales-filter-align-end" ref={statusFilterRef}>
                   <button
                     aria-expanded={openFilter === 'status'}
                     className={`ticket-sales-filter-button${
-                      statusFilter.unused && statusFilter.used ? '' : ' has-value'
+                      statusFilter.unused && statusFilter.partial && statusFilter.used ? '' : ' has-value'
                     }`}
                     type="button"
                     onClick={() => toggleFilter('status')}
@@ -310,7 +387,7 @@ export default function SalesPage({ token }: SalesPageProps) {
                       <label className="table-filter-checkbox">
                         <input
                           checked={statusFilter.unused}
-                          disabled={statusFilter.unused && !statusFilter.used}
+                          disabled={statusFilter.unused && !statusFilter.partial && !statusFilter.used}
                           type="checkbox"
                           onChange={() => toggleStatusOption('unused')}
                         />
@@ -318,8 +395,17 @@ export default function SalesPage({ token }: SalesPageProps) {
                       </label>
                       <label className="table-filter-checkbox">
                         <input
+                          checked={statusFilter.partial}
+                          disabled={statusFilter.partial && !statusFilter.unused && !statusFilter.used}
+                          type="checkbox"
+                          onChange={() => toggleStatusOption('partial')}
+                        />
+                        <span>Partially used</span>
+                      </label>
+                      <label className="table-filter-checkbox">
+                        <input
                           checked={statusFilter.used}
-                          disabled={statusFilter.used && !statusFilter.unused}
+                          disabled={statusFilter.used && !statusFilter.unused && !statusFilter.partial}
                           type="checkbox"
                           onChange={() => toggleStatusOption('used')}
                         />
@@ -332,48 +418,53 @@ export default function SalesPage({ token }: SalesPageProps) {
             </tr>
           </thead>
           <tbody>
-            {filteredTickets.length ? (
-              filteredTickets.map((ticket) => (
+            {filteredOrders.length ? (
+              filteredOrders.map((order) => (
                 <tr
                   className="ticket-sales-row"
-                  key={ticket.id}
+                  key={order.id}
                   tabIndex={0}
-                  onClick={() => openTicketConfirmation(ticket.orderId)}
+                  onClick={() => openTicketConfirmation(order.id)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      openTicketConfirmation(ticket.orderId);
+                      openTicketConfirmation(order.id);
                     }
                   }}
                 >
-                  <td title={ticket.customerEmail}>{ticket.customerEmail}</td>
-                  <td>{formatCurrency(ticket.totalCents)}</td>
+                  <td title={order.customerEmail}>{order.customerEmail}</td>
+                  <td>{formatCurrency(order.totalCents)}</td>
+                  <td>{order.ticketCount}</td>
                   <td>
-                    <span className={`ticket-status-pill ${getTicketStatusClassName(getTicketArrivalStatus(ticket))}`}>
-                      {formatTicketArrivalStatus(ticket)}
+                    <span className={`ticket-status-pill ${getTicketStatusClassName(getOrderArrivalStatus(order))}`}>
+                      {formatOrderArrivalStatus(order)}
                     </span>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td className="ticket-sales-empty" colSpan={3}>
-                  {tickets.length ? 'No tickets match the current filters.' : 'No ticket records found yet.'}
+                <td className="ticket-sales-empty" colSpan={4}>
+                  {orders.length ? 'No orders match the current filters.' : 'No order records found yet.'}
                 </td>
               </tr>
             )}
           </tbody>
           <tfoot>
             <tr className="ticket-sales-summary-row">
-              <td colSpan={3}>
+              <td colSpan={4}>
                 <div className="ticket-sales-summary-grid">
+                  <div className="ticket-sales-summary-cell">
+                    <span className="ticket-sales-summary-label">Orders</span>
+                    <strong>{filteredSummary.orderCount}</strong>
+                  </div>
                   <div className="ticket-sales-summary-cell">
                     <span className="ticket-sales-summary-label">Tickets</span>
                     <strong>{filteredSummary.ticketCount}</strong>
                   </div>
                   <div className="ticket-sales-summary-cell">
                     <span className="ticket-sales-summary-label">Used</span>
-                    <strong>{filteredSummary.usedCount}</strong>
+                    <strong>{filteredSummary.usedTicketCount}</strong>
                   </div>
                   <div className="ticket-sales-summary-cell">
                     <span className="ticket-sales-summary-label">Earnings</span>

@@ -350,9 +350,17 @@ label {
   inset: 0;
   z-index: 30;
   min-height: 0;
+  border: 0;
   border-radius: 0;
   padding: 0;
   background: var(--color-overlay);
+}
+
+.drawer-backdrop:hover:not(:disabled),
+.drawer-backdrop:focus-visible,
+.drawer-backdrop:active {
+  background: var(--color-overlay);
+  box-shadow: none;
 }
 
 .side-drawer {
@@ -1265,7 +1273,9 @@ label {
 .ticket-sales-table th:nth-child(2),
 .ticket-sales-table td:nth-child(2),
 .ticket-sales-table th:nth-child(3),
-.ticket-sales-table td:nth-child(3) {
+.ticket-sales-table td:nth-child(3),
+.ticket-sales-table th:nth-child(4),
+.ticket-sales-table td:nth-child(4) {
   width: 1%;
   white-space: nowrap;
 }
@@ -1279,7 +1289,9 @@ label {
 .ticket-sales-table th:nth-child(2),
 .ticket-sales-table td:nth-child(2),
 .ticket-sales-table th:nth-child(3),
-.ticket-sales-table td:nth-child(3) {
+.ticket-sales-table td:nth-child(3),
+.ticket-sales-table th:nth-child(4),
+.ticket-sales-table td:nth-child(4) {
   padding-left: var(--space-2);
   padding-right: var(--space-2);
 }
@@ -1372,6 +1384,26 @@ label {
 
 .table-filter-popover input {
   min-width: 0;
+}
+
+.table-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.table-filter-action {
+  min-height: 0;
+  border: 0;
+  padding: 0;
+  color: var(--color-text);
+  background: transparent;
+  font: inherit;
+}
+
+.table-filter-action:hover,
+.table-filter-action:focus-visible {
+  color: var(--color-muted-text);
+  outline: none;
 }
 
 .table-filter-popover-status {
@@ -1846,7 +1878,7 @@ label {
   display: grid;
   place-items: center;
   padding: var(--space-4);
-  background: color-mix(in srgb, var(--color-background) 60%, transparent);
+  background: var(--color-overlay);
 }
 
 .modal-panel {
