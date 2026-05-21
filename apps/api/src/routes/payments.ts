@@ -29,6 +29,14 @@ function summarizeUnknownError(error: unknown) {
   };
 }
 
+function formatErrorSummary(error: unknown) {
+  const summary = summarizeUnknownError(error);
+
+  return [summary.type, summary.code, summary.statusCode, summary.message ?? summary.value]
+    .filter((value) => value !== undefined && value !== '')
+    .join(' | ');
+}
+
 function createHttpError(message: string, statusCode: number, options?: { expose?: boolean }) {
   const error = new Error(message) as HttpError;
   error.statusCode = statusCode;
@@ -127,7 +135,11 @@ export async function registerPaymentRoutes(
         cancel_url: deps.config.webOrigin,
       }, { idempotencyKey: `stripe-checkout:${checkoutIdempotencyKey}` });
     } catch (error) {
-      request.log.error({ err: summarizeUnknownError(error), orderId, eventId: input.eventId }, 'Stripe checkout session creation failed');
+      const errorSummary = formatErrorSummary(error);
+      request.log.error(
+        { err: summarizeUnknownError(error), orderId, eventId: input.eventId },
+        `Stripe checkout session creation failed${errorSummary ? `: ${errorSummary}` : ''}`,
+      );
       throw createStripeCheckoutError();
     }
 
@@ -146,7 +158,11 @@ export async function registerPaymentRoutes(
         checkoutIdempotencyKey,
       });
     } catch (error) {
-      request.log.error({ err: summarizeUnknownError(error), orderId, stripeSessionId: session.id }, 'Persisting pending Stripe order failed');
+      const errorSummary = formatErrorSummary(error);
+      request.log.error(
+        { err: summarizeUnknownError(error), orderId, stripeSessionId: session.id },
+        `Persisting pending Stripe order failed${errorSummary ? `: ${errorSummary}` : ''}`,
+      );
       throw createStripeCheckoutError();
     }
 
