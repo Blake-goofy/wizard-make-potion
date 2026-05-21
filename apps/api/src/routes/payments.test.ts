@@ -169,4 +169,26 @@ describe('payment routes', () => {
       await server.close();
     }
   });
+
+  it('does not expose pending order persistence failures after Stripe session creation', async () => {
+    stripeMocks.createCheckoutSession.mockResolvedValue({ id: 'cs_test_checkout', url: 'https://checkout.stripe.test/session' });
+    const orders = createOrders();
+    orders.createPendingStripeOrder = vi.fn().mockRejectedValue(new Error('column "checkout_idempotency_key" does not exist'));
+    const { server } = await createServer(createConfig(), orders);
+
+    try {
+      const response = await server.inject({
+        method: 'POST',
+        url: '/api/payments/stripe-checkout',
+        headers: { 'Idempotency-Key': checkoutIdempotencyKey },
+        payload: { eventId, customerEmail: 'guest@example.com', quantity: 1 },
+      });
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json()).toEqual({ message: genericCheckoutMessage });
+      expect(response.body).not.toContain('checkout_idempotency_key');
+    } finally {
+      await server.close();
+    }
+  });
 });

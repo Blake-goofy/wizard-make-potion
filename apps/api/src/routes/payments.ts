@@ -9,16 +9,35 @@ const stripeCheckoutUnavailableMessage = 'Could not open Stripe checkout. Please
 const idempotencyKeyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 type HttpError = Error & { statusCode: number; expose?: boolean };
 
-function createHttpError(message: string, statusCode: number, options?: { cause?: unknown; expose?: boolean }) {
+function summarizeUnknownError(error: unknown) {
+  if (error instanceof Error) {
+    const errorWithCode = error as Error & { code?: unknown; statusCode?: unknown; type?: unknown };
+
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      code: typeof errorWithCode.code === 'string' ? errorWithCode.code : undefined,
+      statusCode: typeof errorWithCode.statusCode === 'number' ? errorWithCode.statusCode : undefined,
+      type: typeof errorWithCode.type === 'string' ? errorWithCode.type : undefined,
+    };
+  }
+
+  return {
+    type: typeof error,
+    value: typeof error === 'string' ? error : undefined,
+  };
+}
+
+function createHttpError(message: string, statusCode: number, options?: { expose?: boolean }) {
   const error = new Error(message) as HttpError;
   error.statusCode = statusCode;
-  if (options?.cause !== undefined) error.cause = options.cause;
   if (options?.expose !== undefined) error.expose = options.expose;
   return error;
 }
 
-function createStripeCheckoutError(cause?: unknown) {
-  return createHttpError(stripeCheckoutUnavailableMessage, 502, { cause, expose: true });
+function createStripeCheckoutError() {
+  return createHttpError(stripeCheckoutUnavailableMessage, 502, { expose: true });
 }
 
 function getStripe(config: AppConfig) {
@@ -72,6 +91,7 @@ export async function registerPaymentRoutes(
     let session: Stripe.Checkout.Session;
 
     try {
+      request.log.info({ orderId, eventId: input.eventId, quantity: input.quantity }, 'Creating Stripe checkout session');
       session = await stripe.checkout.sessions.create({
         mode: 'payment',
         customer_email: input.customerEmail,
@@ -107,20 +127,28 @@ export async function registerPaymentRoutes(
         cancel_url: deps.config.webOrigin,
       }, { idempotencyKey: `stripe-checkout:${checkoutIdempotencyKey}` });
     } catch (error) {
-      throw createStripeCheckoutError(error);
+      request.log.error({ err: summarizeUnknownError(error), orderId, eventId: input.eventId }, 'Stripe checkout session creation failed');
+      throw createStripeCheckoutError();
     }
 
     if (!session.url) {
       throw createStripeCheckoutError();
     }
 
-    await deps.orders.createPendingStripeOrder({
-      orderId,
-      input,
-      quote,
-      providerReference: session.id,
-      checkoutIdempotencyKey,
-    });
+    request.log.info({ orderId, stripeSessionId: session.id }, 'Stripe checkout session created');
+
+    try {
+      await deps.orders.createPendingStripeOrder({
+        orderId,
+        input,
+        quote,
+        providerReference: session.id,
+        checkoutIdempotencyKey,
+      });
+    } catch (error) {
+      request.log.error({ err: summarizeUnknownError(error), orderId, stripeSessionId: session.id }, 'Persisting pending Stripe order failed');
+      throw createStripeCheckoutError();
+    }
 
     return reply.code(201).send({ orderId, checkoutUrl: session.url });
   });

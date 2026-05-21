@@ -20,6 +20,26 @@ import { createEmailQueueService } from './services/emailQueue.js';
 import { createOrderService } from './services/orders.js';
 import { createScannerService } from './services/scanner.js';
 
+function summarizeUnknownError(error: unknown) {
+  if (error instanceof Error) {
+    const errorWithCode = error as Error & { code?: unknown; statusCode?: unknown; cause?: unknown };
+
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      code: typeof errorWithCode.code === 'string' ? errorWithCode.code : undefined,
+      statusCode: typeof errorWithCode.statusCode === 'number' ? errorWithCode.statusCode : undefined,
+      causeMessage: errorWithCode.cause instanceof Error ? errorWithCode.cause.message : undefined,
+    };
+  }
+
+  return {
+    type: typeof error,
+    value: typeof error === 'string' ? error : undefined,
+  };
+}
+
 function findWebDistDir() {
   const startDirs = [process.cwd(), dirname(fileURLToPath(import.meta.url))];
 
@@ -65,7 +85,9 @@ export async function buildServer(config: AppConfig) {
       ? 'Something went wrong on the server. Please try again.'
       : errorShape.message;
 
-    if (statusCode >= 500) request.log.error(error);
+    if (statusCode >= 500) {
+      request.log.error({ err: summarizeUnknownError(error), statusCode, path: request.url }, 'Request failed');
+    }
 
     return reply.code(statusCode).send({ message });
   });
