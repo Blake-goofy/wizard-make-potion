@@ -35,6 +35,7 @@ describe('loadConfig', () => {
   it('uses prod Stripe and Resend values only with production node runtime', () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('APP_ENV', 'production');
+    vi.stubEnv('WEB_ORIGIN', 'https://wizardmakepotion.com');
     vi.stubEnv('STRIPE_SECRET_KEY_PROD', 'sk_prod');
     vi.stubEnv('STRIPE_PUBLISHABLE_KEY_PROD', 'pk_prod');
     vi.stubEnv('STRIPE_WEBHOOK_SECRET_PROD', 'whsec_prod');
@@ -92,9 +93,37 @@ describe('loadConfig', () => {
   it('requires a production database URL for production app mode', () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('APP_ENV', 'production');
+    vi.stubEnv('WEB_ORIGIN', 'https://wizardmakepotion.com');
+    vi.stubEnv('STRIPE_SECRET_KEY_PROD', 'sk_prod');
+    vi.stubEnv('STRIPE_PUBLISHABLE_KEY_PROD', 'pk_prod');
+    vi.stubEnv('STRIPE_WEBHOOK_SECRET_PROD', 'whsec_prod');
+    vi.stubEnv('RESEND_API_KEY_PROD', 're_prod');
     delete process.env.DATABASE_URL_PROD;
 
     expect(() => loadConfig()).toThrow('DATABASE_URL_PROD is required when APP_ENV=production');
+  });
+
+  it('requires a public https web origin for production app mode', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('APP_ENV', 'production');
+    vi.stubEnv('DATABASE_URL_PROD', 'postgresql://prod-db');
+    vi.stubEnv('STRIPE_SECRET_KEY_PROD', 'sk_prod');
+    vi.stubEnv('STRIPE_PUBLISHABLE_KEY_PROD', 'pk_prod');
+    vi.stubEnv('STRIPE_WEBHOOK_SECRET_PROD', 'whsec_prod');
+    vi.stubEnv('RESEND_API_KEY_PROD', 're_prod');
+    delete process.env.WEB_ORIGIN;
+
+    expect(() => loadConfig()).toThrow('WEB_ORIGIN must be the public https site origin when APP_ENV=production');
+  });
+
+  it('requires production provider keys for production app mode', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('APP_ENV', 'production');
+    vi.stubEnv('WEB_ORIGIN', 'https://wizardmakepotion.com');
+    vi.stubEnv('DATABASE_URL_PROD', 'postgresql://prod-db');
+    delete process.env.STRIPE_SECRET_KEY_PROD;
+
+    expect(() => loadConfig()).toThrow('STRIPE_SECRET_KEY_PROD is required when APP_ENV=production');
   });
 
   it('keeps supporting legacy development Stripe keys and admin session secret', () => {

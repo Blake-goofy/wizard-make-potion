@@ -76,6 +76,19 @@ function readCorsOrigins(webOrigin: string, webOrigins?: string) {
   return Array.from(new Set([webOrigin, ...origins]));
 }
 
+function requireProductionValue(value: string | undefined, key: string) {
+  if (!value) throw new Error(`${key}_PROD is required when APP_ENV=production`);
+  return value;
+}
+
+function validateProductionWebOrigin(webOrigin: string) {
+  const url = new URL(webOrigin);
+
+  if (url.protocol !== 'https:' || url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    throw new Error('WEB_ORIGIN must be the public https site origin when APP_ENV=production');
+  }
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_ENV: z.enum(['development', 'production']).optional(),
@@ -106,6 +119,20 @@ export type AppConfig = ReturnType<typeof loadConfig>;
 export function loadConfig() {
   const env = envSchema.parse(process.env);
   const appEnv = resolveAppEnv(env.NODE_ENV, env.APP_ENV);
+  const emailFromAddress = readAppModeValue(env, 'EMAIL_FROM_ADDRESS', appEnv) ?? 'onboarding@resend.dev';
+  const emailFromName = readAppModeValue(env, 'EMAIL_FROM_NAME', appEnv) ?? 'Wizard Make Potion Tickets';
+  const resendApiKey = readAppModeValue(env, 'RESEND_API_KEY', appEnv);
+  const stripeSecretKey = readAppModeValue(env, 'STRIPE_SECRET_KEY', appEnv);
+  const stripePublishableKey = readAppModeValue(env, 'STRIPE_PUBLISHABLE_KEY', appEnv);
+  const stripeWebhookSecret = readAppModeValue(env, 'STRIPE_WEBHOOK_SECRET', appEnv);
+
+  if (appEnv === 'production') {
+    validateProductionWebOrigin(env.WEB_ORIGIN);
+    requireProductionValue(stripeSecretKey, 'STRIPE_SECRET_KEY');
+    requireProductionValue(stripePublishableKey, 'STRIPE_PUBLISHABLE_KEY');
+    requireProductionValue(stripeWebhookSecret, 'STRIPE_WEBHOOK_SECRET');
+    requireProductionValue(resendApiKey, 'RESEND_API_KEY');
+  }
 
   return {
     nodeEnv: env.NODE_ENV,
@@ -115,11 +142,11 @@ export function loadConfig() {
     corsOrigins: readCorsOrigins(env.WEB_ORIGIN, env.WEB_ORIGINS),
     databaseUrl: readDatabaseUrl(env, appEnv),
     authSessionSecret: env.AUTH_SESSION_SECRET ?? env.ADMIN_SESSION_SECRET ?? defaultAuthSessionSecret,
-    emailFromAddress: readAppModeValue(env, 'EMAIL_FROM_ADDRESS', appEnv) ?? 'onboarding@resend.dev',
-    emailFromName: readAppModeValue(env, 'EMAIL_FROM_NAME', appEnv) ?? 'Wizard Make Potion Tickets',
-    resendApiKey: readAppModeValue(env, 'RESEND_API_KEY', appEnv),
-    stripeSecretKey: readAppModeValue(env, 'STRIPE_SECRET_KEY', appEnv),
-    stripePublishableKey: readAppModeValue(env, 'STRIPE_PUBLISHABLE_KEY', appEnv),
-    stripeWebhookSecret: readAppModeValue(env, 'STRIPE_WEBHOOK_SECRET', appEnv),
+    emailFromAddress,
+    emailFromName,
+    resendApiKey,
+    stripeSecretKey,
+    stripePublishableKey,
+    stripeWebhookSecret,
   };
 }
