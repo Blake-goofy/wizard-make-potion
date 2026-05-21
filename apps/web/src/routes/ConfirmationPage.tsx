@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SessionUser } from '@potion/shared';
 import QRCode from 'qrcode';
-import ActionDialog from '../components/ActionDialog';
+import ButtonArrowIcon from '../components/ButtonArrowIcon';
 import LoadingOverlay from '../components/LoadingOverlay';
 import ToastRegion from '../components/ToastRegion';
 import { useToast } from '../hooks/useToast';
@@ -11,6 +11,7 @@ type ConfirmationPageProps = {
   orderId: string;
   token: string;
   user: SessionUser | null;
+  onBackToSales: () => void;
 };
 
 function formatCurrency(cents: number) {
@@ -94,15 +95,11 @@ function TicketQrCode({ scanToken }: { scanToken: string }) {
   );
 }
 
-export default function ConfirmationPage({ orderId, token, user }: ConfirmationPageProps) {
+export default function ConfirmationPage({ orderId, token, user, onBackToSales }: ConfirmationPageProps) {
   const [order, setOrder] = useState<ConfirmationOrderView | null>(null);
   const [message, setMessage] = useState('Loading purchased tickets.');
-  const [pendingUsageAction, setPendingUsageAction] = useState<{
-    ticket: ConfirmationOrderView['tickets'][number];
-    nextUsed: boolean;
-  } | null>(null);
   const [isLoadingOrder, setIsLoadingOrder] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingTicketId, setPendingTicketId] = useState<string | null>(null);
   const ticketScrollerRef = useRef<HTMLDivElement | null>(null);
   const {
     toastMessage,
@@ -163,38 +160,43 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
     };
   }, [order, orderId]);
 
-  function openTicketUsageDialog(ticket: ConfirmationOrderView['tickets'][number]) {
-    setPendingUsageAction({ ticket, nextUsed: !ticket.usedAt });
+  function updateOrderTicketUsage(ticketId: string, usedAt: string | null) {
+    setOrder((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        tickets: current.tickets.map((ticket) =>
+          ticket.id === ticketId
+            ? {
+                ...ticket,
+                usedAt,
+              }
+            : ticket,
+        ),
+      };
+    });
   }
 
-  async function handleConfirmTicketUsage() {
-    if (!pendingUsageAction || !token) return;
+  async function handleTicketUsageToggle(ticket: ConfirmationOrderView['tickets'][number]) {
+    if (!token || pendingTicketId) return;
 
-    setIsSubmitting(true);
+    const nextUsed = !ticket.usedAt;
+    const previousUsedAt = ticket.usedAt;
+    const optimisticUsedAt = nextUsed ? new Date().toISOString() : null;
+
+    setPendingTicketId(ticket.id);
+    updateOrderTicketUsage(ticket.id, optimisticUsedAt);
 
     try {
-      const result = await updateTicketUsage(pendingUsageAction.ticket.id, { used: pendingUsageAction.nextUsed }, token);
+      const result = await updateTicketUsage(ticket.id, { used: nextUsed }, token);
 
-      setOrder((current) => {
-        if (!current) return current;
-
-        return {
-          ...current,
-          tickets: current.tickets.map((ticket) =>
-            ticket.id === result.ticket.id
-              ? {
-                  ...ticket,
-                  usedAt: result.ticket.usedAt,
-                }
-              : ticket,
-          ),
-        };
-      });
-      setPendingUsageAction(null);
+      updateOrderTicketUsage(result.ticket.id, result.ticket.usedAt);
     } catch (error) {
+      updateOrderTicketUsage(ticket.id, previousUsedAt);
       showToast(error instanceof Error ? error.message : 'Could not update ticket status.', 'error');
     } finally {
-      setIsSubmitting(false);
+      setPendingTicketId(null);
     }
   }
 
@@ -235,37 +237,64 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
                         {canManageTicketUsage ? (
                           <button
                             aria-pressed={Boolean(ticket.usedAt)}
-                            className={`ticket-usage-toggle${ticket.usedAt ? ' is-used' : ''}`}
-                            disabled={isSubmitting}
+                            aria-busy={pendingTicketId === ticket.id}
+                            aria-label={ticket.usedAt ? 'Mark ticket as unused' : 'Mark ticket as used'}
+                            className={`ticket-usage-toggle${ticket.usedAt ? ' is-used' : ''}${pendingTicketId === ticket.id ? ' is-pending' : ''}`}
+                            disabled={Boolean(pendingTicketId)}
                             type="button"
-                            onClick={() => openTicketUsageDialog(ticket)}
+                            onClick={() => void handleTicketUsageToggle(ticket)}
                           >
-                            <span className="ticket-usage-toggle-handle" aria-hidden="true" />
-                            <span>{ticket.usedAt ? 'Used' : 'Unused'}</span>
+                            <span className="ticket-usage-toggle-track" aria-hidden="true">
+                              <span className="ticket-usage-toggle-handle" />
+                              <span className="ticket-usage-toggle-text-unused">Unused</span>
+                              <span className="ticket-usage-toggle-text-used">Used</span>
+                            </span>
                           </button>
                         ) : null}
                       </div>
                       <TicketQrCode scanToken={ticket.scanToken} />
                       {canManageTicketUsage ? (
-                        <span className="status-text confirmation-ticket-meta">
-                          {ticket.usedAt ? `Marked used ${formatDate(ticket.usedAt)}` : 'Ready to scan'}
+                        <span className={`status-text confirmation-ticket-meta${ticket.usedAt ? ' is-used' : ''}${pendingTicketId === ticket.id ? ' is-pending' : ''}`}>
+                          {pendingTicketId === ticket.id
+                            ? 'Updating status'
+                            : ticket.usedAt
+                              ? `Marked used ${formatDate(ticket.usedAt)}`
+                              : 'Ready to scan'}
                         </span>
                       ) : null}
                     </article>
                   ))}
                 </div>
+                {canManageTicketUsage ? (
+                  <button className="primary-button button-with-arrow confirmation-back-button" type="button" onClick={onBackToSales}>
+                    <ButtonArrowIcon />
+                    <span>Back to sales</span>
+                  </button>
+                ) : null}
               </div>
             ) : null}
             <div className="confirmation-summary">
-              <div className="confirmation-summary-heading">
-                <h2>Order Summary</h2>
+              <h2 className="confirmation-summary-title">Order Summary</h2>
+              <dl className="confirmation-summary-lines">
+                <div className="confirmation-summary-line">
+                  <dt>{order.quantity} Ticket{order.quantity === 1 ? '' : 's'}</dt>
+                  <dd>{formatCurrency(order.subtotalCents)}</dd>
+                </div>
+                {order.taxCents > 0 ? (
+                  <div className="confirmation-summary-line">
+                    <dt>Tax</dt>
+                    <dd>{formatCurrency(order.taxCents)}</dd>
+                  </div>
+                ) : null}
+              </dl>
+              <div className="confirmation-summary-total">
+                <span>Total</span>
                 <strong>{formatCurrency(order.totalCents)}</strong>
               </div>
-              <div className="confirmation-summary-row">
-                <span>{order.quantity} ticket{order.quantity === 1 ? '' : 's'} purchased</span>
-                <strong>{formatDate(order.createdAt)}</strong>
+              <div className="confirmation-summary-meta">
+                <span className="status-text">Ordered {formatDate(order.createdAt)}</span>
+                <span className="status-text">{order.customerEmail}</span>
               </div>
-              <span className="status-text">{order.customerEmail}</span>
             </div>
           </>
         ) : (
@@ -275,27 +304,11 @@ export default function ConfirmationPage({ orderId, token, user }: ConfirmationP
             <p className="status-text">{message}</p>
           </div>
         )}
-        <ActionDialog
-          confirmLabel={pendingUsageAction?.nextUsed ? 'Mark Used' : 'Mark Unused'}
-          confirmTone={pendingUsageAction?.nextUsed ? 'default' : 'danger'}
-          description={
-            pendingUsageAction
-              ? pendingUsageAction.nextUsed
-                ? `Mark ticket ${pendingUsageAction.ticket.ticketNumber} as used?`
-                : `Mark ticket ${pendingUsageAction.ticket.ticketNumber} as unused and make it scannable again?`
-              : ''
-          }
-          isOpen={Boolean(pendingUsageAction)}
-          isSubmitting={isSubmitting}
-          title={pendingUsageAction?.nextUsed ? 'Confirm Ticket Use' : 'Undo Ticket Use'}
-          onClose={() => setPendingUsageAction(null)}
-          onConfirm={() => void handleConfirmTicketUsage()}
-        />
       </section>
-      {isLoadingOrder || isSubmitting ? (
+      {isLoadingOrder ? (
         <LoadingOverlay
-          label={isSubmitting ? 'Saving ticket status' : 'Loading tickets'}
-          detail={isSubmitting ? 'Updating whether this ticket is used.' : 'Fetching your order confirmation and ticket details.'}
+          label="Loading tickets"
+          detail="Fetching your order confirmation and ticket details."
           variant="confirmation"
         />
       ) : null}

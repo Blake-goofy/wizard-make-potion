@@ -275,7 +275,7 @@ export function App() {
     if (route === 'scan') return <ScanPage token={token} user={user} onViewOrder={openConfirmationOrder} />;
     if (route === 'sales') return <SalesPage token={token} />;
     if (route === 'confirmation') {
-      return confirmationOrderId ? <ConfirmationPage orderId={confirmationOrderId} token={token} user={user} /> : <HomePage user={user} />;
+      return confirmationOrderId ? <ConfirmationPage orderId={confirmationOrderId} token={token} user={user} onBackToSales={() => setRouteAndSyncUrl('sales')} /> : <HomePage user={user} />;
     }
     return <HomePage user={user} />;
   }, [confirmationOrderId, handleAccountDeleted, handleSession, handleUserChange, openConfirmationOrder, route, token, user]);

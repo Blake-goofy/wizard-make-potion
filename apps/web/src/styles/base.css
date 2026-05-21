@@ -1233,12 +1233,13 @@ label {
 .ticket-sales-toolbar {
   display: flex;
   justify-content: flex-start;
+  width: 100%;
 }
 
 .ticket-sales-event-select {
   display: grid;
   gap: var(--space-2);
-  width: min(100%, 22rem);
+  width: 100%;
 }
 
 .ticket-sales-event-select span {
@@ -1273,9 +1274,7 @@ label {
 .ticket-sales-table th:nth-child(2),
 .ticket-sales-table td:nth-child(2),
 .ticket-sales-table th:nth-child(3),
-.ticket-sales-table td:nth-child(3),
-.ticket-sales-table th:nth-child(4),
-.ticket-sales-table td:nth-child(4) {
+.ticket-sales-table td:nth-child(3) {
   width: 1%;
   white-space: nowrap;
 }
@@ -1289,9 +1288,7 @@ label {
 .ticket-sales-table th:nth-child(2),
 .ticket-sales-table td:nth-child(2),
 .ticket-sales-table th:nth-child(3),
-.ticket-sales-table td:nth-child(3),
-.ticket-sales-table th:nth-child(4),
-.ticket-sales-table td:nth-child(4) {
+.ticket-sales-table td:nth-child(3) {
   padding-left: var(--space-2);
   padding-right: var(--space-2);
 }
@@ -1309,30 +1306,92 @@ label {
   border-bottom: 1px solid var(--color-border);
 }
 
-.ticket-sales-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
 .ticket-sales-row {
   cursor: pointer;
 }
 
-.ticket-sales-row:hover,
-.ticket-sales-row:focus-visible {
+.ticket-sales-order-group:hover td,
+.ticket-sales-order-group:focus-within td {
   background: var(--color-surface);
+}
+
+.ticket-sales-row:focus-visible {
   outline: none;
 }
 
-.ticket-sales-row td:first-child {
-  max-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.ticket-sales-order-group td {
+  border-bottom: 0;
 }
 
-.ticket-sales-row td:last-child,
+.ticket-sales-order-group + .ticket-sales-order-group .ticket-sales-row-primary td,
+.ticket-sales-order-group + .ticket-sales-order-group .ticket-sales-status-cell {
+  border-top: 1px solid var(--color-border);
+}
+
+.ticket-sales-row-primary td {
+  padding-top: var(--space-3);
+  padding-bottom: 0;
+}
+
+.ticket-sales-row-secondary td {
+  padding-top: 0.2rem;
+  padding-bottom: var(--space-3);
+}
+
+.ticket-sales-cell-primary {
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.ticket-sales-cell-secondary {
+  color: var(--color-muted-text);
+  font-size: 0.84rem;
+}
+
+.ticket-sales-cell-metric {
+  text-align: right;
+}
+
+.ticket-sales-status-header,
+.ticket-sales-status-cell,
 .ticket-sales-table th:last-child {
   text-align: right;
+}
+
+.ticket-sales-status-header,
+.ticket-sales-table th:last-child,
+.ticket-sales-table td:last-child {
+  width: 2.2rem;
+  min-width: 2.2rem;
+  padding-left: var(--space-1);
+  padding-right: var(--space-2);
+}
+
+.ticket-sales-status-cell {
+  vertical-align: middle;
+}
+
+.ticket-sales-status-dot {
+  display: inline-block;
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+}
+
+.ticket-sales-status-dot.is-unused {
+  border-color: var(--color-success);
+  background: var(--color-success);
+}
+
+.ticket-sales-status-dot.is-used {
+  border-color: var(--color-warning);
+  background: var(--color-warning);
+}
+
+.ticket-sales-status-dot.is-partial {
+  border-color: var(--color-scanner-frame);
+  background: var(--color-scanner-frame);
 }
 
 .ticket-sales-filter {
@@ -1386,30 +1445,47 @@ label {
   min-width: 0;
 }
 
-.table-filter-actions {
-  display: flex;
-  justify-content: flex-end;
+.table-filter-popover-email {
+  width: 24rem;
+  min-width: 0;
 }
 
-.table-filter-action {
-  min-height: 0;
-  border: 0;
-  padding: 0;
-  color: var(--color-text);
-  background: transparent;
+.table-filter-input-shell {
+  position: relative;
+}
+
+.table-filter-input-shell.has-action input {
+  padding-right: 4.75rem;
+}
+
+.table-filter-input-action {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  min-height: 1.8rem;
+  border: 1px solid color-mix(in srgb, var(--color-surface-inverse) 55%, transparent);
+  border-radius: 999px;
+  padding: 0 0.55rem;
+  color: var(--color-text-inverse);
+  background: var(--color-surface-inverse);
   font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(-50%);
 }
 
-.table-filter-action:hover,
-.table-filter-action:focus-visible {
-  color: var(--color-muted-text);
+.table-filter-input-action:hover:not(:disabled),
+.table-filter-input-action:focus-visible {
+  color: var(--color-text-inverse);
+  background: var(--color-action-hover);
   outline: none;
 }
 
 .table-filter-popover-status {
   left: auto;
   right: 0;
-  min-width: 10rem;
+  min-width: 12rem;
 }
 
 .table-filter-popover-header {
@@ -1463,6 +1539,35 @@ label {
   accent-color: var(--color-accent-strong);
 }
 
+.table-filter-checkbox input[type='checkbox'].is-unused {
+  accent-color: var(--color-success);
+}
+
+.table-filter-checkbox input[type='checkbox'].is-partial {
+  accent-color: var(--color-scanner-frame);
+}
+
+.table-filter-checkbox input[type='checkbox'].is-used {
+  accent-color: var(--color-warning);
+}
+
+.ticket-sales-filter-key {
+  display: inline-flex;
+  align-items: center;
+}
+
+.ticket-sales-filter-key.is-unused {
+  color: color-mix(in srgb, var(--color-success) 72%, var(--color-text));
+}
+
+.ticket-sales-filter-key.is-partial {
+  color: color-mix(in srgb, var(--color-scanner-frame) 72%, var(--color-text));
+}
+
+.ticket-sales-filter-key.is-used {
+  color: color-mix(in srgb, var(--color-warning) 72%, var(--color-text));
+}
+
 .ticket-sales-empty {
   color: var(--color-muted-text);
 }
@@ -1492,6 +1597,18 @@ label {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3);
   align-items: start;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .ticket-sales-summary-label {
@@ -1697,6 +1814,15 @@ label {
   scroll-snap-type: x mandatory;
 }
 
+.confirmation-back-button {
+  justify-self: start;
+  padding-inline: 0.9rem 1rem;
+}
+
+.confirmation-back-button .button-arrow-icon {
+  transform: rotate(180deg);
+}
+
 .confirmation-ticket-card {
   display: grid;
   flex: 0 0 calc(100% - 3.5rem);
@@ -1726,38 +1852,103 @@ label {
   text-transform: uppercase;
 }
 
+/* The button is a transparent wrapper; all visuals live in the track */
 .ticket-usage-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  min-width: 7.5rem;
-  padding: 0.45rem 0.65rem;
+  display: inline-block;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  transition: opacity 160ms ease;
+}
+
+.ticket-usage-toggle:hover:not(:disabled) {
+  background: transparent;
+}
+
+.ticket-usage-toggle.is-pending {
+  opacity: 0.78;
+}
+
+/* Fixed-width pill — identical size in both states */
+.ticket-usage-toggle-track {
+  position: relative;
+  display: block;
+  width: 5.5rem;
+  height: 1.72rem;
   border-radius: 999px;
   border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-success) 10%, var(--color-surface) 90%);
+  transition: background 200ms ease, border-color 200ms ease;
 }
 
-.ticket-usage-toggle > span:last-child {
-  order: 1;
+.ticket-usage-toggle:hover:not(:disabled) .ticket-usage-toggle-track {
+  background: color-mix(in srgb, var(--color-success) 16%, var(--color-surface) 84%);
 }
 
-.ticket-usage-toggle.is-used {
-  border-color: color-mix(in srgb, var(--color-danger) 45%, var(--color-border) 55%);
-  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+.ticket-usage-toggle.is-used .ticket-usage-toggle-track {
+  border-color: color-mix(in srgb, var(--color-warning) 45%, var(--color-border) 55%);
+  background: color-mix(in srgb, var(--color-warning) 16%, var(--color-surface) 84%);
 }
 
+.ticket-usage-toggle:hover:not(:disabled).is-used .ticket-usage-toggle-track {
+  background: color-mix(in srgb, var(--color-warning) 22%, var(--color-surface) 78%);
+}
+
+/* Sliding handle */
 .ticket-usage-toggle-handle {
-  width: 1rem;
-  height: 1rem;
-  flex: 0 0 auto;
+  position: absolute;
+  top: 50%;
+  left: 0.22rem;
+  transform: translateY(-50%);
+  width: 1.28rem;
+  height: 1.28rem;
   border-radius: 999px;
-  background: var(--color-muted-text);
+  background: var(--color-surface-inverse);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-background) 35%, transparent);
+  z-index: 1;
+  transition: transform 220ms ease, background 200ms ease;
 }
 
+/* track 5.5rem - handle 1.28rem - left inset 0.22rem - right inset 0.22rem = 3.78rem */
 .ticket-usage-toggle.is-used .ticket-usage-toggle-handle {
-  order: 2;
-  background: var(--color-danger);
+  transform: translateY(-50%) translateX(3.78rem);
+  background: var(--color-warning);
+}
+
+/* Text labels inside the track */
+.ticket-usage-toggle-text-unused,
+.ticket-usage-toggle-text-used {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 180ms ease;
+}
+
+/* "Unused" sits on the right — visible when not toggled */
+.ticket-usage-toggle-text-unused {
+  right: 0.52rem;
+  opacity: 1;
+}
+
+/* "Used" sits on the left — visible when toggled */
+.ticket-usage-toggle-text-used {
+  left: 0.52rem;
+  opacity: 0;
+}
+
+.ticket-usage-toggle.is-used .ticket-usage-toggle-text-unused {
+  opacity: 0;
+}
+
+.ticket-usage-toggle.is-used .ticket-usage-toggle-text-used {
+  opacity: 1;
 }
 
 .confirmation-ticket-arrival span,
@@ -1785,6 +1976,14 @@ label {
   min-height: 1.4rem;
 }
 
+.confirmation-ticket-meta.is-used {
+  color: color-mix(in srgb, var(--color-warning) 78%, var(--color-text) 22%);
+}
+
+.confirmation-ticket-meta.is-pending {
+  color: var(--color-muted-text);
+}
+
 .ticket-qr-frame {
   display: grid;
   place-items: center;
@@ -1805,25 +2004,74 @@ label {
 }
 
 .confirmation-summary {
+  display: grid;
+  gap: var(--space-3);
   border-top: 1px solid var(--color-border);
   padding-top: var(--space-4);
 }
 
-.confirmation-summary-heading,
-.confirmation-summary-row {
+.confirmation-summary-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.confirmation-summary-lines {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+}
+
+.confirmation-summary-line {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
 }
 
-.confirmation-summary-row span {
+.confirmation-summary-line dt {
   color: var(--color-muted-text);
+  font-size: 0.88rem;
+  font-weight: 400;
+  min-width: 0;
 }
 
-.confirmation-summary-heading strong,
-.confirmation-summary-row strong {
+.confirmation-summary-line dd {
+  margin: 0;
+  flex: 0 0 auto;
+  font-size: 0.88rem;
+  font-weight: 600;
   text-align: right;
+  white-space: nowrap;
+}
+
+.confirmation-summary-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+.confirmation-summary-total span {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.confirmation-summary-total strong {
+  flex: 0 0 auto;
+  font-size: 1.25rem;
+  font-weight: 800;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.confirmation-summary-meta {
+  display: grid;
+  gap: var(--space-1);
 }
 
 .loading-page-shell {

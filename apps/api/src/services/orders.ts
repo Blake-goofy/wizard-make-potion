@@ -305,7 +305,8 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
       await this.reconcilePendingStripeOrder(orderId);
 
       const result = await deps.db.query(
-        `select o.id, o.customer_email as "customerEmail", o.quantity, o.total_cents as "totalCents",
+        `select o.id, o.customer_email as "customerEmail", o.quantity,
+                o.subtotal_cents as "subtotalCents", o.tax_cents as "taxCents", o.total_cents as "totalCents",
                 o.status, o.created_at as "createdAt", e.name as "eventName", e.starts_at as "eventStartsAt",
                 e.address as "eventAddress",
                 coalesce(ticket_summary.tickets, '[]'::json) as tickets

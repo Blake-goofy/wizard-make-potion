@@ -99,6 +99,8 @@ export type ConfirmationOrderView = {
   id: string;
   customerEmail: string;
   quantity: number;
+  subtotalCents: number;
+  taxCents: number;
   totalCents: number;
   status: string;
   createdAt: string;

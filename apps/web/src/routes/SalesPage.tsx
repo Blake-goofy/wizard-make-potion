@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import LoadingOverlay from '../components/LoadingOverlay';
 import ToastRegion from '../components/ToastRegion';
 import { useToast } from '../hooks/useToast';
@@ -24,6 +24,10 @@ type AdminOrderView = {
 
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
 
 function getOrderArrivalStatus(order: Pick<AdminOrderView, 'ticketCount' | 'usedCount'>): ArrivalStatus {
@@ -68,6 +72,8 @@ export default function SalesPage({ token }: SalesPageProps) {
     used: true,
   });
   const [openFilter, setOpenFilter] = useState<FilterKey>(null);
+  const [emailPopoverWidth, setEmailPopoverWidth] = useState<number | null>(null);
+  const tableShellRef = useRef<HTMLDivElement | null>(null);
   const emailFilterRef = useRef<HTMLDivElement | null>(null);
   const emailFilterInputRef = useRef<HTMLInputElement | null>(null);
   const statusFilterRef = useRef<HTMLDivElement | null>(null);
@@ -173,7 +179,46 @@ export default function SalesPage({ token }: SalesPageProps) {
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [emailFilter.length, openFilter]);
+  }, [openFilter]);
+
+  useLayoutEffect(() => {
+    if (openFilter !== 'email') {
+      setEmailPopoverWidth(null);
+      return;
+    }
+
+    const tableShell = tableShellRef.current;
+    const emailFilter = emailFilterRef.current;
+
+    if (!tableShell || !emailFilter) return;
+
+    function updateEmailPopoverWidth() {
+      const currentTableShell = tableShellRef.current;
+      const currentEmailFilter = emailFilterRef.current;
+
+      if (!currentTableShell || !currentEmailFilter) return;
+
+      const shellBounds = currentTableShell.getBoundingClientRect();
+      const filterBounds = currentEmailFilter.getBoundingClientRect();
+      const availableWidth = Math.floor(shellBounds.right - filterBounds.left);
+
+      setEmailPopoverWidth(availableWidth > 0 ? availableWidth : null);
+    }
+
+    updateEmailPopoverWidth();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateEmailPopoverWidth();
+    });
+
+    resizeObserver.observe(tableShell);
+    window.addEventListener('resize', updateEmailPopoverWidth);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateEmailPopoverWidth);
+    };
+  }, [openFilter]);
 
   const orders = useMemo(() => {
     const ordersById = new Map<string, AdminOrderView>();
@@ -229,7 +274,6 @@ export default function SalesPage({ token }: SalesPageProps) {
       }
 
       return {
-        orderCount: filteredOrders.length,
         ticketCount,
         usedTicketCount,
         expectedEarningsCents,
@@ -313,7 +357,7 @@ export default function SalesPage({ token }: SalesPageProps) {
           </select>
         </label>
       </div>
-      <div className="ticket-sales-table-shell">
+      <div className="ticket-sales-table-shell" ref={tableShellRef}>
         <table className="ticket-sales-table">
           <thead>
             <tr>
@@ -328,7 +372,19 @@ export default function SalesPage({ token }: SalesPageProps) {
                     Email
                   </button>
                   {openFilter === 'email' ? (
-                    <div aria-label="Filter by email" className="table-filter-popover" role="dialog">
+                    <div
+                      aria-label="Filter by email"
+                      className="table-filter-popover table-filter-popover-email"
+                      role="dialog"
+                      style={
+                        emailPopoverWidth
+                          ? {
+                              width: `${Math.min(emailPopoverWidth, 384)}px`,
+                              maxWidth: `${emailPopoverWidth}px`,
+                            }
+                          : undefined
+                      }
+                    >
                       <div className="table-filter-popover-header">
                         <strong>Email filter</strong>
                         <button
@@ -340,26 +396,27 @@ export default function SalesPage({ token }: SalesPageProps) {
                           x
                         </button>
                       </div>
-                      <input
-                        autoFocus
-                        ref={emailFilterInputRef}
-                        placeholder="Contains email"
-                        type="text"
-                        value={emailFilter}
-                        onChange={(event) => setEmailFilter(event.target.value)}
-                      />
-                      <div className="table-filter-actions">
-                        <button className="table-filter-action" type="button" onClick={clearEmailFilter}>
-                          Clear filter
-                        </button>
+                      <div className={`table-filter-input-shell${emailFilter ? ' has-action' : ''}`}>
+                        <input
+                          autoFocus
+                          ref={emailFilterInputRef}
+                          placeholder="Contains email"
+                          type="text"
+                          value={emailFilter}
+                          onChange={(event) => setEmailFilter(event.target.value)}
+                        />
+                        {emailFilter ? (
+                          <button className="table-filter-input-action" type="button" onClick={clearEmailFilter}>
+                            Clear
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   ) : null}
                 </div>
               </th>
-              <th scope="col">Paid</th>
               <th scope="col">People</th>
-              <th scope="col">
+              <th className="ticket-sales-status-header" scope="col">
                 <div className="ticket-sales-filter ticket-sales-filter-align-end" ref={statusFilterRef}>
                   <button
                     aria-expanded={openFilter === 'status'}
@@ -369,7 +426,7 @@ export default function SalesPage({ token }: SalesPageProps) {
                     type="button"
                     onClick={() => toggleFilter('status')}
                   >
-                    Status
+                    Sts
                   </button>
                   {openFilter === 'status' ? (
                     <div aria-label="Filter by status" className="table-filter-popover table-filter-popover-status" role="dialog">
@@ -387,29 +444,38 @@ export default function SalesPage({ token }: SalesPageProps) {
                       <label className="table-filter-checkbox">
                         <input
                           checked={statusFilter.unused}
+                          className="is-unused"
                           disabled={statusFilter.unused && !statusFilter.partial && !statusFilter.used}
                           type="checkbox"
                           onChange={() => toggleStatusOption('unused')}
                         />
-                        <span>Unused</span>
+                        <span className="ticket-sales-filter-key is-unused">
+                          <span>Unused</span>
+                        </span>
                       </label>
                       <label className="table-filter-checkbox">
                         <input
                           checked={statusFilter.partial}
+                          className="is-partial"
                           disabled={statusFilter.partial && !statusFilter.unused && !statusFilter.used}
                           type="checkbox"
                           onChange={() => toggleStatusOption('partial')}
                         />
-                        <span>Partially used</span>
+                        <span className="ticket-sales-filter-key is-partial">
+                          <span>Partially used</span>
+                        </span>
                       </label>
                       <label className="table-filter-checkbox">
                         <input
                           checked={statusFilter.used}
+                          className="is-used"
                           disabled={statusFilter.used && !statusFilter.unused && !statusFilter.partial}
                           type="checkbox"
                           onChange={() => toggleStatusOption('used')}
                         />
-                        <span>Used</span>
+                        <span className="ticket-sales-filter-key is-used">
+                          <span>Used</span>
+                        </span>
                       </label>
                     </div>
                   ) : null}
@@ -417,47 +483,55 @@ export default function SalesPage({ token }: SalesPageProps) {
               </th>
             </tr>
           </thead>
-          <tbody>
-            {filteredOrders.length ? (
-              filteredOrders.map((order) => (
-                <tr
-                  className="ticket-sales-row"
-                  key={order.id}
-                  tabIndex={0}
-                  onClick={() => openTicketConfirmation(order.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      openTicketConfirmation(order.id);
-                    }
-                  }}
-                >
-                  <td title={order.customerEmail}>{order.customerEmail}</td>
-                  <td>{formatCurrency(order.totalCents)}</td>
-                  <td>{order.ticketCount}</td>
-                  <td>
-                    <span className={`ticket-status-pill ${getTicketStatusClassName(getOrderArrivalStatus(order))}`}>
-                      {formatOrderArrivalStatus(order)}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            ) : (
+          {filteredOrders.length ? (
+            filteredOrders.map((order) => {
+              const status = getOrderArrivalStatus(order);
+              const statusLabel = formatOrderArrivalStatus(order);
+
+              return (
+                <tbody className="ticket-sales-order-group" key={order.id}>
+                  <tr
+                    className="ticket-sales-row ticket-sales-row-primary"
+                    tabIndex={0}
+                    onClick={() => openTicketConfirmation(order.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openTicketConfirmation(order.id);
+                      }
+                    }}
+                  >
+                    <td className="ticket-sales-cell-primary" title={order.customerEmail}>{order.customerEmail}</td>
+                    <td className="ticket-sales-cell-metric">{order.ticketCount}</td>
+                    <td className="ticket-sales-status-cell" rowSpan={2}>
+                      <span
+                        aria-hidden="true"
+                        className={`ticket-sales-status-dot ${getTicketStatusClassName(status)}`}
+                        title={statusLabel}
+                      ></span>
+                      <span className="visually-hidden">{statusLabel}</span>
+                    </td>
+                  </tr>
+                  <tr className="ticket-sales-row ticket-sales-row-secondary" onClick={() => openTicketConfirmation(order.id)}>
+                    <td className="ticket-sales-cell-secondary">{formatDate(order.createdAt)}</td>
+                    <td className="ticket-sales-cell-secondary ticket-sales-cell-metric">{formatCurrency(order.totalCents)}</td>
+                  </tr>
+                </tbody>
+              );
+            })
+          ) : (
+            <tbody>
               <tr>
-                <td className="ticket-sales-empty" colSpan={4}>
+                <td className="ticket-sales-empty" colSpan={3}>
                   {orders.length ? 'No orders match the current filters.' : 'No order records found yet.'}
                 </td>
               </tr>
-            )}
-          </tbody>
+            </tbody>
+          )}
           <tfoot>
             <tr className="ticket-sales-summary-row">
-              <td colSpan={4}>
+              <td colSpan={3}>
                 <div className="ticket-sales-summary-grid">
-                  <div className="ticket-sales-summary-cell">
-                    <span className="ticket-sales-summary-label">Orders</span>
-                    <strong>{filteredSummary.orderCount}</strong>
-                  </div>
                   <div className="ticket-sales-summary-cell">
                     <span className="ticket-sales-summary-label">Tickets</span>
                     <strong>{filteredSummary.ticketCount}</strong>
