@@ -954,22 +954,22 @@ label {
 
 .scan-notice {
   position: absolute;
-  top: clamp(var(--space-4), 14vw, 4.75rem);
+  top: 50%;
   left: 50%;
   z-index: 30;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-3);
-  min-width: min(24rem, calc(100vw - (var(--space-4) * 2)));
-  max-width: calc(100vw - (var(--space-4) * 2));
+  width: calc(100% - (var(--space-4) * 2));
+  max-width: 24rem;
   padding: var(--space-4) var(--space-5);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-background);
   background: var(--color-surface-inverse);
   box-shadow: 0 20px 60px rgb(9 11 13 / 18%);
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   pointer-events: none;
 }
 

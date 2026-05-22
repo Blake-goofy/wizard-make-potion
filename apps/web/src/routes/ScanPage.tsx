@@ -450,30 +450,30 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
         onTouchCancel={handleToastTouchCancel}
       />
       <section className="scanner-layout">
-        {isScanPending ? (
-          <div className="scan-notice scan-notice-scanning" role="status" aria-live="polite" aria-label="Checking ticket">
-            <div className="scan-notice-icon" aria-hidden="true">
-              <ScanPendingIcon />
-            </div>
-            <div className="scan-notice-copy">
-              <strong>QR detected</strong>
-              <span>Checking the ticket now.</span>
-            </div>
-          </div>
-        ) : notice && activeNoticeCopy ? (
-          <div className={`scan-notice scan-notice-${notice.status}`} role="status" aria-live="polite" aria-label={activeNoticeCopy.iconLabel}>
-            <div className="scan-notice-icon" aria-hidden="true">
-              <ScanNoticeIcon status={notice.status} />
-            </div>
-            <div className="scan-notice-copy">
-              <strong>{activeNoticeCopy.title}</strong>
-              <span>{activeNoticeCopy.detail}</span>
-            </div>
-          </div>
-        ) : null}
         <div className="scanner-frame">
           <video ref={scanner.videoRef} playsInline muted aria-label="Ticket scanner camera" />
           <div className="scanner-reticle" aria-hidden="true" />
+          {isScanPending ? (
+            <div className="scan-notice scan-notice-scanning" role="status" aria-live="polite" aria-label="Checking ticket">
+              <div className="scan-notice-icon" aria-hidden="true">
+                <ScanPendingIcon />
+              </div>
+              <div className="scan-notice-copy">
+                <strong>QR detected</strong>
+                <span>Checking the ticket now.</span>
+              </div>
+            </div>
+          ) : notice && activeNoticeCopy ? (
+            <div className={`scan-notice scan-notice-${notice.status}`} role="status" aria-live="polite" aria-label={activeNoticeCopy.iconLabel}>
+              <div className="scan-notice-icon" aria-hidden="true">
+                <ScanNoticeIcon status={notice.status} />
+              </div>
+              <div className="scan-notice-copy">
+                <strong>{activeNoticeCopy.title}</strong>
+                <span>{activeNoticeCopy.detail}</span>
+              </div>
+            </div>
+          ) : null}
         </div>
         <div className="scanner-panel">
           <div className="scanner-controls">
