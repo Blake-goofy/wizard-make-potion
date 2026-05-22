@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import { scanTicketInputSchema } from '@potion/shared';
+import { scannerSettingsSchema, scanTicketInputSchema } from '@potion/shared';
 import { z } from 'zod';
 import type { AuthService } from '../services/auth.js';
+import type { AppSettingsService } from '../services/appSettings.js';
 import type { ScannerService } from '../services/scanner.js';
 
 const scannerAttendanceParamsSchema = z.object({
@@ -10,13 +11,20 @@ const scannerAttendanceParamsSchema = z.object({
 
 export async function registerScannerRoutes(
   server: FastifyInstance,
-  deps: { scanner: ScannerService; auth: AuthService },
+  deps: { scanner: ScannerService; auth: AuthService; appSettings: AppSettingsService },
 ) {
   server.get('/api/scanner/events', async (request, reply) => {
     await deps.auth.requireScanner(request);
     const events = await deps.scanner.listEvents();
 
     return reply.send({ events });
+  });
+
+  server.get('/api/scanner/settings', async (request, reply) => {
+    await deps.auth.requireScanner(request);
+    const settings = scannerSettingsSchema.parse(await deps.appSettings.getScannerSettings());
+
+    return reply.send({ settings });
   });
 
   server.get('/api/scanner/events/:eventId/attendance', async (request, reply) => {

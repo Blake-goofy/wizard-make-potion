@@ -56,7 +56,7 @@ The `wizard-make-potion-archive` folder is intentionally ignored by git and kept
    npm run dev
    ```
 
-   Email always sends through Resend. Set the app-mode `EMAIL_FROM_ADDRESS` to a verified sender or `onboarding@resend.dev`, and provide a real `RESEND_API_KEY_DEV` or `RESEND_API_KEY_PROD` value that matches `APP_ENV`.
+   Email always sends through Resend. Configure `email_from_address` and `email_from_name` in `app_settings`, and provide a real `RESEND_API_KEY_DEV` or `RESEND_API_KEY_PROD` value that matches `APP_ENV`.
 
 6. Start Stripe webhook forwarding for the current environment
 
@@ -102,7 +102,7 @@ npx --yes localtunnel --port 5173
    - `WEB_ORIGINS=https://your-web-service-domain,https://your-other-allowed-web-domain` only when the API must accept CORS requests from additional web origins.
    - `DATABASE_URL_PROD=postgresql://...` using the Supabase connection string from step 2
    - `AUTH_SESSION_SECRET=...`
-   - `EMAIL_FROM_ADDRESS_PROD`, `EMAIL_FROM_NAME_PROD`, `RESEND_API_KEY_PROD`
+   - `RESEND_API_KEY_PROD`
    - `STRIPE_SECRET_KEY_PROD`, `STRIPE_PUBLISHABLE_KEY_PROD`, `STRIPE_WEBHOOK_SECRET_PROD`
 5. Set these environment variables on the Railway web service:
    - `VITE_API_BASE_URL=https://your-api-service-domain`

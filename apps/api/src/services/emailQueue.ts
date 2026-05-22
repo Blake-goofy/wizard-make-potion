@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import type { Database } from '@potion/db';
 import { type EmailAttachment, type EmailProvider, renderTicketEmail } from '@potion/email';
 import type { EventRecord, PricingQuote } from '@potion/shared';
+import type { AppSettingsService } from './appSettings.js';
 
 type TicketEmailJob = {
   orderId: string;
@@ -61,7 +62,7 @@ function deserializeAttachments(value: unknown): EmailAttachment[] {
   });
 }
 
-export function createEmailQueueService(deps: { db: Database; emailProvider: EmailProvider; webOrigin: string }) {
+export function createEmailQueueService(deps: { db: Database; appSettings: AppSettingsService; emailProvider: EmailProvider; webOrigin: string }) {
   return {
     async enqueueTicketEmail(client: PoolClient, job: TicketEmailJob) {
       const email = await renderTicketEmail({
@@ -83,6 +84,7 @@ export function createEmailQueueService(deps: { db: Database; emailProvider: Ema
          order by created_at asc
          limit 10`,
       );
+      const emailSettings = await deps.appSettings.getEmailSettings();
 
       for (const email of result.rows) {
         try {
@@ -91,6 +93,8 @@ export function createEmailQueueService(deps: { db: Database; emailProvider: Ema
             subject: email.subject,
             htmlBody: email.htmlBody,
             textBody: email.textBody,
+            fromAddress: emailSettings.emailFromAddress,
+            fromName: emailSettings.emailFromName,
             attachments: deserializeAttachments(email.attachments),
           });
           await deps.db.query(

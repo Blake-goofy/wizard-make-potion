@@ -5,6 +5,8 @@ export type EmailMessage = {
   subject: string;
   htmlBody: string;
   textBody: string;
+  fromAddress?: string;
+  fromName?: string;
   attachments?: EmailAttachment[];
 };
 
@@ -20,26 +22,30 @@ export type EmailProvider = {
 };
 
 export function createEmailProvider(options: {
-  fromAddress: string;
-  fromName: string;
+  defaultFromAddress?: string;
+  defaultFromName?: string;
   resendApiKey?: string;
 }): EmailProvider {
-  const from = `${options.fromName} <${options.fromAddress}>`;
+  const defaultFromAddress = options.defaultFromAddress ?? 'onboarding@resend.dev';
+  const defaultFromName = options.defaultFromName ?? 'Wizard Make Potion Tickets';
 
   if (!options.resendApiKey || options.resendApiKey === 're_xxxxxxxxx') {
     throw new Error('Set RESEND_API_KEY_DEV or RESEND_API_KEY_PROD for the active APP_ENV before starting the API');
-  }
-
-  if (options.fromAddress.toLowerCase().endsWith('.local')) {
-    throw new Error('EMAIL_FROM_ADDRESS must be a verified sender or onboarding@resend.dev when using Resend');
   }
 
   const client = new Resend(options.resendApiKey);
 
   return {
     async send(message) {
+      const fromAddress = message.fromAddress ?? defaultFromAddress;
+      const fromName = message.fromName ?? defaultFromName;
+
+      if (fromAddress.toLowerCase().endsWith('.local')) {
+        throw new Error('email_from_address in app settings must be a verified sender or onboarding@resend.dev when using Resend');
+      }
+
       const result = await client.emails.send({
-        from,
+        from: `${fromName} <${fromAddress}>`,
         to: message.to,
         subject: message.subject,
         html: message.htmlBody,

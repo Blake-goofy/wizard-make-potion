@@ -59,6 +59,10 @@ export const scanEventAttendanceSchema = z.object({
   totalTicketCount: z.number().int().nonnegative(),
 });
 
+export const scannerSettingsSchema = z.object({
+  scanDebounceMs: z.number().int().positive(),
+});
+
 export const scanTicketResultSchema = z.object({
   status: z.enum(['valid', 'already_used', 'not_found']),
   message: z.string().min(1),
@@ -142,6 +146,7 @@ export type TicketView = z.infer<typeof ticketViewSchema>;
 export type ScanTicketInput = z.infer<typeof scanTicketInputSchema>;
 export type ScanTicketDetail = z.infer<typeof scanTicketDetailSchema>;
 export type ScanEventAttendance = z.infer<typeof scanEventAttendanceSchema>;
+export type ScannerSettings = z.infer<typeof scannerSettingsSchema>;
 export type ScanTicketResult = z.infer<typeof scanTicketResultSchema>;
 export type UpdateTicketUsageInput = z.infer<typeof updateTicketUsageInputSchema>;
 export type LoginInput = z.infer<typeof loginInputSchema>;

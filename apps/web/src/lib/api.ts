@@ -8,6 +8,7 @@ import type {
   RequestPasswordResetInput,
   ResetPasswordInput,
   ScanEventAttendance,
+  ScannerSettings,
   ScanTicketDetail,
   ScanTicketInput,
   ScanTicketResult,
@@ -68,6 +69,8 @@ export type AdminTicketView = {
   eventStartsAt: string;
   scanToken: string;
 };
+
+export type ScannerSettingsView = ScannerSettings;
 
 export type AccountTicketView = {
   id: string;
@@ -280,6 +283,12 @@ export function scanTicket(input: ScanTicketInput, token: string) {
 
 export function getScannerEvents(token: string) {
   return request<{ events: EventView[] }>('/api/scanner/events', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getScannerSettings(token: string) {
+  return request<{ settings: ScannerSettingsView }>('/api/scanner/settings', {
     headers: { Authorization: `Bearer ${token}` },
   });
 }

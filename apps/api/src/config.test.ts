@@ -16,8 +16,6 @@ describe('loadConfig', () => {
     vi.stubEnv('STRIPE_PUBLISHABLE_KEY_DEV', 'pk_dev');
     vi.stubEnv('STRIPE_WEBHOOK_SECRET_DEV', 'whsec_dev');
     vi.stubEnv('RESEND_API_KEY_DEV', 're_dev');
-    vi.stubEnv('EMAIL_FROM_ADDRESS_DEV', 'dev@wizardmakepotion.com');
-    vi.stubEnv('EMAIL_FROM_NAME_DEV', 'Wizard Make Potion Dev');
     vi.stubEnv('DATABASE_URL_DEV', 'postgresql://dev-db');
 
     const config = loadConfig();
@@ -27,8 +25,6 @@ describe('loadConfig', () => {
     expect(config.stripePublishableKey).toBe('pk_dev');
     expect(config.stripeWebhookSecret).toBe('whsec_dev');
     expect(config.resendApiKey).toBe('re_dev');
-    expect(config.emailFromAddress).toBe('dev@wizardmakepotion.com');
-    expect(config.emailFromName).toBe('Wizard Make Potion Dev');
     expect(config.databaseUrl).toBe('postgresql://dev-db');
   });
 
@@ -40,7 +36,6 @@ describe('loadConfig', () => {
     vi.stubEnv('STRIPE_PUBLISHABLE_KEY_PROD', 'pk_prod');
     vi.stubEnv('STRIPE_WEBHOOK_SECRET_PROD', 'whsec_prod');
     vi.stubEnv('RESEND_API_KEY_PROD', 're_prod');
-    vi.stubEnv('EMAIL_FROM_ADDRESS_PROD', 'tickets@wizardmakepotion.com');
     vi.stubEnv('DATABASE_URL_PROD', 'postgresql://prod-db');
 
     const config = loadConfig();
@@ -50,7 +45,6 @@ describe('loadConfig', () => {
     expect(config.stripePublishableKey).toBe('pk_prod');
     expect(config.stripeWebhookSecret).toBe('whsec_prod');
     expect(config.resendApiKey).toBe('re_prod');
-    expect(config.emailFromAddress).toBe('tickets@wizardmakepotion.com');
     expect(config.databaseUrl).toBe('postgresql://prod-db');
   });
 
@@ -134,7 +128,6 @@ describe('loadConfig', () => {
     vi.stubEnv('STRIPE_SECRET_KEY_DEV', 'sk_dev');
     vi.stubEnv('STRIPE_PUBLISHABLE_KEY_DEV', 'pk_dev');
     vi.stubEnv('STRIPE_WEBHOOK_SECRET_DEV', 'whsec_dev');
-    vi.stubEnv('EMAIL_FROM_ADDRESS_DEV', 'dev@wizardmakepotion.com');
     vi.stubEnv('ADMIN_SESSION_SECRET', 'legacy-secret');
 
     const config = loadConfig();

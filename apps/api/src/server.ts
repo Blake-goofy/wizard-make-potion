@@ -16,6 +16,7 @@ import { registerOrderRoutes } from './routes/orders.js';
 import { registerPaymentRoutes } from './routes/payments.js';
 import { registerScannerRoutes } from './routes/scanner.js';
 import { createAuthService } from './services/auth.js';
+import { createAppSettingsService } from './services/appSettings.js';
 import { createEmailQueueService } from './services/emailQueue.js';
 import { createOrderService } from './services/orders.js';
 import { createScannerService } from './services/scanner.js';
@@ -108,15 +109,14 @@ export async function buildServer(config: AppConfig) {
   });
 
   const db = createDatabase({ connectionString: config.databaseUrl });
+  const appSettings = createAppSettingsService({ db });
   const emailProvider = createEmailProvider({
-    fromAddress: config.emailFromAddress,
-    fromName: config.emailFromName,
     resendApiKey: config.resendApiKey,
   });
 
-  const emailQueue = createEmailQueueService({ db, emailProvider, webOrigin: config.webOrigin });
+  const emailQueue = createEmailQueueService({ db, appSettings, emailProvider, webOrigin: config.webOrigin });
   const auth = createAuthService(config, db, emailQueue);
-  const orders = createOrderService({ db, emailQueue, config });
+  const orders = createOrderService({ db, emailQueue, config, appSettings });
   const scanner = createScannerService({ db });
 
   await server.register(cors, {
@@ -127,10 +127,10 @@ export async function buildServer(config: AppConfig) {
 
   await registerHealthRoutes(server, { db });
   await registerAccountRoutes(server, { auth });
-  await registerEventRoutes(server, { db });
+  await registerEventRoutes(server, { db, appSettings });
   await registerPaymentRoutes(server, { config, orders });
   await registerOrderRoutes(server, { auth, orders });
-  await registerScannerRoutes(server, { scanner, auth });
+  await registerScannerRoutes(server, { scanner, auth, appSettings });
   await registerAdminRoutes(server, { auth, db, emailQueue, scanner });
 
   if (webDistDir) {

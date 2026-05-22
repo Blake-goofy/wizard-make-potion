@@ -3,7 +3,9 @@ import Stripe from 'stripe';
 import type { Database } from '@potion/db';
 import { type CreateOrderInput, eventSchema, type PricingQuote } from '@potion/shared';
 import type { AppConfig } from '../config.js';
+import type { AppSettingsService } from './appSettings.js';
 import type { EmailQueueService } from './emailQueue.js';
+import { createEventExpiryCutoff, parseEventRecord } from './eventRecords.js';
 import { quoteTickets } from './pricing.js';
 
 type EventForOrder = ReturnType<typeof eventSchema.parse>;
@@ -51,19 +53,29 @@ async function listOrderTickets(queryable: Queryable, orderId: string): Promise<
   return result.rows as OrderTicketRecord[];
 }
 
-export function createOrderService(deps: { db: Database; emailQueue: EmailQueueService; config: AppConfig }) {
+export function createOrderService(deps: { db: Database; emailQueue: EmailQueueService; config: AppConfig; appSettings: AppSettingsService }) {
   return {
     async quoteOrder(input: CreateOrderInput) {
+      const settings = await deps.appSettings.getEventSettings();
+      const expiryCutoff = createEventExpiryCutoff(settings.eventExpiryBufferMinutes);
       const eventResult = await deps.db.query(
         `select id, slug, name, starts_at as "startsAt", address, description,
                 ticket_price_cents as "ticketPriceCents", tax_rate_bps as "taxRateBps",
                 min_tickets_per_order as "minTicketsPerOrder",
                 max_tickets_per_order as "maxTicketsPerOrder", is_active as "isActive"
          from events
-         where id = $1 and is_active = true`,
-        [input.eventId],
+         where id = $1
+           and is_active = true
+           and starts_at >= $2`,
+        [input.eventId, expiryCutoff],
       );
-      const event = eventSchema.parse(eventResult.rows[0]);
+      const eventRow = eventResult.rows[0];
+
+      if (!eventRow) {
+        throw new Error('Requested event is not available.');
+      }
+
+      const event = parseEventRecord(eventRow);
 
       if (input.quantity < event.minTicketsPerOrder || input.quantity > event.maxTicketsPerOrder) {
         throw new Error('Requested quantity is outside the event limits');
@@ -179,7 +191,7 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
           throw new Error('Stripe order was not found.');
         }
 
-        const event = eventSchema.parse({
+        const event = parseEventRecord({
           id: order.eventId,
           slug: order.slug,
           name: order.name,

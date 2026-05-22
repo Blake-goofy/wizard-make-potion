@@ -100,10 +100,6 @@ const envSchema = z.object({
   DATABASE_URL_PROD: z.string().optional(),
   AUTH_SESSION_SECRET: z.string().optional(),
   ADMIN_SESSION_SECRET: z.string().optional(),
-  EMAIL_FROM_ADDRESS_DEV: z.string().email().optional(),
-  EMAIL_FROM_ADDRESS_PROD: z.string().email().optional(),
-  EMAIL_FROM_NAME_DEV: z.string().optional(),
-  EMAIL_FROM_NAME_PROD: z.string().optional(),
   RESEND_API_KEY_DEV: z.string().optional(),
   RESEND_API_KEY_PROD: z.string().optional(),
   STRIPE_SECRET_KEY_DEV: z.string().optional(),
@@ -119,8 +115,6 @@ export type AppConfig = ReturnType<typeof loadConfig>;
 export function loadConfig() {
   const env = envSchema.parse(process.env);
   const appEnv = resolveAppEnv(env.NODE_ENV, env.APP_ENV);
-  const emailFromAddress = readAppModeValue(env, 'EMAIL_FROM_ADDRESS', appEnv) ?? 'onboarding@resend.dev';
-  const emailFromName = readAppModeValue(env, 'EMAIL_FROM_NAME', appEnv) ?? 'Wizard Make Potion Tickets';
   const resendApiKey = readAppModeValue(env, 'RESEND_API_KEY', appEnv);
   const stripeSecretKey = readAppModeValue(env, 'STRIPE_SECRET_KEY', appEnv);
   const stripePublishableKey = readAppModeValue(env, 'STRIPE_PUBLISHABLE_KEY', appEnv);
@@ -142,8 +136,6 @@ export function loadConfig() {
     corsOrigins: readCorsOrigins(env.WEB_ORIGIN, env.WEB_ORIGINS),
     databaseUrl: readDatabaseUrl(env, appEnv),
     authSessionSecret: env.AUTH_SESSION_SECRET ?? env.ADMIN_SESSION_SECRET ?? defaultAuthSessionSecret,
-    emailFromAddress,
-    emailFromName,
     resendApiKey,
     stripeSecretKey,
     stripePublishableKey,

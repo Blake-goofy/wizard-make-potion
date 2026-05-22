@@ -4,8 +4,10 @@ import ActionDialog from '../components/ActionDialog';
 import LoadingOverlay from '../components/LoadingOverlay';
 import ToastRegion from '../components/ToastRegion';
 import { useToast } from '../hooks/useToast';
-import { getScannerAttendance, getScannerEvents, scanTicket, updateTicketUsage, type EventView } from '../lib/api';
+import { getScannerAttendance, getScannerEvents, getScannerSettings, scanTicket, updateTicketUsage, type EventView } from '../lib/api';
 import { useQrScanner } from '../hooks/useQrScanner';
+
+const defaultScanDebounceMs = 3000;
 
 type PreviewScanStatus = ScanTicketResult['status'];
 type UsageActionTicket = NonNullable<ScanTicketResult['ticket']>;
@@ -175,6 +177,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const [scanResult, setScanResult] = useState<ScanTicketResult | null>(null);
   const [events, setEvents] = useState<EventView[]>([]);
+  const [scanDebounceMs, setScanDebounceMs] = useState(defaultScanDebounceMs);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [lastAttendance, setLastAttendance] = useState<ScanEventAttendance | null>(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
@@ -197,7 +200,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
     handleToastTouchEnd,
     handleToastTouchCancel,
   } = useToast();
-  const scanner = useQrScanner({ onScan: handleScan, cooldownMs: 3000 });
+  const scanner = useQrScanner({ onScan: handleScan, cooldownMs: scanDebounceMs });
   const scannedTicket = scanResult?.ticket ?? null;
   const attendance = scanResult?.attendance ?? lastAttendance;
   const canManageTicketUsage = Boolean(token && (user?.role === 'admin' || user?.role === 'scanner') && scannedTicket);
@@ -291,6 +294,26 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
     if (!context || context.state === 'closed') return;
     void context.close();
   }, []);
+
+  useEffect(() => {
+    if (!token) return;
+
+    let isCurrent = true;
+
+    getScannerSettings(token)
+      .then((result) => {
+        if (!isCurrent) return;
+        setScanDebounceMs(result.settings.scanDebounceMs);
+      })
+      .catch(() => {
+        if (!isCurrent) return;
+        setScanDebounceMs(defaultScanDebounceMs);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;

@@ -30,8 +30,6 @@ function createConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     webOrigin: 'http://localhost:5173',
     databaseUrl: 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
     authSessionSecret: 'test-session-secret',
-    emailFromAddress: 'onboarding@resend.dev',
-    emailFromName: 'Wizard Make Potion Tickets',
     resendApiKey: undefined,
     stripeSecretKey: 'sk_test_configured',
     stripePublishableKey: 'pk_test_configured',
