@@ -23,6 +23,8 @@ function createAuth(): AuthService {
     requireAdmin: vi.fn(),
     requireScanner: vi.fn(),
     getCurrentUser: vi.fn(),
+    listAdminUsers: vi.fn(),
+    updateAdminUser: vi.fn(),
     getAccountProfile: vi.fn(),
     updateAccount: vi.fn(),
     changePassword: vi.fn(),
@@ -146,6 +148,34 @@ describe('auth route guardrails', () => {
 
       expect(throttledResponse.statusCode).toBe(429);
       expect(auth.verifyAccount).toHaveBeenCalledTimes(8);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('requires admin access for user management routes', async () => {
+    const auth = createAuth();
+    vi.mocked(auth.listAdminUsers).mockRejectedValue(createStatusError('Admin access required.', 403));
+    vi.mocked(auth.updateAdminUser).mockRejectedValue(createStatusError('Admin access required.', 403));
+    const { server } = await createServer(auth);
+
+    try {
+      const listResponse = await server.inject({
+        method: 'GET',
+        url: '/api/admin/users',
+      });
+
+      expect(listResponse.statusCode).toBe(403);
+
+      const updateResponse = await server.inject({
+        method: 'PUT',
+        url: '/api/admin/users/11111111-1111-1111-8111-111111111111',
+        payload: { role: 'scanner', isActive: true },
+      });
+
+      expect(updateResponse.statusCode).toBe(403);
+      expect(auth.listAdminUsers).toHaveBeenCalledTimes(1);
+      expect(auth.updateAdminUser).toHaveBeenCalledTimes(1);
     } finally {
       await server.close();
     }

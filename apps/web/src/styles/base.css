@@ -578,8 +578,13 @@ label {
   position: relative;
 }
 
-.field-editor-shell.has-field-actions input {
+.field-editor-shell.has-field-actions input,
+.field-editor-shell.has-field-actions select {
   padding-right: 5.25rem;
+}
+
+.field-editor-shell-select.has-field-actions select {
+  padding-right: 6rem;
 }
 
 .field-editor-actions {
@@ -591,6 +596,10 @@ label {
   gap: var(--space-1);
   align-items: center;
   transform: translateY(-50%);
+}
+
+.field-editor-shell-select .field-editor-actions {
+  right: 1.9rem;
 }
 
 .field-editor-button {
@@ -669,6 +678,23 @@ label {
 
 .account-settings-panel {
   gap: var(--space-4);
+}
+
+.admin-users-panel {
+  gap: var(--space-4);
+}
+
+.admin-users-header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-users-header h1 {
+  margin-bottom: 0;
+}
+
+.admin-users-form {
+  gap: var(--space-3);
 }
 
 .account-meta-grid {

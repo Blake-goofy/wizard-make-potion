@@ -1,5 +1,7 @@
 import type {
   AccountProfile,
+  AdminManagedUser,
+  AdminUserUpdateInput,
   ChangePasswordInput,
   CreateAccountInput,
   CreateOrderInput,
@@ -310,6 +312,20 @@ export function getAdminTickets(token: string, eventId?: string) {
 
   return request<{ tickets: AdminTicketView[] }>(`/api/admin/tickets${search}`, {
     headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getAdminUsers(token: string) {
+  return request<{ users: AdminManagedUser[] }>('/api/admin/users', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function updateAdminUser(userId: string, input: AdminUserUpdateInput, token: string) {
+  return request<{ user: AdminManagedUser }>(`/api/admin/users/${userId}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
   });
 }
 

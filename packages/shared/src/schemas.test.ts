@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { changePasswordInputSchema, updateAccountInputSchema } from './schemas.js';
+import { adminUserUpdateInputSchema, changePasswordInputSchema, updateAccountInputSchema } from './schemas.js';
 
 describe('shared input schemas', () => {
   it('rejects oversized account profile values submitted outside the UI', () => {
@@ -8,5 +8,9 @@ describe('shared input schemas', () => {
 
   it('does not accept oversized password payloads before hashing', () => {
     expect(() => changePasswordInputSchema.parse({ currentPassword: 'current-password', newPassword: 'A'.repeat(129) })).toThrow();
+  });
+
+  it('requires a supported role when admins update a user', () => {
+    expect(() => adminUserUpdateInputSchema.parse({ role: 'wizard', isActive: true })).toThrow();
   });
 });

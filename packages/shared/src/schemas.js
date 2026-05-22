@@ -78,23 +78,35 @@ export const verifyAccountInputSchema = z.object({
     email: z.string().email(),
     code: z.string().regex(/^\d{6}$/),
 });
+const userRoleSchema = z.enum(['customer', 'scanner', 'admin']);
 export const sessionUserSchema = z.object({
     id: z.string().uuid(),
     email: z.string().email(),
     displayName: z.string().min(1),
-    role: z.enum(['customer', 'scanner', 'admin']),
+    role: userRoleSchema,
     phoneNumber: phoneNumberSchema.nullable(),
 });
 export const accountProfileSchema = z.object({
     id: z.string().uuid(),
     email: z.string().email(),
     displayName: z.string().min(1),
-    role: z.enum(['customer', 'scanner', 'admin']),
+    role: userRoleSchema,
     phoneNumber: phoneNumberSchema.nullable(),
+});
+export const adminManagedUserSchema = z.object({
+    id: z.string().uuid(),
+    email: z.string().email(),
+    displayName: z.string().min(1),
+    role: userRoleSchema,
+    isActive: z.boolean(),
 });
 export const updateAccountInputSchema = z.object({
     displayName: z.string().trim().min(1).max(120),
     phoneNumber: phoneNumberSchema.nullable(),
+});
+export const adminUserUpdateInputSchema = z.object({
+    role: userRoleSchema,
+    isActive: z.boolean(),
 });
 export const changePasswordInputSchema = z.object({
     currentPassword: z.string().min(1),

@@ -1,24 +1,26 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { SessionUser } from '@potion/shared';
+import type { AdminManagedUser, SessionUser } from '@potion/shared';
 import LoadingOverlay, { type LoadingSkeletonVariant } from './components/LoadingOverlay';
 import { HomePage } from './routes/HomePage';
 import { WizardHatMark } from './components/WizardHatMark';
 import { getCurrentUser } from './lib/api';
 
 const AccountPage = lazy(() => import('./routes/AccountPage'));
+const AdminUsersPage = lazy(() => import('./routes/AdminUsersPage'));
 const SalesPage = lazy(() => import('./routes/SalesPage'));
 const MyTicketsPage = lazy(() => import('./routes/MyTicketsPage'));
 const AuthPage = lazy(() => import('./routes/AuthPage'));
 const ConfirmationPage = lazy(() => import('./routes/ConfirmationPage'));
 const ScanPage = lazy(() => import('./routes/ScanPage'));
 
-type RouteKey = 'home' | 'myTickets' | 'account' | 'auth' | 'scan' | 'sales' | 'confirmation';
+type RouteKey = 'home' | 'myTickets' | 'account' | 'adminUsers' | 'auth' | 'scan' | 'sales' | 'confirmation';
 
 const sessionTokenKey = 'sessionToken';
 const routeHashByKey: Record<Exclude<RouteKey, 'confirmation'>, string> = {
   home: '',
   myTickets: 'my-tickets',
   account: 'account',
+  adminUsers: 'admin-users',
   auth: 'sign-in',
   scan: 'scan',
   sales: 'sales',
@@ -29,6 +31,8 @@ const routeKeyByHash: Record<string, Exclude<RouteKey, 'confirmation'>> = {
   tickets: 'home',
   'my-tickets': 'myTickets',
   account: 'account',
+  'admin-users': 'adminUsers',
+  users: 'adminUsers',
   'sign-in': 'auth',
   scan: 'scan',
   scanner: 'scan',
@@ -70,6 +74,7 @@ function getRouteLoadingVariant(route: RouteKey): LoadingSkeletonVariant {
   if (route === 'home') return 'purchase';
   if (route === 'myTickets') return 'tickets';
   if (route === 'scan') return 'scanner';
+  if (route === 'adminUsers') return 'account';
   return route;
 }
 
@@ -77,6 +82,7 @@ function getRouteTitle(route: RouteKey) {
   if (route === 'home') return 'Wizard Make Potion';
   if (route === 'myTickets') return 'My Tickets';
   if (route === 'account') return 'Account';
+  if (route === 'adminUsers') return 'User Access';
   if (route === 'auth') return 'Sign In';
   if (route === 'scan') return 'Scan Tickets';
   if (route === 'sales') return 'Ticket Sales';
@@ -181,6 +187,19 @@ function SalesIcon() {
   );
 }
 
+function UsersIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M16 19a4 4 0 0 0-8 0" />
+      <circle cx="12" cy="9" r="3.25" />
+      <path d="M5 19a3 3 0 0 1 3-3" />
+      <path d="M19 19a3 3 0 0 0-3-3" />
+      <path d="M6.75 10.25a2.25 2.25 0 1 1 .02-4.5" />
+      <path d="M17.25 10.25a2.25 2.25 0 1 0-.02-4.5" />
+    </svg>
+  );
+}
+
 function SignInIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -257,6 +276,8 @@ export function App() {
 
     if (route === 'scan' && !isScanner) {
       setRouteAndSyncUrl(user ? 'myTickets' : 'home');
+    } else if (route === 'adminUsers' && !isAdmin) {
+      setRouteAndSyncUrl('home');
     } else if (route === 'sales' && !canViewTicketSales) {
       setRouteAndSyncUrl('home');
     } else if (route === 'account' && !user) {
@@ -264,12 +285,15 @@ export function App() {
     } else if (route === 'myTickets' && !user) {
       setRouteAndSyncUrl('auth');
     }
-  }, [canViewTicketSales, isCheckingSession, isScanner, route, user]);
+  }, [canViewTicketSales, isAdmin, isCheckingSession, isScanner, route, user]);
 
   const currentView = useMemo(() => {
     if (route === 'auth') return <AuthPage onSession={handleSession} />;
     if (route === 'account') {
       return token ? <AccountPage token={token} user={user} onUserChange={handleUserChange} onAccountDeleted={handleAccountDeleted} /> : <AuthPage onSession={handleSession} />;
+    }
+    if (route === 'adminUsers') {
+      return token && isAdmin ? <AdminUsersPage token={token} currentUser={user} onCurrentUserUpdated={handleAdminUserUpdated} /> : <HomePage user={user} />;
     }
     if (route === 'myTickets') return token ? <MyTicketsPage token={token} /> : <AuthPage onSession={handleSession} />;
     if (route === 'scan') return <ScanPage token={token} user={user} onViewOrder={openConfirmationOrder} />;
@@ -278,7 +302,7 @@ export function App() {
       return confirmationOrderId ? <ConfirmationPage orderId={confirmationOrderId} token={token} user={user} onBackToSales={() => setRouteAndSyncUrl('sales')} /> : <HomePage user={user} />;
     }
     return <HomePage user={user} />;
-  }, [confirmationOrderId, handleAccountDeleted, handleSession, handleUserChange, openConfirmationOrder, route, token, user]);
+  }, [confirmationOrderId, handleAccountDeleted, handleAdminUserUpdated, handleSession, handleUserChange, isAdmin, openConfirmationOrder, route, token, user]);
 
   function setRouteAndSyncUrl(nextRoute: RouteKey) {
     setRoute(nextRoute);
@@ -333,6 +357,36 @@ export function App() {
 
   function handleUserChange(nextUser: SessionUser) {
     setUser(nextUser);
+  }
+
+  function handleAdminUserUpdated(updatedUser: AdminManagedUser) {
+    setUser((currentUser) => {
+      if (!currentUser || currentUser.id !== updatedUser.id) {
+        return currentUser;
+      }
+
+      if (!updatedUser.isActive) {
+        return currentUser;
+      }
+
+      return {
+        ...currentUser,
+        email: updatedUser.email,
+        displayName: updatedUser.displayName,
+        role: updatedUser.role,
+      };
+    });
+
+    if (user?.id !== updatedUser.id) {
+      return;
+    }
+
+    if (!updatedUser.isActive) {
+      clearSession('Your account was deactivated.');
+      return;
+    }
+
+    setAccountMessage('Your access level was updated.');
   }
 
   function clearSession(message: string) {
@@ -446,6 +500,11 @@ export function App() {
           {canViewTicketSales ? (
             <DrawerItem active={route === 'sales'} icon={<SalesIcon />} onClick={() => navigate('sales')}>
               Sales
+            </DrawerItem>
+          ) : null}
+          {isAdmin ? (
+            <DrawerItem active={route === 'adminUsers'} icon={<UsersIcon />} onClick={() => navigate('adminUsers')}>
+              User Access
             </DrawerItem>
           ) : null}
         </nav>

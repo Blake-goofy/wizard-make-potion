@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { Database } from '@potion/db';
 import {
+  adminUserUpdateInputSchema,
   createAccountInputSchema,
   loginInputSchema,
   requestPasswordResetInputSchema,
@@ -75,6 +76,23 @@ export async function registerAdminRoutes(
 
   server.get('/api/auth/me', async (request) => {
     const user = await deps.auth.getCurrentUser(request);
+
+    return { user };
+  });
+
+  server.get('/api/admin/users', async (request) => {
+    const users = await deps.auth.listAdminUsers(request);
+
+    return { users };
+  });
+
+  server.put('/api/admin/users/:userId', async (request) => {
+    const userId = z
+      .string()
+      .uuid()
+      .parse((request.params as { userId?: string }).userId);
+    const input = adminUserUpdateInputSchema.parse(request.body);
+    const user = await deps.auth.updateAdminUser(request, userId, input);
 
     return { user };
   });

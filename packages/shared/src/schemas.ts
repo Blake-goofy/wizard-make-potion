@@ -98,11 +98,13 @@ export const verifyAccountInputSchema = z.object({
   code: z.string().regex(/^\d{6}$/),
 });
 
+const userRoleSchema = z.enum(['customer', 'scanner', 'admin']);
+
 export const sessionUserSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
   displayName: z.string().min(1),
-  role: z.enum(['customer', 'scanner', 'admin']),
+  role: userRoleSchema,
   phoneNumber: phoneNumberSchema.nullable(),
 });
 
@@ -110,13 +112,26 @@ export const accountProfileSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email(),
   displayName: z.string().min(1),
-  role: z.enum(['customer', 'scanner', 'admin']),
+  role: userRoleSchema,
   phoneNumber: phoneNumberSchema.nullable(),
+});
+
+export const adminManagedUserSchema = z.object({
+  id: z.string().uuid(),
+  email: z.string().email(),
+  displayName: z.string().min(1),
+  role: userRoleSchema,
+  isActive: z.boolean(),
 });
 
 export const updateAccountInputSchema = z.object({
   displayName: z.string().trim().min(1).max(120),
   phoneNumber: phoneNumberSchema.nullable(),
+});
+
+export const adminUserUpdateInputSchema = z.object({
+  role: userRoleSchema,
+  isActive: z.boolean(),
 });
 
 export const changePasswordInputSchema = z.object({
@@ -155,7 +170,9 @@ export type VerifyAccountInput = z.infer<typeof verifyAccountInputSchema>;
 export type SessionUser = z.infer<typeof sessionUserSchema>;
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
 export type AccountProfile = z.infer<typeof accountProfileSchema>;
+export type AdminManagedUser = z.infer<typeof adminManagedUserSchema>;
 export type UpdateAccountInput = z.infer<typeof updateAccountInputSchema>;
+export type AdminUserUpdateInput = z.infer<typeof adminUserUpdateInputSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>;
 export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetInputSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordInputSchema>;

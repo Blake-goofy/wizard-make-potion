@@ -2,8 +2,11 @@ import { createHmac, pbkdf2Sync, randomBytes, randomInt, timingSafeEqual } from 
 import type { FastifyRequest } from 'fastify';
 import {
   accountProfileSchema,
+  adminManagedUserSchema,
   type ChangePasswordInput,
   sessionUserSchema,
+  type AdminManagedUser,
+  type AdminUserUpdateInput,
   type CreateAccountInput,
   type LoginInput,
   type RequestPasswordResetInput,
@@ -124,6 +127,20 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
     const user = await findSessionUser(payload.sub);
     if (!user) throw createHttpError('Sign-in required.', 401);
 
+    return user;
+  }
+
+  async function requireAdmin(request: FastifyRequest) {
+    const user = await requireUser(request);
+    if (user.role !== 'admin') throw createHttpError('Admin access required.', 403);
+    return user;
+  }
+
+  async function requireScanner(request: FastifyRequest) {
+    const user = await requireUser(request);
+    if (user.role !== 'scanner' && user.role !== 'admin') {
+      throw createHttpError('Scanner access required.', 403);
+    }
     return user;
   }
 
@@ -293,21 +310,52 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
     },
 
     async requireAdmin(request: FastifyRequest) {
-      const user = await requireUser(request);
-      if (user.role !== 'admin') throw createHttpError('Admin access required.', 403);
-      return user;
+      return requireAdmin(request);
     },
 
     async requireScanner(request: FastifyRequest) {
-      const user = await requireUser(request);
-      if (user.role !== 'scanner' && user.role !== 'admin') {
-        throw createHttpError('Scanner access required.', 403);
-      }
-      return user;
+      return requireScanner(request);
     },
 
     async getCurrentUser(request: FastifyRequest): Promise<SessionUser> {
       return requireUser(request);
+    },
+
+    async listAdminUsers(request: FastifyRequest): Promise<AdminManagedUser[]> {
+      await requireAdmin(request);
+      const result = await db.query(
+        `select id,
+                email,
+                display_name as "displayName",
+                role,
+                is_active as "isActive"
+         from users
+         order by display_name asc, email asc`,
+      );
+
+      return result.rows.map((row) => adminManagedUserSchema.parse(row));
+    },
+
+    async updateAdminUser(request: FastifyRequest, userId: string, input: AdminUserUpdateInput): Promise<AdminManagedUser> {
+      await requireAdmin(request);
+      const result = await db.query(
+        `update users
+         set role = $2,
+             is_active = $3,
+             updated_at = now()
+         where id = $1
+         returning id,
+                   email,
+                   display_name as "displayName",
+                   role,
+                   is_active as "isActive"`,
+        [userId, input.role, input.isActive],
+      );
+
+      const updatedUser = result.rows[0];
+      if (!updatedUser) throw createHttpError('User was not found.', 404);
+
+      return adminManagedUserSchema.parse(updatedUser);
     },
 
     async getAccountProfile(request: FastifyRequest) {
