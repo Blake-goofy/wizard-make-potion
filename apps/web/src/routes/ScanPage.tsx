@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ScanEventAttendance, ScanTicketResult, SessionUser } from '@potion/shared';
 import ActionDialog from '../components/ActionDialog';
 import LoadingOverlay from '../components/LoadingOverlay';
@@ -15,6 +15,8 @@ type ScanNotice = {
   status: PreviewScanStatus;
 };
 
+type FeedbackTone = 'success' | 'failure';
+
 declare global {
   interface Window {
     __scannerPreview?: {
@@ -28,6 +30,47 @@ const previewOrderIds: Record<Exclude<PreviewScanStatus, 'not_found'>, string> =
   valid: '11111111-1111-4111-8111-111111111111',
   already_used: '22222222-2222-4222-8222-222222222222',
 };
+
+function vibrateOnDetection() {
+  navigator.vibrate?.(35);
+}
+
+function playToneSequence(context: AudioContext, tone: FeedbackTone) {
+  const steps = tone === 'success'
+    ? [
+        { frequency: 880, duration: 0.08, gain: 0.05 },
+        { frequency: 1174, duration: 0.12, gain: 0.045 },
+      ]
+    : [
+        { frequency: 320, duration: 0.12, gain: 0.055 },
+        { frequency: 220, duration: 0.18, gain: 0.05 },
+      ];
+
+  let startAt = context.currentTime;
+
+  for (const step of steps) {
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
+
+    oscillator.type = tone === 'success' ? 'sine' : 'triangle';
+    oscillator.frequency.setValueAtTime(step.frequency, startAt);
+
+    gainNode.gain.setValueAtTime(0.0001, startAt);
+    gainNode.gain.linearRampToValueAtTime(step.gain, startAt + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, startAt + step.duration);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
+    oscillator.start(startAt);
+    oscillator.stop(startAt + step.duration);
+
+    startAt += step.duration + 0.04;
+  }
+}
+
+function toneForStatus(status: PreviewScanStatus): FeedbackTone {
+  return status === 'valid' ? 'success' : 'failure';
+}
 
 function buildPreviewResult(status: PreviewScanStatus): {
   result: ScanTicketResult;
@@ -129,6 +172,7 @@ type ScanPageProps = {
 };
 
 export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
+  const audioContextRef = useRef<AudioContext | null>(null);
   const [scanResult, setScanResult] = useState<ScanTicketResult | null>(null);
   const [events, setEvents] = useState<EventView[]>([]);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -158,6 +202,54 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
   const attendance = scanResult?.attendance ?? lastAttendance;
   const canManageTicketUsage = Boolean(token && (user?.role === 'admin' || user?.role === 'scanner') && scannedTicket);
 
+  function getAudioContext() {
+    if (typeof window === 'undefined' || !window.AudioContext) return null;
+
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+      audioContextRef.current = new window.AudioContext();
+    }
+
+    return audioContextRef.current;
+  }
+
+  async function primeAudioFeedback() {
+    const context = getAudioContext();
+    if (!context || context.state !== 'suspended') return;
+
+    try {
+      await context.resume();
+    } catch {
+      return;
+    }
+  }
+
+  function playResultFeedback(status: PreviewScanStatus) {
+    const context = getAudioContext();
+    if (!context || context.state !== 'running') return;
+
+    playToneSequence(context, toneForStatus(status));
+  }
+
+  function presentScanResult(result: ScanTicketResult, attendanceOverride?: ScanEventAttendance | null) {
+    setScanResult(result);
+
+    const nextAttendance = attendanceOverride === undefined ? result.attendance : attendanceOverride;
+    if (nextAttendance) setLastAttendance(nextAttendance);
+
+    setNotice({ id: Date.now(), status: result.status });
+    playResultFeedback(result.status);
+  }
+
+  async function handleCameraToggle() {
+    if (scanner.isRunning) {
+      scanner.stop();
+      return;
+    }
+
+    await primeAudioFeedback();
+    await scanner.start();
+  }
+
   useEffect(() => {
     if (!notice) return;
 
@@ -177,9 +269,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
       show: (status) => {
         const preview = buildPreviewResult(status);
         setScanStatus('idle');
-        setScanResult(preview.result);
-        setLastAttendance(preview.attendance);
-        setNotice({ id: Date.now(), status });
+        presentScanResult(preview.result, preview.attendance);
       },
       reset: () => {
         setScanStatus('idle');
@@ -192,6 +282,14 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
     return () => {
       delete window.__scannerPreview;
     };
+  }, []);
+
+  useEffect(() => () => {
+    const context = audioContextRef.current;
+    audioContextRef.current = null;
+
+    if (!context || context.state === 'closed') return;
+    void context.close();
   }, []);
 
   useEffect(() => {
@@ -255,13 +353,15 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
   }, [selectedEventId, token]);
 
   async function handleScan(scanToken: string) {
+    vibrateOnDetection();
+
     if (!token) {
-      setScanResult({ status: 'not_found', message: 'Sign in before scanning tickets.' });
+      presentScanResult({ status: 'not_found', message: 'Sign in before scanning tickets.' });
       return;
     }
 
     if (!selectedEventId) {
-      setScanResult({ status: 'not_found', message: 'Select an event before scanning tickets.' });
+      presentScanResult({ status: 'not_found', message: 'Select an event before scanning tickets.' });
       return;
     }
 
@@ -269,9 +369,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
 
     try {
       const result = await scanTicket({ scanToken, eventId: selectedEventId, scannerLabel: user?.email ?? 'local-scanner' }, token);
-      setScanResult(result);
-      if (result.attendance) setLastAttendance(result.attendance);
-      setNotice({ id: Date.now(), status: result.status });
+      presentScanResult(result);
     } finally {
       setScanStatus('idle');
     }
@@ -356,7 +454,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
         </div>
         <div className="scanner-panel">
           <div className="scanner-controls">
-            <button onClick={scanner.isRunning ? scanner.stop : scanner.start}>
+            <button onClick={() => void handleCameraToggle()}>
               {scanner.isRunning ? 'Stop Camera' : 'Start Camera'}
             </button>
             {scanner.canUseTorch ? (
