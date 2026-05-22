@@ -1,10 +1,11 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Database } from '@potion/db';
 import type { AuthService } from '../services/auth.js';
 import type { EmailQueueService } from '../services/emailQueue.js';
 import type { ScannerService } from '../services/scanner.js';
 import { registerAdminRoutes } from './admin.js';
+
+type AdminRouteDeps = Parameters<typeof registerAdminRoutes>[1];
 
 function createStatusError(message: string, statusCode: number) {
   const error = new Error(message) as Error & { statusCode: number };
@@ -49,7 +50,7 @@ async function createServer(auth = createAuth()) {
 
   await registerAdminRoutes(server, {
     auth,
-    db: {} as Database,
+    db: {} as AdminRouteDeps['db'],
     emailQueue,
     scanner: {} as ScannerService,
   });
