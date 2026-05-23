@@ -12,6 +12,12 @@ type AuthPageProps = {
   initialMode?: Extract<AuthMode, 'sign-in' | 'create'>;
 };
 
+function getFormValue(form: HTMLFormElement, fieldName: string) {
+  const value = new FormData(form).get(fieldName);
+
+  return typeof value === 'string' ? value : '';
+}
+
 function isExistingAccountError(message: string) {
   const normalizedMessage = message.trim().toLowerCase();
 
@@ -167,12 +173,18 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     }
   }
 
-  async function handleSignIn(event: FormEvent) {
+  async function handleSignIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submittedEmail = getFormValue(event.currentTarget, 'email').trim();
+    const submittedPassword = getFormValue(event.currentTarget, 'password');
+
+    setEmail(submittedEmail);
+    setPassword(submittedPassword);
+
     if (!beginSubmission('Signing in')) return;
 
     try {
-      const result = await loginUser({ email, password });
+      const result = await loginUser({ email: submittedEmail, password: submittedPassword });
       onSession(result.token, result.user);
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Sign-in failed.');
@@ -181,10 +193,17 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     }
   }
 
-  async function handleCreateAccount(event: FormEvent) {
+  async function handleCreateAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submittedEmail = getFormValue(event.currentTarget, 'email').trim();
+    const submittedDisplayName = getFormValue(event.currentTarget, 'displayName').trim();
+    const submittedPassword = getFormValue(event.currentTarget, 'password');
     const digits = getPhoneDigits(phoneNumber);
     const nextPhoneNumber = getStoredPhoneNumber(phoneNumber);
+
+    setEmail(submittedEmail);
+    setDisplayName(submittedDisplayName);
+    setPassword(submittedPassword);
 
     if (digits.length > 0 && digits.length !== 10) {
       showError('Enter a 10-digit phone number.');
@@ -195,9 +214,9 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
 
     try {
       const result = await createAccount({
-        email,
-        displayName,
-        password,
+        email: submittedEmail,
+        displayName: submittedDisplayName,
+        password: submittedPassword,
         phoneNumber: nextPhoneNumber || undefined,
         eventReminderOptIn,
         upcomingEventsOptIn,
@@ -215,12 +234,18 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     }
   }
 
-  async function handleVerify(event: FormEvent) {
+  async function handleVerify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submittedEmail = getFormValue(event.currentTarget, 'email').trim();
+    const submittedCode = getFormValue(event.currentTarget, 'code').trim();
+
+    setEmail(submittedEmail);
+    setCode(submittedCode);
+
     if (!beginSubmission('Verifying code')) return;
 
     try {
-      const result = await verifyAccount({ email, code });
+      const result = await verifyAccount({ email: submittedEmail, code: submittedCode });
       onSession(result.token, result.user);
     } catch (error) {
       showError(error instanceof Error ? error.message : 'Verification failed.');
@@ -229,12 +254,16 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     }
   }
 
-  async function handleRequestPasswordReset(event: FormEvent) {
+  async function handleRequestPasswordReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const submittedEmail = getFormValue(event.currentTarget, 'email').trim();
+
+    setEmail(submittedEmail);
+
     if (!beginSubmission('Sending reset code')) return;
 
     try {
-      const result = await requestPasswordReset({ email });
+      const result = await requestPasswordReset({ email: submittedEmail });
       setEmail(result.email);
       setCode('');
       setResetPassword('');
@@ -248,15 +277,25 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     }
   }
 
-  async function handleResetPassword(event: FormEvent) {
+  async function handleResetPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (resetPassword.length < 8) {
+    const submittedEmail = getFormValue(event.currentTarget, 'email').trim();
+    const submittedCode = getFormValue(event.currentTarget, 'code').trim();
+    const submittedResetPassword = getFormValue(event.currentTarget, 'newPassword');
+    const submittedResetPasswordConfirm = getFormValue(event.currentTarget, 'confirmNewPassword');
+
+    setEmail(submittedEmail);
+    setCode(submittedCode);
+    setResetPassword(submittedResetPassword);
+    setResetPasswordConfirm(submittedResetPasswordConfirm);
+
+    if (submittedResetPassword.length < 8) {
       showError('New password must be at least 8 characters.');
       return;
     }
 
-    if (resetPassword !== resetPasswordConfirm) {
+    if (submittedResetPassword !== submittedResetPasswordConfirm) {
       showError('New passwords do not match.');
       return;
     }
@@ -264,7 +303,7 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     if (!beginSubmission('Resetting password')) return;
 
     try {
-      await confirmPasswordReset({ email, code, newPassword: resetPassword });
+      await confirmPasswordReset({ email: submittedEmail, code: submittedCode, newPassword: submittedResetPassword });
       setPassword('');
       setResetPassword('');
       setResetPasswordConfirm('');
@@ -311,11 +350,28 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
         <form className="stack-form" onSubmit={handleSignIn}>
           <label>
             Email
-            <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
           </label>
           <label>
             Password
-            <input type="password" required value={password} onChange={(event) => setPassword(event.target.value)} />
+            <input
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
           </label>
           <button className="button-with-arrow" type="submit" disabled={isSubmitting}>
             <span>Sign In</span>
@@ -333,15 +389,20 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
         <form className="stack-form" onSubmit={handleCreateAccount}>
           <label>
             Name
-            <input required value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+            <input name="displayName" required autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
           </label>
           <PhoneNumberInput label="Phone Number (Optional)" value={phoneNumber} onChange={setPhoneNumber} />
           <label>
             Email
             <input
+              name="email"
               className={hasEmailConflict ? 'input-error' : undefined}
               type="email"
               required
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               aria-invalid={hasEmailConflict || undefined}
               value={email}
               onFocus={clearEmailConflict}
@@ -350,7 +411,15 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
           </label>
           <label>
             Password
-            <input type="password" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} />
+            <input
+              name="password"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
           </label>
           <div className="auth-preferences-group" aria-label="Notification preferences">
             <label className="checkout-checkbox">
@@ -371,11 +440,21 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
         <form className="stack-form" onSubmit={handleVerify}>
           <label>
             Email
-            <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
           </label>
           <label>
             Verification code
-            <input inputMode="numeric" pattern="[0-9]{6}" required value={code} onChange={(event) => setCode(event.target.value)} />
+            <input name="code" inputMode="numeric" pattern="[0-9]{6}" required autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} />
           </label>
           <button type="submit" disabled={isSubmitting}>
             Verify Account
@@ -386,7 +465,17 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
         <form className="stack-form" onSubmit={handleRequestPasswordReset}>
           <label>
             Email
-            <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
           </label>
           <button type="submit" disabled={isSubmitting}>
             Send Reset Code
@@ -400,19 +489,45 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
         <form className="stack-form" onSubmit={handleResetPassword}>
           <label>
             Email
-            <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
           </label>
           <label>
             Reset code
-            <input inputMode="numeric" pattern="[0-9]{6}" required value={code} onChange={(event) => setCode(event.target.value)} />
+            <input name="code" inputMode="numeric" pattern="[0-9]{6}" required autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} />
           </label>
           <label>
             New Password
-            <input type="password" required minLength={8} value={resetPassword} onChange={(event) => setResetPassword(event.target.value)} />
+            <input
+              name="newPassword"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={resetPassword}
+              onChange={(event) => setResetPassword(event.target.value)}
+            />
           </label>
           <label>
             Confirm New Password
-            <input type="password" required minLength={8} value={resetPasswordConfirm} onChange={(event) => setResetPasswordConfirm(event.target.value)} />
+            <input
+              name="confirmNewPassword"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={resetPasswordConfirm}
+              onChange={(event) => setResetPasswordConfirm(event.target.value)}
+            />
           </label>
           <button type="submit" disabled={isSubmitting}>
             Reset Password

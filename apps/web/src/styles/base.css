@@ -825,6 +825,16 @@ label {
   gap: var(--space-3);
 }
 
+.admin-events-mode-row > label,
+.admin-events-field-row > label {
+  min-width: 0;
+}
+
+.admin-events-form input[type='datetime-local'] {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .admin-events-form textarea {
   min-height: 7rem;
 }
