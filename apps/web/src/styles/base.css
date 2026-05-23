@@ -818,6 +818,7 @@ label {
 .admin-events-mode-row,
 .admin-events-field-row {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
 }
 
@@ -832,12 +833,19 @@ label {
 
 .admin-events-datetime-group {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   min-width: 0;
 }
 
 .admin-events-datetime-group > label {
   min-width: 0;
+}
+
+.admin-events-datetime-group input[type='date'],
+.admin-events-datetime-group input[type='time'] {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .admin-events-form textarea {
