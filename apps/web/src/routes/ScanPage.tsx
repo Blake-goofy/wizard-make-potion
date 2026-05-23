@@ -168,13 +168,12 @@ function CameraIcon() {
 function FlashlightIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M4.9 17.7 10.8 11.8l2.3 2.3-5.9 5.9L4.9 17.7Z" />
-      <path d="M10.8 11.8 12.8 9.8l3.3 3.3-2 2" />
-      <path d="M12.8 9.8 15.3 7.1l4 4-2.8 2.3-3.7-3.6Z" />
-      <circle cx="9.1" cy="15.9" r="1.15" />
-      <path d="M18.1 6.5 18.7 4.5" />
-      <path d="M20 8.1 21.8 7.5" />
-      <path d="M19.3 6.9 20.7 5.5" />
+      <path d="M4.8 17.9 10.8 11.9l3.1 3.1-6 6-3.1-3.1Z" />
+      <path d="M10.8 11.9 14.2 8.5l4.8 4.8-3.4 3.4-4.8-4.8Z" />
+      <circle cx="8.9" cy="16.3" r="1" />
+      <path d="M18.7 6.4 19.4 4" />
+      <path d="M20 7.7 21.7 6" />
+      <path d="M20.4 9.5 22.6 8.8" />
     </svg>
   );
 }
