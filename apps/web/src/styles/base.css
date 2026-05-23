@@ -838,6 +838,19 @@ label {
   min-width: 0;
 }
 
+.admin-events-compact-field,
+.admin-events-price-field {
+  justify-self: start;
+}
+
+.admin-events-compact-field {
+  width: min(100%, 15rem);
+}
+
+.admin-events-price-field {
+  width: min(100%, 12rem);
+}
+
 .admin-events-datetime-group > label {
   min-width: 0;
 }
@@ -851,9 +864,9 @@ label {
 @supports (-webkit-touch-callout: none) {
   .admin-events-datetime-group input[type='date'],
   .admin-events-datetime-group input[type='time'] {
-    width: auto;
-    max-width: calc(100vw - var(--space-4) * 2);
-    min-width: min(100%, 16rem);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     margin-inline: 0;
     padding-inline: var(--space-3);
     appearance: auto;

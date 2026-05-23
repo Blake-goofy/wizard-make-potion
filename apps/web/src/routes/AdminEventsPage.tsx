@@ -272,7 +272,7 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
           </label>
 
           <div className="admin-events-field-row">
-            <div className="admin-events-datetime-group" aria-label="Starts at">
+            <div className="admin-events-datetime-group admin-events-compact-field" aria-label="Starts at">
               <label>
                 Start Date
                 <input
@@ -294,7 +294,7 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
               </label>
             </div>
 
-            <label>
+            <label className="admin-events-price-field">
               Ticket Price
               <input
                 value={form.ticketPrice}
