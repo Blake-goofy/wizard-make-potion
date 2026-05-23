@@ -830,9 +830,14 @@ label {
   min-width: 0;
 }
 
-.admin-events-form input[type='datetime-local'] {
+.admin-events-datetime-group {
+  display: grid;
+  gap: var(--space-3);
   min-width: 0;
-  max-width: 100%;
+}
+
+.admin-events-datetime-group > label {
+  min-width: 0;
 }
 
 .admin-events-form textarea {

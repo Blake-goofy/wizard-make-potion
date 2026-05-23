@@ -12,7 +12,8 @@ type EventFormMode = 'create' | 'edit';
 
 type EventFormState = {
   name: string;
-  startsAtLocal: string;
+  startsAtDate: string;
+  startsAtTime: string;
   address: string;
   description: string;
   ticketPrice: string;
@@ -31,7 +32,8 @@ type EventPayloadResult = { payload: EventPayload } | { error: string };
 
 const emptyEventForm: EventFormState = {
   name: '',
-  startsAtLocal: '',
+  startsAtDate: '',
+  startsAtTime: '',
   address: '',
   description: '',
   ticketPrice: '',
@@ -55,16 +57,25 @@ function parseCurrencyToCents(value: string) {
 function formatDatetimeLocal(isoValue: string) {
   const date = new Date(isoValue);
 
-  if (Number.isNaN(date.getTime())) return '';
+  if (Number.isNaN(date.getTime())) {
+    return { date: '', time: '' };
+  }
 
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return localDate.toISOString().slice(0, 16);
+
+  return {
+    date: localDate.toISOString().slice(0, 10),
+    time: localDate.toISOString().slice(11, 16),
+  };
 }
 
 function eventToFormState(event: EventView): EventFormState {
+  const startsAtLocal = formatDatetimeLocal(event.startsAt);
+
   return {
     name: event.name,
-    startsAtLocal: formatDatetimeLocal(event.startsAt),
+    startsAtDate: startsAtLocal.date,
+    startsAtTime: startsAtLocal.time,
     address: event.address,
     description: event.description ?? '',
     ticketPrice: formatCurrency(event.ticketPriceCents),
@@ -152,10 +163,11 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
 
   function buildPayload(): EventPayloadResult {
     const ticketPriceCents = parseCurrencyToCents(form.ticketPrice);
-    const startsAtDate = form.startsAtLocal ? new Date(form.startsAtLocal) : null;
+    const startsAtLocal = form.startsAtDate && form.startsAtTime ? `${form.startsAtDate}T${form.startsAtTime}` : '';
+    const startsAtDate = startsAtLocal ? new Date(startsAtLocal) : null;
 
     if (!form.name.trim()) return { error: 'Name is required.' };
-    if (!startsAtDate || Number.isNaN(startsAtDate.getTime())) return { error: 'Start date is required.' };
+    if (!startsAtDate || Number.isNaN(startsAtDate.getTime())) return { error: 'Start date and time are required.' };
     if (!form.address.trim()) return { error: 'Address is required.' };
     if (!form.description.trim()) return { error: 'Description is required.' };
     if (ticketPriceCents === null) return { error: 'Enter a ticket price like $12.00.' };
@@ -260,15 +272,27 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
           </label>
 
           <div className="admin-events-field-row">
-            <label>
-              Starts At
-              <input
-                type="datetime-local"
-                value={form.startsAtLocal}
-                onChange={(event) => updateField('startsAtLocal', event.target.value)}
-                required
-              />
-            </label>
+            <div className="admin-events-datetime-group" aria-label="Starts at">
+              <label>
+                Start Date
+                <input
+                  type="date"
+                  value={form.startsAtDate}
+                  onChange={(event) => updateField('startsAtDate', event.target.value)}
+                  required
+                />
+              </label>
+
+              <label>
+                Start Time
+                <input
+                  type="time"
+                  value={form.startsAtTime}
+                  onChange={(event) => updateField('startsAtTime', event.target.value)}
+                  required
+                />
+              </label>
+            </div>
 
             <label>
               Ticket Price
