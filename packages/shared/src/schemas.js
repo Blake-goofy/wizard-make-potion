@@ -26,19 +26,46 @@ const phoneNumberSchema = z
     .string()
     .trim()
     .regex(/^\(\d{3}\) \d{3}-\d{4}$/);
+function hasSmsAlertsEnabled(value) {
+    return Boolean(value.eventReminderOptIn || value.upcomingEventsOptIn);
+}
+function addSmsPhoneRequirement(schema, phoneField) {
+    return schema.superRefine((value, ctx) => {
+        if (!hasSmsAlertsEnabled(value))
+            return;
+        const phoneValue = phoneField === 'phoneNumber' ? value.phoneNumber : value.customerPhoneNumber;
+        if (typeof phoneValue === 'string' && phoneValue.trim().length > 0)
+            return;
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [phoneField],
+            message: 'Phone number is required when text alerts are enabled.',
+        });
+    });
+}
+const notificationPreferenceInputShape = {
+    eventReminderOptIn: z.boolean(),
+    upcomingEventsOptIn: z.boolean(),
+};
+const notificationPreferenceOutputShape = {
+    eventReminderOptIn: z.boolean(),
+    upcomingEventsOptIn: z.boolean(),
+    smsOptIn: z.boolean(),
+};
 export const adminEventCreateInputSchema = adminEventBaseInputSchema;
 export const adminEventUpdateInputSchema = adminEventBaseInputSchema.extend({
     isActive: z.boolean(),
 });
-export const createOrderInputSchema = z.object({
+export const createOrderRequestSchema = z.object({
     eventId: z.string().uuid(),
     customerEmail: z.string().email(),
     customerName: z.string().trim().min(1).max(120).optional(),
     customerPhoneNumber: phoneNumberSchema.optional(),
-    eventReminderOptIn: z.boolean().optional(),
-    upcomingEventsOptIn: z.boolean().optional(),
+    eventReminderOptIn: notificationPreferenceInputShape.eventReminderOptIn.optional(),
+    upcomingEventsOptIn: notificationPreferenceInputShape.upcomingEventsOptIn.optional(),
     quantity: z.number().int().positive(),
 });
+export const createOrderInputSchema = addSmsPhoneRequirement(createOrderRequestSchema, 'customerPhoneNumber');
 export const pricingQuoteSchema = z.object({
     quantity: z.number().int().positive(),
     subtotalCents: z.number().int().nonnegative(),
@@ -83,19 +110,18 @@ export const loginInputSchema = z.object({
     password: z.string().min(1),
 });
 const passwordSchema = z.string().min(8).max(128);
-const notificationPreferencesShape = {
-    eventReminderOptIn: z.boolean(),
-    upcomingEventsOptIn: z.boolean(),
-};
-export const createAccountInputSchema = z.object({
+export const createAccountInputSchema = addSmsPhoneRequirement(z.object({
     email: z.string().email(),
     displayName: z.string().min(1).max(120),
     password: passwordSchema,
     phoneNumber: phoneNumberSchema.optional(),
-    ...notificationPreferencesShape,
-});
+    ...notificationPreferenceInputShape,
+}), 'phoneNumber');
 export const verifyAccountInputSchema = z.object({
     email: z.string().email(),
+    code: z.string().regex(/^\d{6}$/),
+});
+export const verifyPhoneNumberInputSchema = z.object({
     code: z.string().regex(/^\d{6}$/),
 });
 const userRoleSchema = z.enum(['customer', 'scanner', 'admin']);
@@ -105,7 +131,8 @@ export const sessionUserSchema = z.object({
     displayName: z.string().min(1),
     role: userRoleSchema,
     phoneNumber: phoneNumberSchema.nullable(),
-    ...notificationPreferencesShape,
+    phoneVerifiedAt: isoDatetimeSchema.nullable(),
+    ...notificationPreferenceOutputShape,
 });
 export const accountProfileSchema = z.object({
     id: z.string().uuid(),
@@ -113,7 +140,8 @@ export const accountProfileSchema = z.object({
     displayName: z.string().min(1),
     role: userRoleSchema,
     phoneNumber: phoneNumberSchema.nullable(),
-    ...notificationPreferencesShape,
+    phoneVerifiedAt: isoDatetimeSchema.nullable(),
+    ...notificationPreferenceOutputShape,
 });
 export const adminManagedUserSchema = z.object({
     id: z.string().uuid(),
@@ -122,11 +150,11 @@ export const adminManagedUserSchema = z.object({
     role: userRoleSchema,
     isActive: z.boolean(),
 });
-export const updateAccountInputSchema = z.object({
+export const updateAccountInputSchema = addSmsPhoneRequirement(z.object({
     displayName: z.string().trim().min(1).max(120),
     phoneNumber: phoneNumberSchema.nullable(),
-    ...notificationPreferencesShape,
-});
+    ...notificationPreferenceInputShape,
+}), 'phoneNumber');
 export const adminUserUpdateInputSchema = z.object({
     role: userRoleSchema,
     isActive: z.boolean(),

@@ -7,15 +7,18 @@ import { getCurrentUser } from './lib/api';
 
 const AccountPage = lazy(() => import('./routes/AccountPage'));
 const AdminEventsPage = lazy(() => import('./routes/AdminEventsPage'));
+const AdminMessagesPage = lazy(() => import('./routes/AdminMessagesPage'));
 const AdminUsersPage = lazy(() => import('./routes/AdminUsersPage'));
 const SalesPage = lazy(() => import('./routes/SalesPage'));
 const MyTicketsPage = lazy(() => import('./routes/MyTicketsPage'));
 const AuthPage = lazy(() => import('./routes/AuthPage'));
 const ConfirmationPage = lazy(() => import('./routes/ConfirmationPage'));
 const GuestCheckoutPage = lazy(() => import('./routes/GuestCheckoutPage'));
+const PrivacyPolicyPage = lazy(() => import('./routes/PrivacyPolicyPage'));
 const ScanPage = lazy(() => import('./routes/ScanPage'));
+const TermsPage = lazy(() => import('./routes/TermsPage'));
 
-type RouteKey = 'home' | 'myTickets' | 'account' | 'adminEvents' | 'adminUsers' | 'auth' | 'createAccount' | 'guestCheckout' | 'scan' | 'sales' | 'confirmation';
+type RouteKey = 'home' | 'myTickets' | 'account' | 'adminEvents' | 'adminMessages' | 'adminUsers' | 'auth' | 'createAccount' | 'guestCheckout' | 'privacyPolicy' | 'terms' | 'scan' | 'sales' | 'confirmation';
 
 const sessionTokenKey = 'sessionToken';
 const routeHashByKey: Record<Exclude<RouteKey, 'confirmation'>, string> = {
@@ -23,10 +26,13 @@ const routeHashByKey: Record<Exclude<RouteKey, 'confirmation'>, string> = {
   myTickets: 'my-tickets',
   account: 'account',
   adminEvents: 'admin-events',
+  adminMessages: 'admin-messages',
   adminUsers: 'admin-users',
   auth: 'sign-in',
   createAccount: 'create-account',
   guestCheckout: 'guest-checkout',
+  privacyPolicy: 'privacy-policy',
+  terms: 'terms-and-conditions',
   scan: 'scan',
   sales: 'sales',
 };
@@ -38,12 +44,18 @@ const routeKeyByHash: Record<string, Exclude<RouteKey, 'confirmation'>> = {
   account: 'account',
   'admin-events': 'adminEvents',
   events: 'adminEvents',
+  'admin-messages': 'adminMessages',
+  messages: 'adminMessages',
   'admin-users': 'adminUsers',
   users: 'adminUsers',
   'sign-in': 'auth',
   'create-account': 'createAccount',
   'guest-checkout': 'guestCheckout',
   checkout: 'guestCheckout',
+  privacy: 'privacyPolicy',
+  'privacy-policy': 'privacyPolicy',
+  terms: 'terms',
+  'terms-and-conditions': 'terms',
   scan: 'scan',
   scanner: 'scan',
   sales: 'sales',
@@ -85,9 +97,12 @@ function getRouteLoadingVariant(route: RouteKey): LoadingSkeletonVariant {
   if (route === 'myTickets') return 'tickets';
   if (route === 'scan') return 'scanner';
   if (route === 'adminEvents') return 'account';
+  if (route === 'adminMessages') return 'account';
   if (route === 'adminUsers') return 'account';
   if (route === 'createAccount') return 'auth';
   if (route === 'guestCheckout') return 'purchase';
+  if (route === 'privacyPolicy') return 'purchase';
+  if (route === 'terms') return 'purchase';
   return route;
 }
 
@@ -96,10 +111,13 @@ function getRouteTitle(route: RouteKey) {
   if (route === 'myTickets') return 'My Tickets';
   if (route === 'account') return 'Account';
   if (route === 'adminEvents') return 'Events';
+  if (route === 'adminMessages') return 'Messages';
   if (route === 'adminUsers') return 'User Access';
   if (route === 'auth') return 'Sign In';
   if (route === 'createAccount') return 'Create Account';
   if (route === 'guestCheckout') return 'Checkout';
+  if (route === 'privacyPolicy') return 'Privacy Policy';
+  if (route === 'terms') return 'Terms and Conditions';
   if (route === 'scan') return 'Scan Tickets';
   if (route === 'sales') return 'Ticket Sales';
   if (route === 'confirmation') return 'Order Confirmation';
@@ -161,6 +179,17 @@ function SettingsIcon() {
   );
 }
 
+function NotificationIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className ?? 'account-menu-notification-icon'} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle className="account-menu-notification-icon-circle" cx="12" cy="12" r="9" />
+      <text className="account-menu-notification-icon-number" x="12" y="12" textAnchor="middle" dominantBaseline="central">
+        1
+      </text>
+    </svg>
+  );
+}
+
 function HomeIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -214,6 +243,15 @@ function CalendarIcon() {
   );
 }
 
+function MessageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 6.5A1.5 1.5 0 0 1 6.5 5h11A1.5 1.5 0 0 1 19 6.5v7A1.5 1.5 0 0 1 17.5 15H10l-4 4v-4H6.5A1.5 1.5 0 0 1 5 13.5Z" />
+      <path d="M8 8.5h8M8 11.5h5" />
+    </svg>
+  );
+}
+
 function UsersIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -253,6 +291,7 @@ export function App() {
   const isAdmin = user?.role === 'admin';
   const isScanner = user?.role === 'scanner' || isAdmin;
   const canViewTicketSales = isScanner;
+  const needsPhoneVerification = Boolean(user?.phoneNumber && !user.phoneVerifiedAt);
   const routeTitle = getRouteTitle(route);
 
   useEffect(() => {
@@ -305,6 +344,8 @@ export function App() {
       setRouteAndSyncUrl(user ? 'myTickets' : 'home');
     } else if (route === 'adminEvents' && !isAdmin) {
       setRouteAndSyncUrl('home');
+    } else if (route === 'adminMessages' && !isAdmin) {
+      setRouteAndSyncUrl('home');
     } else if (route === 'adminUsers' && !isAdmin) {
       setRouteAndSyncUrl('home');
     } else if (route === 'sales' && !canViewTicketSales) {
@@ -326,11 +367,16 @@ export function App() {
     if (route === 'auth') return <AuthPage onSession={handleSession} />;
     if (route === 'createAccount') return <AuthPage initialMode="create" onSession={handleSession} />;
     if (route === 'guestCheckout') return user ? homePage : <GuestCheckoutPage />;
+    if (route === 'privacyPolicy') return <PrivacyPolicyPage />;
+    if (route === 'terms') return <TermsPage />;
     if (route === 'account') {
       return token ? <AccountPage token={token} user={user} onUserChange={handleUserChange} onAccountDeleted={handleAccountDeleted} /> : <AuthPage onSession={handleSession} />;
     }
     if (route === 'adminUsers') {
       return token && isAdmin ? <AdminUsersPage token={token} currentUser={user} onCurrentUserUpdated={handleAdminUserUpdated} /> : homePage;
+    }
+    if (route === 'adminMessages') {
+      return token && isAdmin ? <AdminMessagesPage token={token} currentUser={user} /> : homePage;
     }
     if (route === 'adminEvents') {
       return token && isAdmin ? <AdminEventsPage token={token} /> : homePage;
@@ -479,12 +525,13 @@ export function App() {
         </div>
         <div className="account-shell" ref={accountShellRef}>
           <button
-            className="icon-button"
+            className="icon-button account-button"
             type="button"
-            aria-label={user ? 'Account' : 'Sign in'}
+            aria-label={user ? (needsPhoneVerification ? 'Account, phone verification needed' : 'Account') : 'Sign in'}
             onClick={handleAccountButtonClick}
           >
             <AccountIcon />
+            {needsPhoneVerification ? <NotificationIcon className="account-button-badge" /> : null}
           </button>
           {user && accountOpen ? (
             <aside className="account-menu" aria-label="Account menu">
@@ -496,7 +543,7 @@ export function App() {
                 </div>
                 <div className="account-menu-actions">
                   <button className="account-menu-button" type="button" onClick={() => navigate('account')}>
-                    <SettingsIcon />
+                    {needsPhoneVerification ? <NotificationIcon /> : <SettingsIcon />}
                     <span>Account Settings</span>
                   </button>
                   <button className="account-menu-button" type="button" onClick={signOut}>
@@ -540,6 +587,11 @@ export function App() {
           {canViewTicketSales ? (
             <DrawerItem active={route === 'sales'} icon={<SalesIcon />} onClick={() => navigate('sales')}>
               Sales
+            </DrawerItem>
+          ) : null}
+          {isAdmin ? (
+            <DrawerItem active={route === 'adminMessages'} icon={<MessageIcon />} onClick={() => navigate('adminMessages')}>
+              Messages
             </DrawerItem>
           ) : null}
           {isAdmin ? (

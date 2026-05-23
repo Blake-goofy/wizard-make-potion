@@ -32,8 +32,9 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
   const [resetPassword, setResetPassword] = useState('');
   const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
   const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(''));
-  const [eventReminderOptIn, setEventReminderOptIn] = useState(true);
-  const [upcomingEventsOptIn, setUpcomingEventsOptIn] = useState(true);
+  const [eventReminderOptIn, setEventReminderOptIn] = useState(false);
+  const [upcomingEventsOptIn, setUpcomingEventsOptIn] = useState(false);
+  const [verificationDestination, setVerificationDestination] = useState('');
   const [code, setCode] = useState('');
   const [message, setMessage] = useState('');
   const [toastMessage, setToastMessage] = useState('');
@@ -104,6 +105,8 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     clearToastTimers();
     setToastMessage('');
     setIsToastClosing(false);
+    setVerificationDestination('');
+    setCode('');
 
     if (initialMode !== 'create') {
       setHasEmailConflict(false);
@@ -128,6 +131,11 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     clearToastTimers();
     setToastMessage('');
     setIsToastClosing(false);
+
+    if (nextMode !== 'verify') {
+      setVerificationDestination('');
+      setCode('');
+    }
 
     if (nextMode !== 'create') {
       setHasEmailConflict(false);
@@ -200,6 +208,7 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     const submittedPassword = getFormValue(event.currentTarget, 'password');
     const digits = getPhoneDigits(phoneNumber);
     const nextPhoneNumber = getStoredPhoneNumber(phoneNumber);
+    const wantsSmsAlerts = eventReminderOptIn || upcomingEventsOptIn;
 
     setEmail(submittedEmail);
     setDisplayName(submittedDisplayName);
@@ -207,6 +216,11 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
 
     if (digits.length > 0 && digits.length !== 10) {
       showError('Enter a 10-digit phone number.');
+      return;
+    }
+
+    if (wantsSmsAlerts && digits.length !== 10) {
+      showError('Enter a 10-digit phone number to get text alerts.');
       return;
     }
 
@@ -222,9 +236,11 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
         upcomingEventsOptIn,
       });
       setEmail(result.email);
+      setVerificationDestination(result.verificationDestination);
+      setCode('');
       setHasEmailConflict(false);
       setMode('verify');
-      setMessage('Enter the code sent to your email.');
+      setMessage('Enter the verification code below.');
     } catch (error) {
       const nextMessage = error instanceof Error ? error.message : 'Account creation failed.';
 
@@ -236,8 +252,13 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
 
   async function handleVerify(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const submittedEmail = getFormValue(event.currentTarget, 'email').trim();
+    const submittedEmail = email.trim();
     const submittedCode = getFormValue(event.currentTarget, 'code').trim();
+
+    if (!submittedEmail) {
+      showError('Start account creation again to request a verification code.');
+      return;
+    }
 
     setEmail(submittedEmail);
     setCode(submittedCode);
@@ -317,6 +338,8 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     }
   }
 
+  const verificationDestinationText = verificationDestination || email.trim();
+
   return (
     <>
     {toastMessage ? (
@@ -388,11 +411,6 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
       {mode === 'create' ? (
         <form className="stack-form" onSubmit={handleCreateAccount}>
           <label>
-            Name
-            <input name="displayName" required autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-          </label>
-          <PhoneNumberInput label="Phone Number (Optional)" value={phoneNumber} onChange={setPhoneNumber} />
-          <label>
             Email
             <input
               name="email"
@@ -421,37 +439,30 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
               onChange={(event) => setPassword(event.target.value)}
             />
           </label>
+          <label>
+            Name
+            <input name="displayName" required autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+          </label>
+          <PhoneNumberInput label="Phone Number (Optional)" value={phoneNumber} onChange={setPhoneNumber} />
           <div className="auth-preferences-group" aria-label="Notification preferences">
             <label className="checkout-checkbox">
               <input type="checkbox" checked={eventReminderOptIn} onChange={(event) => setEventReminderOptIn(event.target.checked)} />
-              <span>Remind me about the events I buy tickets for.</span>
+              <span>Text me reminders about the events I buy tickets for.</span>
             </label>
             <label className="checkout-checkbox">
               <input type="checkbox" checked={upcomingEventsOptIn} onChange={(event) => setUpcomingEventsOptIn(event.target.checked)} />
-              <span>Keep me posted on new events and ticket releases.</span>
+              <span>Text me about new event ticket releases.</span>
             </label>
           </div>
-          <button type="submit" disabled={isSubmitting}>
-            Send Verification Code
+          <button className="button-with-arrow" type="submit" disabled={isSubmitting}>
+            <span>Send Verification Code</span>
+            <ButtonArrowIcon />
           </button>
         </form>
       ) : null}
       {mode === 'verify' ? (
         <form className="stack-form" onSubmit={handleVerify}>
-          <label>
-            Email
-            <input
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-          </label>
+          {verificationDestinationText ? <p className="auth-verification-destination">Verification code sent to <strong>{verificationDestinationText}</strong>.</p> : null}
           <label>
             Verification code
             <input name="code" inputMode="numeric" pattern="[0-9]{6}" required autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} />

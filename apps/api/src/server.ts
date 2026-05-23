@@ -15,11 +15,15 @@ import { registerHealthRoutes } from './routes/health.js';
 import { registerOrderRoutes } from './routes/orders.js';
 import { registerPaymentRoutes } from './routes/payments.js';
 import { registerScannerRoutes } from './routes/scanner.js';
+import { registerTelnyxRoutes } from './routes/telnyx.js';
 import { createAuthService } from './services/auth.js';
 import { createAppSettingsService } from './services/appSettings.js';
 import { createEmailQueueService } from './services/emailQueue.js';
 import { createOrderService } from './services/orders.js';
+import { createSmsService } from './services/sms.js';
+import { createSmsMessageService } from './services/smsMessages.js';
 import { createScannerService } from './services/scanner.js';
+import { createTelnyxSmsProvider } from './services/telnyxSmsProvider.js';
 
 function summarizeUnknownError(error: unknown) {
   if (error instanceof Error) {
@@ -95,7 +99,7 @@ export async function buildServer(config: AppConfig) {
 
   server.removeContentTypeParser('application/json');
   server.addContentTypeParser('application/json', { parseAs: 'buffer' }, (request, body, done) => {
-    if (request.url === '/api/stripe/webhook') {
+    if (request.url === '/api/stripe/webhook' || request.url === '/api/telnyx/webhook') {
       done(null, body);
       return;
     }
@@ -115,8 +119,20 @@ export async function buildServer(config: AppConfig) {
   });
 
   const emailQueue = createEmailQueueService({ db, appSettings, emailProvider, webOrigin: config.webOrigin });
-  const auth = createAuthService(config, db, emailQueue);
+  const smsProvider = config.telnyxApiKey
+    ? createTelnyxSmsProvider({
+      telnyxApiKey: config.telnyxApiKey,
+      defaultFromPhoneNumber: config.telnyxSmsFromNumber,
+      messagingProfileId: config.telnyxMessagingProfileId,
+    })
+    : null;
+  const sms = createSmsService({ db, smsProvider });
+  const auth = createAuthService(config, db, emailQueue, {
+    sms,
+    canSendSms: Boolean(config.telnyxApiKey && (config.telnyxSmsFromNumber || config.telnyxMessagingProfileId)),
+  });
   const orders = createOrderService({ db, emailQueue, config, appSettings });
+  const smsMessages = createSmsMessageService({ db, sms });
   const scanner = createScannerService({ db });
 
   await server.register(cors, {
@@ -129,9 +145,10 @@ export async function buildServer(config: AppConfig) {
   await registerAccountRoutes(server, { auth });
   await registerEventRoutes(server, { db, appSettings });
   await registerPaymentRoutes(server, { config, auth, orders });
+  await registerTelnyxRoutes(server, { config, sms });
   await registerOrderRoutes(server, { auth, orders });
   await registerScannerRoutes(server, { scanner, auth, appSettings });
-  await registerAdminRoutes(server, { auth, db, emailQueue, scanner });
+  await registerAdminRoutes(server, { auth, db, emailQueue, scanner, smsMessages });
 
   if (webDistDir) {
     await server.register(fastifyStatic, {

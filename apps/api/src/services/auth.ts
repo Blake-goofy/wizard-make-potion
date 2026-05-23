@@ -14,11 +14,13 @@ import {
   type UpdateAccountInput,
   type SessionUser,
   type VerifyAccountInput,
+  type VerifyPhoneNumberInput,
 } from '@potion/shared';
 import { renderAccountVerificationEmail, renderPasswordResetEmail } from '@potion/email';
 import type { Database } from '@potion/db';
 import type { AppConfig } from '../config.js';
 import type { EmailQueueService } from './emailQueue.js';
+import type { SmsService } from './sms.js';
 
 type SessionPayload = {
   sub: string;
@@ -70,7 +72,41 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-export function createAuthService(config: AppConfig, db: Database, emailQueue: EmailQueueService) {
+function readPhoneDigits(phoneNumber: string) {
+  return phoneNumber.replace(/\D/g, '').slice(-10);
+}
+
+function formatPhoneNumber(phoneNumber: string) {
+  const digits = readPhoneDigits(phoneNumber);
+
+  if (digits.length !== 10) {
+    throw createHttpError('Enter a 10-digit phone number to verify by text.', 400);
+  }
+
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
+function buildSmsVerificationMessage(code: string) {
+  return `Wizard Make Potion verification code: ${code}. This code expires in 15 minutes.`;
+}
+
+function hashPhoneVerificationCode(userId: string, phoneNumber: string, code: string, secret: string) {
+  return createHmac('sha256', secret).update(`${userId}:${phoneNumber}:${code}`).digest('hex');
+}
+
+function deriveSmsOptIn(preferences: {
+  eventReminderOptIn?: boolean;
+  upcomingEventsOptIn?: boolean;
+}) {
+  return Boolean(preferences.eventReminderOptIn || preferences.upcomingEventsOptIn);
+}
+
+export function createAuthService(
+  config: AppConfig,
+  db: Database,
+  emailQueue: EmailQueueService,
+  options: { sms: SmsService; canSendSms: boolean },
+) {
   function sign(value: string) {
     return createHmac('sha256', config.authSessionSecret).update(value).digest('hex');
   }
@@ -115,8 +151,10 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
               display_name as "displayName",
               role,
               phone_number as "phoneNumber",
+              phone_verified_at as "phoneVerifiedAt",
               event_reminder_opt_in as "eventReminderOptIn",
-              upcoming_events_opt_in as "upcomingEventsOptIn"
+              upcoming_events_opt_in as "upcomingEventsOptIn",
+              sms_opt_in as "smsOptIn"
        from users
        where id = $1 and is_active = true`,
       [userId],
@@ -165,6 +203,7 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
       const phoneNumber = input.phoneNumber?.trim() || null;
       const eventReminderOptIn = input.eventReminderOptIn;
       const upcomingEventsOptIn = input.upcomingEventsOptIn;
+      const smsOptIn = deriveSmsOptIn(input);
       const verificationEmail = renderAccountVerificationEmail({ code });
 
       await db.transaction(async (client) => {
@@ -177,10 +216,22 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
              phone_number,
              event_reminder_opt_in,
              upcoming_events_opt_in,
+             sms_opt_in,
+             sms_consent_at,
              expires_at
            )
-           values ($1, $2, $3, $4, $5, $6, $7, now() + interval '15 minutes')`,
-          [email, input.displayName.trim(), passwordHash, codeHash, phoneNumber, eventReminderOptIn, upcomingEventsOptIn],
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + interval '15 minutes')`,
+          [
+            email,
+            input.displayName.trim(),
+            passwordHash,
+            codeHash,
+            phoneNumber,
+            eventReminderOptIn,
+            upcomingEventsOptIn,
+            smsOptIn,
+            smsOptIn ? new Date().toISOString() : null,
+          ],
         );
 
         await client.query(
@@ -197,7 +248,11 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
 
       await emailQueue.processPending();
 
-      return { email, message: 'Verification code queued for email delivery.' };
+      return {
+        email,
+        verificationDestination: email,
+        message: 'Verification code queued for email delivery.',
+      };
     },
 
     async verifyAccount(input: VerifyAccountInput) {
@@ -209,7 +264,9 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
           code_hash as "codeHash",
           phone_number as "phoneNumber",
           event_reminder_opt_in as "eventReminderOptIn",
-          upcoming_events_opt_in as "upcomingEventsOptIn"
+          upcoming_events_opt_in as "upcomingEventsOptIn",
+          sms_opt_in as "smsOptIn",
+          sms_consent_at as "smsConsentAt"
          from account_verification_codes
          where lower(email) = $1 and consumed_at is null and expires_at > now()
          order by created_at desc
@@ -231,17 +288,31 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
              role,
              password_hash,
              phone_number,
+             phone_verified_at,
              event_reminder_opt_in,
              upcoming_events_opt_in,
+             sms_opt_in,
+             sms_consent_at,
+             sms_opted_out_at,
              is_active
            )
-           values ($1, $2, 'customer', $3, $4, $5, $6, true)
+           values ($1, $2, 'customer', $3, $4, null, $5, $6, $7, $8, null, true)
            on conflict (email) do update
            set display_name = excluded.display_name,
                password_hash = excluded.password_hash,
                phone_number = excluded.phone_number,
+               phone_verified_at = null,
                event_reminder_opt_in = excluded.event_reminder_opt_in,
                upcoming_events_opt_in = excluded.upcoming_events_opt_in,
+               sms_opt_in = excluded.sms_opt_in,
+               sms_consent_at = case
+                 when excluded.sms_opt_in then coalesce(users.sms_consent_at, excluded.sms_consent_at)
+                 else null
+               end,
+               sms_opted_out_at = case
+                 when excluded.sms_opt_in then null
+                 else users.sms_opted_out_at
+               end,
                is_active = true,
                updated_at = now()
            returning id,
@@ -249,8 +320,10 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
                      display_name as "displayName",
                      role,
                      phone_number as "phoneNumber",
+                     phone_verified_at as "phoneVerifiedAt",
                      event_reminder_opt_in as "eventReminderOptIn",
-                     upcoming_events_opt_in as "upcomingEventsOptIn"`,
+                     upcoming_events_opt_in as "upcomingEventsOptIn",
+                     sms_opt_in as "smsOptIn"`,
           [
             email,
             pendingAccount.displayName,
@@ -258,6 +331,8 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
             pendingAccount.phoneNumber,
             pendingAccount.eventReminderOptIn,
             pendingAccount.upcomingEventsOptIn,
+            pendingAccount.smsOptIn,
+            pendingAccount.smsConsentAt,
           ],
         );
         return verified.rows[0];
@@ -275,8 +350,10 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
                 display_name as "displayName",
                 role,
                 phone_number as "phoneNumber",
+                phone_verified_at as "phoneVerifiedAt",
                 event_reminder_opt_in as "eventReminderOptIn",
                 upcoming_events_opt_in as "upcomingEventsOptIn",
+                  sms_opt_in as "smsOptIn",
                 password_hash as "passwordHash"
          from users
          where lower(email) = lower($1) and is_active = true`,
@@ -359,15 +436,15 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
       return { reset: true as const };
     },
 
-    async requireUser(request: FastifyRequest) {
+    async requireUser(request: FastifyRequest): Promise<SessionUser> {
       return requireUser(request);
     },
 
-    async requireAdmin(request: FastifyRequest) {
+    async requireAdmin(request: FastifyRequest): Promise<SessionUser> {
       return requireAdmin(request);
     },
 
-    async requireScanner(request: FastifyRequest) {
+    async requireScanner(request: FastifyRequest): Promise<SessionUser> {
       return requireScanner(request);
     },
 
@@ -417,15 +494,123 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
       return accountProfileSchema.parse(user);
     },
 
+    async requestPhoneVerification(request: FastifyRequest) {
+      const user = await requireUser(request);
+
+      if (!user.phoneNumber) {
+        throw createHttpError('Add a phone number before requesting a verification code.', 400);
+      }
+
+      if (!options.canSendSms) {
+        throw createHttpError('Text verification is not available right now.', 503);
+      }
+
+      const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
+      const phoneNumber = formatPhoneNumber(user.phoneNumber);
+      const codeHash = hashPhoneVerificationCode(user.id, phoneNumber, code, config.authSessionSecret);
+
+      await db.query(
+        `insert into phone_verification_codes (user_id, phone_number, code_hash, expires_at)
+         values ($1, $2, $3, now() + interval '15 minutes')`,
+        [user.id, phoneNumber, codeHash],
+      );
+
+      await options.sms.queueMessage({
+        toPhoneNumber: phoneNumber,
+        messageBody: buildSmsVerificationMessage(code),
+        messageType: 'transactional',
+      });
+      await options.sms.processPending();
+
+      return {
+        phoneNumber,
+        message: 'Verification code queued for text delivery.',
+      };
+    },
+
+    async verifyPhoneNumber(request: FastifyRequest, input: VerifyPhoneNumberInput) {
+      const user = await requireUser(request);
+
+      if (!user.phoneNumber) {
+        throw createHttpError('Add a phone number before verifying it.', 400);
+      }
+
+      const phoneNumber = formatPhoneNumber(user.phoneNumber);
+      const result = await db.query(
+        `select id,
+                code_hash as "codeHash"
+         from phone_verification_codes
+         where user_id = $1
+           and phone_number = $2
+           and consumed_at is null
+           and expires_at > now()
+         order by created_at desc
+         limit 1`,
+        [user.id, phoneNumber],
+      );
+      const pendingVerification = result.rows[0];
+
+      if (!pendingVerification || !safeCompare(
+        Buffer.from(pendingVerification.codeHash),
+        Buffer.from(hashPhoneVerificationCode(user.id, phoneNumber, input.code, config.authSessionSecret)),
+      )) {
+        throw createHttpError('Invalid or expired verification code.', 401);
+      }
+
+      const updatedResult = await db.transaction(async (client) => {
+        await client.query(`update phone_verification_codes set consumed_at = now() where id = $1`, [pendingVerification.id]);
+
+        return client.query(
+          `update users
+           set phone_verified_at = now(),
+               updated_at = now()
+           where id = $1 and is_active = true
+           returning id,
+                     email,
+                     display_name as "displayName",
+                     role,
+                     phone_number as "phoneNumber",
+                     phone_verified_at as "phoneVerifiedAt",
+                     event_reminder_opt_in as "eventReminderOptIn",
+                     upcoming_events_opt_in as "upcomingEventsOptIn",
+                     sms_opt_in as "smsOptIn"`,
+          [user.id],
+        );
+      });
+
+      const updatedUser = updatedResult.rows[0];
+      if (!updatedUser) {
+        throw createHttpError('Account was not found.', 404);
+      }
+
+      return accountProfileSchema.parse(updatedUser);
+    },
+
     async updateAccount(request: FastifyRequest, input: UpdateAccountInput) {
       const user = await requireUser(request);
       const nextDisplayName = input.displayName.trim();
+      const smsOptIn = deriveSmsOptIn(input);
       const result = await db.query(
         `update users
          set display_name = $2,
              phone_number = $3,
+             phone_verified_at = case
+               when phone_number is distinct from $3 then null
+               else phone_verified_at
+             end,
              event_reminder_opt_in = $4,
              upcoming_events_opt_in = $5,
+             sms_opt_in = $6,
+             sms_consent_at = case
+               when $6 and not sms_opt_in then now()
+               when $6 then sms_consent_at
+               else null
+             end,
+             sms_opted_out_at = case
+               when $6 then null
+               when sms_opt_in then now()
+               else sms_opted_out_at
+             end,
              updated_at = now()
          where id = $1 and is_active = true
          returning id,
@@ -433,9 +618,11 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
                    display_name as "displayName",
                    role,
                    phone_number as "phoneNumber",
+                   phone_verified_at as "phoneVerifiedAt",
                    event_reminder_opt_in as "eventReminderOptIn",
-                   upcoming_events_opt_in as "upcomingEventsOptIn"`,
-        [user.id, nextDisplayName, input.phoneNumber, input.eventReminderOptIn, input.upcomingEventsOptIn],
+                   upcoming_events_opt_in as "upcomingEventsOptIn",
+                   sms_opt_in as "smsOptIn"`,
+        [user.id, nextDisplayName, input.phoneNumber, input.eventReminderOptIn, input.upcomingEventsOptIn, smsOptIn],
       );
 
       const updatedUser = result.rows[0];
@@ -476,6 +663,10 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
         `update users
          set is_active = false,
              phone_number = null,
+             phone_verified_at = null,
+             sms_opt_in = false,
+             sms_consent_at = null,
+             sms_opted_out_at = now(),
              updated_at = now()
          where id = $1 and is_active = true`,
         [user.id],

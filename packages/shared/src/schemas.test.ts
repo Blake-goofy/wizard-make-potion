@@ -22,6 +22,16 @@ describe('shared input schemas', () => {
     });
   });
 
+  it('requires a phone number when guest checkout enables text alerts', () => {
+    expect(() => createOrderInputSchema.parse({
+      eventId: '00000000-0000-4000-8000-000000000001',
+      customerEmail: 'guest@example.com',
+      customerName: 'Guest Buyer',
+      eventReminderOptIn: true,
+      quantity: 2,
+    })).toThrow('Phone number is required when text alerts are enabled.');
+  });
+
   it('rejects invalid guest checkout phone numbers', () => {
     expect(() => createOrderInputSchema.parse({
       eventId: '00000000-0000-4000-8000-000000000001',
@@ -37,12 +47,14 @@ describe('shared input schemas', () => {
       email: 'guest@example.com',
       displayName: 'Guest Buyer',
       password: 'correct horse battery staple',
+      phoneNumber: '(555) 123-4567',
       eventReminderOptIn: true,
       upcomingEventsOptIn: false,
     })).toEqual({
       email: 'guest@example.com',
       displayName: 'Guest Buyer',
       password: 'correct horse battery staple',
+      phoneNumber: '(555) 123-4567',
       eventReminderOptIn: true,
       upcomingEventsOptIn: false,
     });
@@ -55,6 +67,15 @@ describe('shared input schemas', () => {
       eventReminderOptIn: true,
       upcomingEventsOptIn: true,
     })).toThrow();
+  });
+
+  it('requires a phone number when account updates enable text alerts', () => {
+    expect(() => updateAccountInputSchema.parse({
+      displayName: 'Guest Buyer',
+      phoneNumber: null,
+      eventReminderOptIn: true,
+      upcomingEventsOptIn: true,
+    })).toThrow('Phone number is required when text alerts are enabled.');
   });
 
   it('does not accept oversized password payloads before hashing', () => {

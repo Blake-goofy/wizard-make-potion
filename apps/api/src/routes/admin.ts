@@ -17,15 +17,52 @@ import { createRateLimitGuard } from '../security/rateLimit.js';
 import type { AuthService } from '../services/auth.js';
 import type { EmailQueueService } from '../services/emailQueue.js';
 import type { ScannerService } from '../services/scanner.js';
+import type { SmsMessageService } from '../services/smsMessages.js';
 import { parseEventRecord } from '../services/eventRecords.js';
 
 const authRateLimitMessage = 'Too many attempts. Please wait a moment and try again.';
+const smsMessagePhoneNumberSchema = z.string().trim().regex(/^\(\d{3}\) \d{3}-\d{4}$/);
 
 const limitLoginAttempts = createRateLimitGuard({ maxAttempts: 10, windowMs: 10 * 60 * 1000, message: authRateLimitMessage });
 const limitAccountCreationAttempts = createRateLimitGuard({ maxAttempts: 3, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
 const limitVerificationAttempts = createRateLimitGuard({ maxAttempts: 8, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
 const limitPasswordResetRequests = createRateLimitGuard({ maxAttempts: 3, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
 const limitPasswordResetConfirmations = createRateLimitGuard({ maxAttempts: 8, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
+
+const smsMessageTypeSchema = z.enum(['reminder', 'upcoming_event', 'admin', 'test']);
+const smsMessageStatusSchema = z.enum(['draft', 'sent']);
+const smsMessageInputSchema = z.object({
+  eventId: z.string().uuid().nullable().optional(),
+  messageType: smsMessageTypeSchema,
+  label: z.string().trim().min(1).max(120),
+  messageBody: z.string().trim().min(1).max(1200),
+  status: smsMessageStatusSchema,
+  testPhoneNumber: smsMessagePhoneNumberSchema.nullable().optional(),
+}).superRefine((value, ctx) => {
+  if (value.messageType === 'reminder' && !value.eventId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['eventId'],
+      message: 'Reminder messages must target an event.',
+    });
+  }
+
+  if (value.messageType === 'test' && !value.testPhoneNumber) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['testPhoneNumber'],
+      message: 'Test messages must target a phone number.',
+    });
+  }
+
+  if (value.messageType !== 'test' && value.testPhoneNumber) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['testPhoneNumber'],
+      message: 'Only test messages can include a phone number override.',
+    });
+  }
+});
 
 function createHttpError(message: string, statusCode: number) {
   const error = new Error(message) as Error & { statusCode: number };
@@ -72,7 +109,7 @@ async function createUniqueEventSlug(
 
 export async function registerAdminRoutes(
   server: FastifyInstance,
-  deps: { auth: AuthService; db: Database; emailQueue: EmailQueueService; scanner: ScannerService },
+  deps: { auth: AuthService; db: Database; emailQueue: EmailQueueService; scanner: ScannerService; smsMessages: SmsMessageService },
 ) {
   server.post('/api/auth/login', async (request, reply) => {
     const input = loginInputSchema.parse(request.body);
@@ -86,7 +123,6 @@ export async function registerAdminRoutes(
     const input = createAccountInputSchema.parse(request.body);
     limitAccountCreationAttempts(request, [input.email]);
     const result = await deps.auth.createAccount(input);
-    await deps.emailQueue.processPending();
 
     return reply.code(201).send(result);
   });
@@ -195,6 +231,38 @@ export async function registerAdminRoutes(
     });
 
     return { event };
+  });
+
+  server.get('/api/admin/sms-messages', async (request) => {
+    await deps.auth.requireAdmin(request);
+    const query = z.object({
+      eventId: z.string().uuid().optional(),
+    }).parse(request.query);
+
+    const messages = await deps.smsMessages.listMessages(query.eventId ?? null);
+    return { messages };
+  });
+
+  server.post('/api/admin/sms-messages', async (request, reply) => {
+    await deps.auth.requireAdmin(request);
+    const input = smsMessageInputSchema.parse(request.body);
+    const message = await deps.smsMessages.createMessage(input);
+    return reply.code(201).send({ message });
+  });
+
+  server.put('/api/admin/sms-messages/:messageId', async (request) => {
+    await deps.auth.requireAdmin(request);
+    const messageId = z.string().uuid().parse((request.params as { messageId?: string }).messageId);
+    const input = smsMessageInputSchema.parse(request.body);
+    const message = await deps.smsMessages.updateMessage(messageId, input);
+    return { message };
+  });
+
+  server.post('/api/admin/sms-messages/:messageId/send-now', async (request) => {
+    await deps.auth.requireAdmin(request);
+    const messageId = z.string().uuid().parse((request.params as { messageId?: string }).messageId);
+    const result = await deps.smsMessages.sendMessageNow(messageId);
+    return result;
   });
 
   server.put('/api/admin/users/:userId', async (request) => {

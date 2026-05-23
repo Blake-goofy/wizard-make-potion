@@ -1,10 +1,11 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { SessionUser } from '@potion/shared';
 import type { AppConfig } from '../config.js';
 import type { AuthService } from '../services/auth.js';
 import type { OrderService } from '../services/orders.js';
 import { registerPaymentRoutes } from './payments.js';
+
+type AuthenticatedUser = Awaited<ReturnType<AuthService['getCurrentUser']>>;
 
 const stripeMocks = vi.hoisted(() => ({
   createCheckoutSession: vi.fn(),
@@ -33,10 +34,15 @@ function createConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     databaseUrl: 'postgresql://postgres:postgres@127.0.0.1:54322/postgres',
     authSessionSecret: 'test-session-secret',
     resendApiKey: undefined,
+    telnyxApiKey: undefined,
+    telnyxSmsFromNumber: undefined,
+    telnyxMessagingProfileId: undefined,
+    telnyxPublicKey: undefined,
     stripeSecretKey: 'sk_test_configured',
     stripePublishableKey: 'pk_test_configured',
     stripeWebhookSecret: 'whsec_test_configured',
     ...overrides,
+    corsOrigins: overrides.corsOrigins ?? ['http://localhost:5173'],
   };
 }
 
@@ -83,9 +89,11 @@ function createAuth(): AuthService {
           displayName: 'Signed In Member',
           role: 'customer',
           phoneNumber: '(555) 222-3333',
+          phoneVerifiedAt: '2026-05-23T12:00:00.000Z',
           eventReminderOptIn: false,
           upcomingEventsOptIn: true,
-        } satisfies SessionUser;
+          smsOptIn: true,
+        } satisfies AuthenticatedUser;
       }
 
       throw Object.assign(new Error('Sign-in required.'), { statusCode: 401 });
@@ -213,14 +221,13 @@ describe('payment routes', () => {
       });
 
       expect(response.statusCode).toBe(201);
-      expect(orders.createPendingStripeOrder).toHaveBeenCalledWith(expect.objectContaining({
-        input: expect.objectContaining({
-          customerName: 'Guest Buyer',
-          customerPhoneNumber: '(555) 123-4567',
-          eventReminderOptIn: true,
-          upcomingEventsOptIn: true,
-        }),
-      }));
+      const [firstCall] = vi.mocked(orders.createPendingStripeOrder).mock.calls;
+      expect(firstCall?.[0].input).toMatchObject({
+        customerName: 'Guest Buyer',
+        customerPhoneNumber: '(555) 123-4567',
+        eventReminderOptIn: true,
+        upcomingEventsOptIn: true,
+      });
     } finally {
       await server.close();
     }
@@ -253,13 +260,61 @@ describe('payment routes', () => {
         customerEmail: 'member@example.com',
         eventReminderOptIn: false,
         upcomingEventsOptIn: true,
+        customerPhoneNumber: '(555) 222-3333',
       }));
       expect(orders.createPendingStripeOrder).toHaveBeenCalledWith(expect.objectContaining({
         input: expect.objectContaining({
           customerEmail: 'member@example.com',
           eventReminderOptIn: false,
           upcomingEventsOptIn: true,
+          customerPhoneNumber: '(555) 222-3333',
         }),
+      }));
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('drops SMS opt-ins from signed-in accounts until the phone number is verified', async () => {
+    stripeMocks.createCheckoutSession.mockResolvedValue({ id: 'cs_test_checkout', url: 'https://checkout.stripe.test/session' });
+    const auth = {
+      requireUser: vi.fn().mockResolvedValue({
+        id: '00000000-0000-4000-8000-000000000099',
+        email: 'member@example.com',
+        displayName: 'Signed In Member',
+        role: 'customer',
+        phoneNumber: '(555) 222-3333',
+        phoneVerifiedAt: null,
+        eventReminderOptIn: true,
+        upcomingEventsOptIn: true,
+        smsOptIn: true,
+      } satisfies AuthenticatedUser),
+    } as unknown as AuthService;
+    const { server, orders } = await createServer(createConfig(), createOrders(), auth);
+
+    try {
+      const response = await server.inject({
+        method: 'POST',
+        url: '/api/payments/stripe-checkout',
+        headers: {
+          'Idempotency-Key': checkoutIdempotencyKey,
+          Authorization: 'Bearer signed-in-token',
+        },
+        payload: {
+          eventId,
+          customerEmail: 'guest@example.com',
+          eventReminderOptIn: true,
+          upcomingEventsOptIn: true,
+          quantity: 1,
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(orders.quoteOrder).toHaveBeenCalledWith(expect.objectContaining({
+        customerEmail: 'member@example.com',
+        customerPhoneNumber: '(555) 222-3333',
+        eventReminderOptIn: false,
+        upcomingEventsOptIn: false,
       }));
     } finally {
       await server.close();

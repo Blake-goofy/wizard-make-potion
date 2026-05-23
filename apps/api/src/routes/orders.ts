@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { createOrderInputSchema } from '@potion/shared';
+import { createOrderInputSchema, createOrderRequestSchema } from '@potion/shared';
 import { z } from 'zod';
 import type { AuthService } from '../services/auth.js';
 import type { OrderService } from '../services/orders.js';
@@ -7,8 +7,8 @@ import { resolveCheckoutInput } from './checkoutInput.js';
 
 export async function registerOrderRoutes(server: FastifyInstance, deps: { auth: AuthService; orders: OrderService }) {
   server.post('/api/orders/dev-complete', async (request, reply) => {
-    const requestedInput = createOrderInputSchema.parse(request.body);
-    const input = await resolveCheckoutInput(request, deps.auth, requestedInput);
+    const requestedInput = createOrderRequestSchema.parse(request.body);
+    const input = createOrderInputSchema.parse(await resolveCheckoutInput(request, deps.auth, requestedInput));
     const result = await deps.orders.createDevCompletedOrder(input);
 
     return reply.code(201).send(result);

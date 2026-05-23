@@ -8,8 +8,6 @@ type AdminEventsPageProps = {
   token: string;
 };
 
-type EventFormMode = 'create' | 'edit';
-
 type EventFormState = {
   name: string;
   startsAtDate: string;
@@ -39,6 +37,8 @@ const emptyEventForm: EventFormState = {
   ticketPrice: '',
   isActive: true,
 };
+
+const CREATE_EVENT_OPTION = '__create_event__';
 
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -85,8 +85,7 @@ function eventToFormState(event: EventView): EventFormState {
 
 export default function AdminEventsPage({ token }: AdminEventsPageProps) {
   const [events, setEvents] = useState<EventView[]>([]);
-  const [mode, setMode] = useState<EventFormMode>('create');
-  const [selectedEventId, setSelectedEventId] = useState('');
+  const [selectedEventId, setSelectedEventId] = useState(CREATE_EVENT_OPTION);
   const [form, setForm] = useState<EventFormState>(emptyEventForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -106,6 +105,7 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
     () => events.find((event) => event.id === selectedEventId) ?? null,
     [events, selectedEventId],
   );
+  const isCreatingEvent = selectedEventId === CREATE_EVENT_OPTION;
 
   useEffect(() => {
     let isCurrent = true;
@@ -118,11 +118,15 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
 
         setEvents(result.events);
         setSelectedEventId((currentSelection) => {
+          if (currentSelection === CREATE_EVENT_OPTION) {
+            return currentSelection;
+          }
+
           if (currentSelection && result.events.some((event) => event.id === currentSelection)) {
             return currentSelection;
           }
 
-          return result.events[0]?.id ?? '';
+          return result.events[0]?.id ?? CREATE_EVENT_OPTION;
         });
       })
       .catch((error) => {
@@ -139,7 +143,7 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
   }, [token]);
 
   useEffect(() => {
-    if (mode === 'create') {
+    if (isCreatingEvent) {
       setForm(emptyEventForm);
       return;
     }
@@ -147,7 +151,7 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
     if (selectedEvent) {
       setForm(eventToFormState(selectedEvent));
     }
-  }, [mode, selectedEvent]);
+  }, [isCreatingEvent, selectedEvent]);
 
   function updateField<Key extends keyof EventFormState>(key: Key, value: EventFormState[Key]) {
     setForm((currentForm) => ({ ...currentForm, [key]: value }));
@@ -198,11 +202,10 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
     setIsSaving(true);
 
     try {
-      if (mode === 'create') {
+      if (isCreatingEvent) {
         const response = await createAdminEvent(result.payload, token);
         setEvents((currentEvents) => [response.event, ...currentEvents]);
         setSelectedEventId(response.event.id);
-        setMode('edit');
         setForm(eventToFormState(response.event));
         showToast('Event created.', 'success');
         return;
@@ -237,24 +240,18 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
         onTouchCancel={handleToastTouchCancel}
       />
       <section className="content-panel admin-events-panel">
-        <div className="admin-events-mode-row">
-          <label>
-            Flow
-            <select value={mode} onChange={(event) => setMode(event.target.value as EventFormMode)}>
-              <option value="create">Create</option>
-              <option value="edit">Edit</option>
-            </select>
-          </label>
+        <section className="stack-form admin-events-form" aria-label="Event management">
+          <div className="admin-events-header">
+            <h1>Event Management</h1>
+            <p className="status-text">Create new events or update the event details used by reminder messages.</p>
+          </div>
 
-          {mode === 'edit' ? (
+          <div className="admin-events-mode-row">
             <label>
               Event
-              <select
-                value={selectedEventId}
-                disabled={isLoading || events.length === 0}
-                onChange={(event) => setSelectedEventId(event.target.value)}
-              >
-                {events.length === 0 ? <option value="">No events available</option> : null}
+              <select value={selectedEventId} disabled={isLoading} onChange={(event) => setSelectedEventId(event.target.value)}>
+                <option value={CREATE_EVENT_OPTION}>Create New Event</option>
+                {events.length === 0 ? <option value="" disabled>No events available</option> : null}
                 {events.map((eventRecord) => (
                   <option key={eventRecord.id} value={eventRecord.id}>
                     {eventRecord.name}
@@ -262,75 +259,65 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
                 ))}
               </select>
             </label>
-          ) : null}
-        </div>
+          </div>
 
-        <form className="stack-form admin-events-form" onSubmit={(event) => void handleSubmit(event)}>
-          <label>
-            Name
-            <input value={form.name} onChange={(event) => updateField('name', event.target.value)} required />
-          </label>
+          <form className="stack-form" onSubmit={(event) => void handleSubmit(event)}>
+            <label>
+              Name
+              <input value={form.name} onChange={(event) => updateField('name', event.target.value)} required />
+            </label>
 
-          <div className="admin-events-field-row">
-            <div className="admin-events-datetime-group admin-events-compact-field" aria-label="Starts at">
-              <label>
-                Start Date
+            <div className="admin-events-field-row">
+              <div className="admin-events-datetime-group admin-events-compact-field" aria-label="Starts at">
+                <label>
+                  Start Date
+                  <input type="date" value={form.startsAtDate} onChange={(event) => updateField('startsAtDate', event.target.value)} required />
+                </label>
+
+                <label>
+                  Start Time
+                  <input type="time" value={form.startsAtTime} onChange={(event) => updateField('startsAtTime', event.target.value)} required />
+                </label>
+              </div>
+
+              <label className="admin-events-price-field">
+                Ticket Price
                 <input
-                  type="date"
-                  value={form.startsAtDate}
-                  onChange={(event) => updateField('startsAtDate', event.target.value)}
-                  required
-                />
-              </label>
-
-              <label>
-                Start Time
-                <input
-                  type="time"
-                  value={form.startsAtTime}
-                  onChange={(event) => updateField('startsAtTime', event.target.value)}
+                  value={form.ticketPrice}
+                  inputMode="decimal"
+                  placeholder="$12.00"
+                  onBlur={formatTicketPriceDraft}
+                  onChange={(event) => updateField('ticketPrice', event.target.value)}
                   required
                 />
               </label>
             </div>
 
-            <label className="admin-events-price-field">
-              Ticket Price
-              <input
-                value={form.ticketPrice}
-                inputMode="decimal"
-                placeholder="$12.00"
-                onBlur={formatTicketPriceDraft}
-                onChange={(event) => updateField('ticketPrice', event.target.value)}
-                required
-              />
-            </label>
-          </div>
-
-          <label>
-            Address
-            <input value={form.address} onChange={(event) => updateField('address', event.target.value)} required />
-          </label>
-
-          <label>
-            Description
-            <textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} required />
-          </label>
-
-          {mode === 'edit' ? (
             <label>
-              Active
-              <select value={form.isActive ? 'active' : 'inactive'} onChange={(event) => updateField('isActive', event.target.value === 'active')}>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
+              Address
+              <input value={form.address} onChange={(event) => updateField('address', event.target.value)} required />
             </label>
-          ) : null}
 
-          <button type="submit" disabled={isSaving || (mode === 'edit' && !selectedEvent)}>
-            {isSaving ? 'Saving...' : mode === 'create' ? 'Create Event' : 'Save Event'}
-          </button>
-        </form>
+            <label>
+              Description
+              <textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} required />
+            </label>
+
+            {!isCreatingEvent ? (
+              <label>
+                Active
+                <select value={form.isActive ? 'active' : 'inactive'} onChange={(event) => updateField('isActive', event.target.value === 'active')}>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
+            ) : null}
+
+            <button type="submit" disabled={isSaving || (!isCreatingEvent && !selectedEvent)}>
+              {isSaving ? 'Saving...' : isCreatingEvent ? 'Create Event' : 'Save Event'}
+            </button>
+          </form>
+        </section>
       </section>
       {isLoading ? <LoadingOverlay label="Loading events" detail="Fetching event settings." variant="account" /> : null}
     </>

@@ -18,6 +18,10 @@ function getStripe(config: AppConfig) {
   return config.stripeSecretKey ? new Stripe(config.stripeSecretKey) : null;
 }
 
+function deriveSmsOptIn(input: Pick<CreateOrderInput, 'eventReminderOptIn' | 'upcomingEventsOptIn'>) {
+  return Boolean(input.eventReminderOptIn || input.upcomingEventsOptIn);
+}
+
 async function createOrderTickets(queryable: Queryable, orderId: string, quantity: number): Promise<OrderTicketRecord[]> {
   const tickets: OrderTicketRecord[] = [];
 
@@ -89,12 +93,14 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
         const { event, quote } = await this.quoteOrder(input);
         const orderId = randomUUID();
         const providerReference = `dev_${orderId}`;
+        const smsOptIn = deriveSmsOptIn(input);
 
         await client.query(
           `insert into orders (id, event_id, customer_email, customer_name, customer_phone_number,
-                               event_reminder_opt_in, upcoming_events_opt_in, quantity, subtotal_cents, tax_cents,
-                               total_cents, status, payment_provider, payment_provider_reference, completed_at)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'completed', 'dev', $12, now())`,
+                               event_reminder_opt_in, upcoming_events_opt_in, sms_opt_in, sms_consent_at,
+                               quantity, subtotal_cents, tax_cents, total_cents, status, payment_provider,
+                               payment_provider_reference, completed_at)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'completed', 'dev', $13, now())`,
           [
             orderId,
             input.eventId,
@@ -103,6 +109,8 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
             input.customerPhoneNumber ?? null,
             input.eventReminderOptIn ?? false,
             input.upcomingEventsOptIn ?? false,
+            smsOptIn,
+            smsOptIn ? new Date().toISOString() : null,
             input.quantity,
             quote.subtotalCents,
             quote.taxCents,
@@ -135,11 +143,13 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
       providerReference: string;
       checkoutIdempotencyKey: string;
     }) {
+      const smsOptIn = deriveSmsOptIn(options.input);
       await deps.db.query(
         `insert into orders (id, event_id, customer_email, customer_name, customer_phone_number,
-                             event_reminder_opt_in, upcoming_events_opt_in, quantity, subtotal_cents, tax_cents,
-                             total_cents, status, payment_provider, payment_provider_reference, checkout_idempotency_key)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', 'stripe', $12, $13)
+                             event_reminder_opt_in, upcoming_events_opt_in, sms_opt_in, sms_consent_at,
+                             quantity, subtotal_cents, tax_cents, total_cents, status, payment_provider,
+                             payment_provider_reference, checkout_idempotency_key)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', 'stripe', $13, $14)
          on conflict (checkout_idempotency_key) do nothing`,
         [
           options.orderId,
@@ -149,6 +159,8 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
           options.input.customerPhoneNumber ?? null,
           options.input.eventReminderOptIn ?? false,
           options.input.upcomingEventsOptIn ?? false,
+          smsOptIn,
+          smsOptIn ? new Date().toISOString() : null,
           options.input.quantity,
           options.quote.subtotalCents,
           options.quote.taxCents,

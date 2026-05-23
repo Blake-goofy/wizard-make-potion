@@ -4,7 +4,7 @@ import ActionDialog from '../components/ActionDialog';
 import FieldActionButtons from '../components/FieldActionButtons';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { PhoneNumberInput, createPhoneMask, getPhoneDigits, getStoredPhoneNumber } from '../components/PhoneNumberInput';
-import { changePassword, deleteAccount, getAccountProfile, updateAccount } from '../lib/api';
+import { changePassword, confirmPhoneVerification, deleteAccount, getAccountProfile, requestPhoneVerification, updateAccount } from '../lib/api';
 
 type AccountPageProps = {
   token: string;
@@ -26,6 +26,15 @@ function handleFieldKeyDown(event: KeyboardEvent<HTMLInputElement>, options: { i
   }
 }
 
+function NotificationIcon() {
+  return (
+    <svg className="account-notification-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 4.5a4.5 4.5 0 0 0-4.5 4.5v2.25c0 .98-.31 1.93-.89 2.72L5 16.5h14l-1.61-2.53a5.05 5.05 0 0 1-.89-2.72V9A4.5 4.5 0 0 0 12 4.5Z" />
+      <path d="M10 19a2 2 0 0 0 4 0" />
+    </svg>
+  );
+}
+
 export default function AccountPage({ token, user, onUserChange, onAccountDeleted }: AccountPageProps) {
   const [profile, setProfile] = useState<AccountProfile | null>(user);
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
@@ -35,10 +44,15 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [phoneVerificationCode, setPhoneVerificationCode] = useState('');
+  const [phoneVerificationDestination, setPhoneVerificationDestination] = useState(user?.phoneNumber ?? '');
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSendingPhoneVerification, setIsSendingPhoneVerification] = useState(false);
+  const [isConfirmingPhoneVerification, setIsConfirmingPhoneVerification] = useState(false);
+  const [hasRequestedPhoneVerification, setHasRequestedPhoneVerification] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -57,7 +71,8 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
   const persistedUpcomingEventsOptIn = profile?.upcomingEventsOptIn ?? false;
   const isDisplayNameDirty = displayName.trim() !== persistedDisplayName;
   const isPhoneNumberDirty = phoneNumber !== persistedPhoneNumber;
-  const isPreferencesDirty = eventReminderOptIn !== persistedEventReminderOptIn || upcomingEventsOptIn !== persistedUpcomingEventsOptIn;
+  const hasSavedPhoneNumber = Boolean(profile?.phoneNumber);
+  const isPhoneVerified = Boolean(profile?.phoneVerifiedAt);
 
   function clearToastTimers() {
     if (toastDismissTimeoutRef.current !== null) {
@@ -124,6 +139,7 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     setProfile(user);
     setDisplayName(user.displayName);
     setPhoneNumber(createPhoneMask(user.phoneNumber));
+    setPhoneVerificationDestination(user.phoneNumber ?? '');
     setEventReminderOptIn(user.eventReminderOptIn);
     setUpcomingEventsOptIn(user.upcomingEventsOptIn);
   }, [user]);
@@ -139,6 +155,7 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
         setProfile(result.account);
         setDisplayName(result.account.displayName);
         setPhoneNumber(createPhoneMask(result.account.phoneNumber));
+        setPhoneVerificationDestination(result.account.phoneNumber ?? '');
         setEventReminderOptIn(result.account.eventReminderOptIn);
         setUpcomingEventsOptIn(result.account.upcomingEventsOptIn);
       })
@@ -180,6 +197,15 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
       clearToastTimers();
     };
   }, []);
+
+  useEffect(() => {
+    if (!profile?.phoneNumber || profile.phoneVerifiedAt) {
+      setHasRequestedPhoneVerification(false);
+      setPhoneVerificationCode('');
+    }
+
+    setPhoneVerificationDestination(profile?.phoneNumber ?? '');
+  }, [profile?.phoneNumber, profile?.phoneVerifiedAt]);
 
   async function saveAccountChanges(nextValues: {
     displayName?: string;
@@ -258,13 +284,23 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     setIsSaving(true);
 
     try {
-      const account = await saveAccountChanges({ phoneNumber: nextPhoneNumber ? nextPhoneNumber : null });
+      const isRemovingPhoneNumber = !nextPhoneNumber;
+      const account = await saveAccountChanges({
+        phoneNumber: nextPhoneNumber ? nextPhoneNumber : null,
+        eventReminderOptIn: isRemovingPhoneNumber ? false : undefined,
+        upcomingEventsOptIn: isRemovingPhoneNumber ? false : undefined,
+      });
 
       if (account) {
         setPhoneNumber(createPhoneMask(account.phoneNumber));
+        setPhoneVerificationDestination(account.phoneNumber ?? '');
+        setEventReminderOptIn(account.eventReminderOptIn);
+        setUpcomingEventsOptIn(account.upcomingEventsOptIn);
+        setHasRequestedPhoneVerification(false);
+        setPhoneVerificationCode('');
       }
 
-      showToast('Settings saved.', 'success');
+      showToast(nextPhoneNumber ? 'Phone number saved. Verify it before using text alerts.' : 'Phone number removed. Text alerts turned off.', 'success');
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Could not save account changes.', 'error');
     } finally {
@@ -307,30 +343,107 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     }
   }
 
-  async function handleSavePreferences() {
-    if (!profile || !isPreferencesDirty) {
+  async function handleSavePreferences(nextValues: { eventReminderOptIn: boolean; upcomingEventsOptIn: boolean }) {
+    if (!profile) {
       return;
     }
 
     if (isSavingRef.current) return;
 
+    const previousEventReminderOptIn = eventReminderOptIn;
+    const previousUpcomingEventsOptIn = upcomingEventsOptIn;
+    const wantsSmsAlerts = nextValues.eventReminderOptIn || nextValues.upcomingEventsOptIn;
+
+    setEventReminderOptIn(nextValues.eventReminderOptIn);
+    setUpcomingEventsOptIn(nextValues.upcomingEventsOptIn);
+
+    if (wantsSmsAlerts && isPhoneNumberDirty) {
+      showToast('Save your phone number before enabling text alerts.', 'error');
+      setEventReminderOptIn(previousEventReminderOptIn);
+      setUpcomingEventsOptIn(previousUpcomingEventsOptIn);
+      return;
+    }
+
+    if (wantsSmsAlerts && !profile.phoneNumber) {
+      showToast('Add a phone number before enabling text alerts.', 'error');
+      setEventReminderOptIn(previousEventReminderOptIn);
+      setUpcomingEventsOptIn(previousUpcomingEventsOptIn);
+      return;
+    }
+
     isSavingRef.current = true;
     setIsSaving(true);
 
     try {
-      const account = await saveAccountChanges({ eventReminderOptIn, upcomingEventsOptIn });
+      const account = await saveAccountChanges(nextValues);
 
       if (account) {
         setEventReminderOptIn(account.eventReminderOptIn);
         setUpcomingEventsOptIn(account.upcomingEventsOptIn);
       }
 
-      showToast('Settings saved.', 'success');
+      showToast(
+        wantsSmsAlerts && !account?.phoneVerifiedAt
+          ? 'Settings saved. Verify your phone number before text alerts can be sent.'
+          : 'Settings saved.',
+        'success',
+      );
     } catch (error) {
+      setEventReminderOptIn(previousEventReminderOptIn);
+      setUpcomingEventsOptIn(previousUpcomingEventsOptIn);
       showToast(error instanceof Error ? error.message : 'Could not save account changes.', 'error');
     } finally {
       isSavingRef.current = false;
       setIsSaving(false);
+    }
+  }
+
+  async function handleRequestPhoneVerification() {
+    if (isPhoneNumberDirty) {
+      showToast('Save your phone number before requesting a verification code.', 'error');
+      return;
+    }
+
+    if (!profile?.phoneNumber) {
+      showToast('Add a phone number before requesting a verification code.', 'error');
+      return;
+    }
+
+    setIsSendingPhoneVerification(true);
+
+    try {
+      const result = await requestPhoneVerification(token);
+      setPhoneVerificationDestination(result.phoneNumber);
+      setHasRequestedPhoneVerification(true);
+      showToast(result.message, 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not send a verification code.', 'error');
+    } finally {
+      setIsSendingPhoneVerification(false);
+    }
+  }
+
+  async function handleConfirmPhoneVerification() {
+    if (!/^\d{6}$/.test(phoneVerificationCode.trim())) {
+      showToast('Enter the 6-digit verification code.', 'error');
+      return;
+    }
+
+    setIsConfirmingPhoneVerification(true);
+
+    try {
+      const result = await confirmPhoneVerification({ code: phoneVerificationCode.trim() }, token);
+      setProfile(result.account);
+      onUserChange(result.account);
+      setPhoneNumber(createPhoneMask(result.account.phoneNumber));
+      setPhoneVerificationDestination(result.account.phoneNumber ?? '');
+      setHasRequestedPhoneVerification(false);
+      setPhoneVerificationCode('');
+      showToast('Phone number verified.', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not verify your phone number.', 'error');
+    } finally {
+      setIsConfirmingPhoneVerification(false);
     }
   }
 
@@ -350,12 +463,24 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     }
   }
 
-  const loadingLabel = isDeleting ? 'Deleting account' : isSaving ? 'Saving account changes' : 'Loading account settings';
+  const loadingLabel = isDeleting
+    ? 'Deleting account'
+    : isSaving
+      ? 'Saving account changes'
+      : isSendingPhoneVerification
+        ? 'Sending verification text'
+        : isConfirmingPhoneVerification
+          ? 'Verifying phone number'
+          : 'Loading account settings';
   const loadingDetail = isDeleting
     ? 'Removing your account and signing you out.'
     : isSaving
       ? 'Updating the account details on file.'
-      : 'Loading the latest account profile.';
+      : isSendingPhoneVerification
+        ? 'Sending a verification code to your saved phone number.'
+        : isConfirmingPhoneVerification
+          ? 'Confirming your phone number.'
+          : 'Loading the latest account profile.';
 
   return (
     <>
@@ -437,33 +562,64 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
             ) : null
           }
         />
+        {hasSavedPhoneNumber && !isPhoneVerified ? (
+          <div className="account-phone-verification-actions" aria-label="Phone verification">
+            <button
+              type="button"
+              className="primary-button button-with-arrow"
+              disabled={isSaving || isDeleting || isSendingPhoneVerification || isConfirmingPhoneVerification || isPhoneNumberDirty}
+              onClick={() => void handleRequestPhoneVerification()}
+            >
+              <NotificationIcon />
+              {hasRequestedPhoneVerification ? 'Send Another Code' : 'Send Text Verification Code'}
+            </button>
+            {hasRequestedPhoneVerification ? (
+              <div className="account-phone-verification-form">
+                <label>
+                  Verification code
+                  <input
+                    inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    autoComplete="one-time-code"
+                    value={phoneVerificationCode}
+                    onChange={(event) => setPhoneVerificationCode(event.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={isSaving || isDeleting || isSendingPhoneVerification || isConfirmingPhoneVerification}
+                  onClick={() => void handleConfirmPhoneVerification()}
+                >
+                  Verify Phone Number
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="account-preferences-group" aria-label="Notification preferences">
           <p className="account-preferences-heading">Notifications</p>
           <label className="checkout-checkbox">
-            <input type="checkbox" checked={eventReminderOptIn} onChange={(event) => setEventReminderOptIn(event.target.checked)} />
-            <span>Remind me about the events I buy tickets for.</span>
+            <input
+              type="checkbox"
+              checked={eventReminderOptIn}
+              disabled={isSaving || isDeleting}
+              onChange={(event) => {
+                void handleSavePreferences({ eventReminderOptIn: event.target.checked, upcomingEventsOptIn });
+              }}
+            />
+            <span>Text me reminders about the events I buy tickets for.</span>
           </label>
           <label className="checkout-checkbox">
-            <input type="checkbox" checked={upcomingEventsOptIn} onChange={(event) => setUpcomingEventsOptIn(event.target.checked)} />
-            <span>Keep me posted on new events and ticket releases.</span>
+            <input
+              type="checkbox"
+              checked={upcomingEventsOptIn}
+              disabled={isSaving || isDeleting}
+              onChange={(event) => {
+                void handleSavePreferences({ eventReminderOptIn, upcomingEventsOptIn: event.target.checked });
+              }}
+            />
+            <span>Text me about new event ticket releases.</span>
           </label>
-          {isPreferencesDirty ? (
-            <div className="account-preferences-actions">
-              <button
-                type="button"
-                disabled={isSaving || isDeleting}
-                onClick={() => {
-                  setEventReminderOptIn(persistedEventReminderOptIn);
-                  setUpcomingEventsOptIn(persistedUpcomingEventsOptIn);
-                }}
-              >
-                Cancel
-              </button>
-              <button type="button" className="primary-button" disabled={isSaving || isDeleting} onClick={() => void handleSavePreferences()}>
-                Save Preferences
-              </button>
-            </div>
-          ) : null}
         </div>
         <div className="account-actions">
           <button type="button" disabled={isSaving || isDeleting || isChangingPassword} onClick={() => setIsPasswordDialogOpen(true)}>
@@ -522,7 +678,7 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
       onClose={() => setIsDeleteDialogOpen(false)}
       onConfirm={() => void handleDeleteAccount()}
     />
-    {isLoadingProfile || isSaving || isDeleting ? <LoadingOverlay label={loadingLabel} detail={loadingDetail} variant="account" /> : null}
+    {isLoadingProfile || isSaving || isDeleting || isSendingPhoneVerification || isConfirmingPhoneVerification ? <LoadingOverlay label={loadingLabel} detail={loadingDetail} variant="account" /> : null}
     </>
   );
 }

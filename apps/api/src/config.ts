@@ -102,6 +102,14 @@ const envSchema = z.object({
   ADMIN_SESSION_SECRET: z.string().optional(),
   RESEND_API_KEY_DEV: z.string().optional(),
   RESEND_API_KEY_PROD: z.string().optional(),
+  TELNYX_API_KEY_DEV: z.string().optional(),
+  TELNYX_API_KEY_PROD: z.string().optional(),
+  TELNYX_SMS_FROM_NUMBER_DEV: z.string().optional(),
+  TELNYX_SMS_FROM_NUMBER_PROD: z.string().optional(),
+  TELNYX_MESSAGING_PROFILE_ID_DEV: z.string().optional(),
+  TELNYX_MESSAGING_PROFILE_ID_PROD: z.string().optional(),
+  TELNYX_PUBLIC_KEY_DEV: z.string().optional(),
+  TELNYX_PUBLIC_KEY_PROD: z.string().optional(),
   STRIPE_SECRET_KEY_DEV: z.string().optional(),
   STRIPE_PUBLISHABLE_KEY_DEV: z.string().optional(),
   STRIPE_WEBHOOK_SECRET_DEV: z.string().optional(),
@@ -116,6 +124,10 @@ export function loadConfig() {
   const env = envSchema.parse(process.env);
   const appEnv = resolveAppEnv(env.NODE_ENV, env.APP_ENV);
   const resendApiKey = readAppModeValue(env, 'RESEND_API_KEY', appEnv);
+  const telnyxApiKey = readAppModeValue(env, 'TELNYX_API_KEY', appEnv);
+  const telnyxSmsFromNumber = readAppModeValue(env, 'TELNYX_SMS_FROM_NUMBER', appEnv);
+  const telnyxMessagingProfileId = readAppModeValue(env, 'TELNYX_MESSAGING_PROFILE_ID', appEnv);
+  const telnyxPublicKey = readAppModeValue(env, 'TELNYX_PUBLIC_KEY', appEnv);
   const stripeSecretKey = readAppModeValue(env, 'STRIPE_SECRET_KEY', appEnv);
   const stripePublishableKey = readAppModeValue(env, 'STRIPE_PUBLISHABLE_KEY', appEnv);
   const stripeWebhookSecret = readAppModeValue(env, 'STRIPE_WEBHOOK_SECRET', appEnv);
@@ -137,6 +149,10 @@ export function loadConfig() {
     databaseUrl: readDatabaseUrl(env, appEnv),
     authSessionSecret: env.AUTH_SESSION_SECRET ?? env.ADMIN_SESSION_SECRET ?? defaultAuthSessionSecret,
     resendApiKey,
+    telnyxApiKey,
+    telnyxSmsFromNumber,
+    telnyxMessagingProfileId,
+    telnyxPublicKey,
     stripeSecretKey,
     stripePublishableKey,
     stripeWebhookSecret,

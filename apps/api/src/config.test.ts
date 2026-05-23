@@ -16,6 +16,10 @@ describe('loadConfig', () => {
     vi.stubEnv('STRIPE_PUBLISHABLE_KEY_DEV', 'pk_dev');
     vi.stubEnv('STRIPE_WEBHOOK_SECRET_DEV', 'whsec_dev');
     vi.stubEnv('RESEND_API_KEY_DEV', 're_dev');
+    vi.stubEnv('TELNYX_API_KEY_DEV', 'telnyx_dev');
+    vi.stubEnv('TELNYX_SMS_FROM_NUMBER_DEV', '+18445550001');
+    vi.stubEnv('TELNYX_MESSAGING_PROFILE_ID_DEV', 'profile-dev');
+    vi.stubEnv('TELNYX_PUBLIC_KEY_DEV', 'telnyx_public_dev');
     vi.stubEnv('DATABASE_URL_DEV', 'postgresql://dev-db');
 
     const config = loadConfig();
@@ -25,6 +29,10 @@ describe('loadConfig', () => {
     expect(config.stripePublishableKey).toBe('pk_dev');
     expect(config.stripeWebhookSecret).toBe('whsec_dev');
     expect(config.resendApiKey).toBe('re_dev');
+    expect(config.telnyxApiKey).toBe('telnyx_dev');
+    expect(config.telnyxSmsFromNumber).toBe('+18445550001');
+    expect(config.telnyxMessagingProfileId).toBe('profile-dev');
+    expect(config.telnyxPublicKey).toBe('telnyx_public_dev');
     expect(config.databaseUrl).toBe('postgresql://dev-db');
   });
 
@@ -36,6 +44,10 @@ describe('loadConfig', () => {
     vi.stubEnv('STRIPE_PUBLISHABLE_KEY_PROD', 'pk_prod');
     vi.stubEnv('STRIPE_WEBHOOK_SECRET_PROD', 'whsec_prod');
     vi.stubEnv('RESEND_API_KEY_PROD', 're_prod');
+    vi.stubEnv('TELNYX_API_KEY_PROD', 'telnyx_prod');
+    vi.stubEnv('TELNYX_SMS_FROM_NUMBER_PROD', '+18445559999');
+    vi.stubEnv('TELNYX_MESSAGING_PROFILE_ID_PROD', 'profile-prod');
+    vi.stubEnv('TELNYX_PUBLIC_KEY_PROD', 'telnyx_public_prod');
     vi.stubEnv('DATABASE_URL_PROD', 'postgresql://prod-db');
 
     const config = loadConfig();
@@ -45,6 +57,10 @@ describe('loadConfig', () => {
     expect(config.stripePublishableKey).toBe('pk_prod');
     expect(config.stripeWebhookSecret).toBe('whsec_prod');
     expect(config.resendApiKey).toBe('re_prod');
+    expect(config.telnyxApiKey).toBe('telnyx_prod');
+    expect(config.telnyxSmsFromNumber).toBe('+18445559999');
+    expect(config.telnyxMessagingProfileId).toBe('profile-prod');
+    expect(config.telnyxPublicKey).toBe('telnyx_public_prod');
     expect(config.databaseUrl).toBe('postgresql://prod-db');
   });
 
@@ -52,10 +68,18 @@ describe('loadConfig', () => {
     vi.stubEnv('NODE_ENV', 'development');
     vi.stubEnv('APP_ENV', 'development');
     vi.stubEnv('RESEND_API_KEY', 're_base');
+    vi.stubEnv('TELNYX_API_KEY', 'telnyx_base');
+    vi.stubEnv('TELNYX_SMS_FROM_NUMBER', '+18445550001');
+    vi.stubEnv('TELNYX_MESSAGING_PROFILE_ID', 'profile-base');
+    vi.stubEnv('TELNYX_PUBLIC_KEY', 'telnyx_public_base');
     vi.stubEnv('STRIPE_SECRET_KEY', 'sk_base');
     vi.stubEnv('STRIPE_PUBLISHABLE_KEY', 'pk_base');
     vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'whsec_base');
     delete process.env.RESEND_API_KEY_DEV;
+    delete process.env.TELNYX_API_KEY_DEV;
+    delete process.env.TELNYX_SMS_FROM_NUMBER_DEV;
+    delete process.env.TELNYX_MESSAGING_PROFILE_ID_DEV;
+    delete process.env.TELNYX_PUBLIC_KEY_DEV;
     delete process.env.STRIPE_SECRET_KEY_DEV;
     delete process.env.STRIPE_PUBLISHABLE_KEY_DEV;
     delete process.env.STRIPE_WEBHOOK_SECRET_DEV;
@@ -63,6 +87,10 @@ describe('loadConfig', () => {
     const config = loadConfig();
 
     expect(config.resendApiKey).toBeUndefined();
+    expect(config.telnyxApiKey).toBeUndefined();
+    expect(config.telnyxSmsFromNumber).toBeUndefined();
+    expect(config.telnyxMessagingProfileId).toBeUndefined();
+    expect(config.telnyxPublicKey).toBeUndefined();
     expect(config.stripeSecretKey).toBeUndefined();
     expect(config.stripePublishableKey).toBeUndefined();
     expect(config.stripeWebhookSecret).toBeUndefined();

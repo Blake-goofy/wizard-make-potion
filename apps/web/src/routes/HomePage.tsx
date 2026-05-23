@@ -188,6 +188,11 @@ export function HomePage({ token, user, onCreateAccount, onContinueAsGuest }: Ho
           </button>
         </div>
       )}
+      <footer className="legal-footer" aria-label="Legal links">
+        <a href="#privacy-policy">Privacy Policy</a>
+        <span aria-hidden="true">|</span>
+        <a href="#terms-and-conditions">Terms and Conditions</a>
+      </footer>
     </section>
     {isSubmitting ? <LoadingOverlay label="Opening Stripe" detail="Sending your order details to checkout." variant="purchase" /> : null}
     </>

@@ -46,8 +46,8 @@ export default function GuestCheckoutPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(''));
-  const [eventReminderOptIn, setEventReminderOptIn] = useState(true);
-  const [upcomingEventsOptIn, setUpcomingEventsOptIn] = useState(true);
+  const [eventReminderOptIn, setEventReminderOptIn] = useState(false);
+  const [upcomingEventsOptIn, setUpcomingEventsOptIn] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [status, setStatus] = useState('');
   const [isLoadingEvent, setIsLoadingEvent] = useState(true);
@@ -99,6 +99,7 @@ export default function GuestCheckoutPage() {
     const digits = getPhoneDigits(phoneNumber);
     const customerPhoneNumber = getStoredPhoneNumber(phoneNumber);
     const customerName = name.trim();
+    const wantsSmsAlerts = eventReminderOptIn || upcomingEventsOptIn;
 
     if (!customerName) {
       showToast('Enter your name.', 'error');
@@ -107,6 +108,11 @@ export default function GuestCheckoutPage() {
 
     if (digits.length > 0 && digits.length !== 10) {
       showToast('Enter a 10-digit phone number.', 'error');
+      return;
+    }
+
+    if (wantsSmsAlerts && digits.length !== 10) {
+      showToast('Enter a 10-digit phone number to get text alerts.', 'error');
       return;
     }
 
@@ -188,13 +194,14 @@ export default function GuestCheckoutPage() {
             <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
           </label>
           <PhoneNumberInput label="Phone Number (Optional)" value={phoneNumber} onChange={setPhoneNumber} />
+          <p className="status-text">Event reminders and upcoming event alerts are sent by text. Your order confirmation goes to email.</p>
           <label className="checkout-checkbox">
             <input
               type="checkbox"
               checked={eventReminderOptIn}
               onChange={(event) => setEventReminderOptIn(event.target.checked)}
             />
-            <span>Send reminders about this event</span>
+            <span>Text me a reminder about this event</span>
           </label>
           <label className="checkout-checkbox">
             <input
@@ -202,7 +209,7 @@ export default function GuestCheckoutPage() {
               checked={upcomingEventsOptIn}
               onChange={(event) => setUpcomingEventsOptIn(event.target.checked)}
             />
-            <span>Alert me about other upcoming events</span>
+            <span>Text me about other upcoming events</span>
           </label>
           <label className="purchase-quantity-field">
             Quantity

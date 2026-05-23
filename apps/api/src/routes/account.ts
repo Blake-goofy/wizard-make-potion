@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { changePasswordInputSchema, updateAccountInputSchema } from '@potion/shared';
+import { changePasswordInputSchema, updateAccountInputSchema, verifyPhoneNumberInputSchema } from '@potion/shared';
 import type { AuthService } from '../services/auth.js';
 
 export async function registerAccountRoutes(server: FastifyInstance, deps: { auth: AuthService }) {
@@ -18,6 +18,16 @@ export async function registerAccountRoutes(server: FastifyInstance, deps: { aut
     const input = changePasswordInputSchema.parse(request.body);
     const result = await deps.auth.changePassword(request, input);
     return result;
+  });
+
+  server.post('/api/account/phone-verification/request', async (request) => {
+    return deps.auth.requestPhoneVerification(request);
+  });
+
+  server.post('/api/account/phone-verification/confirm', async (request) => {
+    const input = verifyPhoneNumberInputSchema.parse(request.body);
+    const account = await deps.auth.verifyPhoneNumber(request, input);
+    return { account };
   });
 
   server.delete('/api/account', async (request) => {

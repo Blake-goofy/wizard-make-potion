@@ -20,6 +20,7 @@ import type {
   UpdateAccountInput,
   UpdateTicketUsageInput,
   VerifyAccountInput,
+  VerifyPhoneNumberInput,
 } from '@potion/shared';
 
 export type EventView = {
@@ -117,6 +118,30 @@ export type ConfirmationOrderView = {
   eventStartsAt: string;
   eventAddress: string;
   tickets: ConfirmationTicketView[];
+};
+
+export type SmsMessageView = {
+  id: string;
+  eventId: string | null;
+  messageType: 'reminder' | 'upcoming_event' | 'admin' | 'test';
+  label: string;
+  messageBody: string;
+  testPhoneNumber: string | null;
+  status: 'draft' | 'sent' | 'cancelled';
+  recipientCount: number | null;
+  sentAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SmsMessageInput = {
+  eventId?: string | null;
+  messageType: 'reminder' | 'upcoming_event' | 'admin' | 'test';
+  label: string;
+  messageBody: string;
+  testPhoneNumber?: string | null;
+  status: 'draft' | 'sent';
 };
 
 const apiBaseUrl = resolveApiBaseUrl();
@@ -221,7 +246,7 @@ export function loginUser(input: LoginInput) {
 }
 
 export function createAccount(input: CreateAccountInput) {
-  return request<{ email: string; message: string }>('/api/auth/register', {
+  return request<{ email: string; verificationDestination: string; message: string }>('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify(input),
   });
@@ -271,6 +296,21 @@ export function updateAccount(input: UpdateAccountInput, token: string) {
 export function changePassword(input: ChangePasswordInput, token: string) {
   return request<{ changed: true }>('/api/account/password', {
     method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
+  });
+}
+
+export function requestPhoneVerification(token: string) {
+  return request<{ phoneNumber: string; message: string }>('/api/account/phone-verification/request', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function confirmPhoneVerification(input: VerifyPhoneNumberInput, token: string) {
+  return request<{ account: AccountProfile }>('/api/account/phone-verification/confirm', {
+    method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(input),
   });
@@ -348,6 +388,37 @@ export function updateAdminEvent(eventId: string, input: AdminEventUpdateInput, 
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(input),
+  });
+}
+
+export function getAdminSmsMessages(token: string, eventId?: string) {
+  const search = eventId ? `?${new URLSearchParams({ eventId }).toString()}` : '';
+
+  return request<{ messages: SmsMessageView[] }>(`/api/admin/sms-messages${search}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createAdminSmsMessage(input: SmsMessageInput, token: string) {
+  return request<{ message: SmsMessageView }>('/api/admin/sms-messages', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateAdminSmsMessage(messageId: string, input: SmsMessageInput, token: string) {
+  return request<{ message: SmsMessageView }>(`/api/admin/sms-messages/${messageId}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
+  });
+}
+
+export function sendNowAdminSmsMessage(messageId: string, token: string) {
+  return request<{ processedMessages: number; queuedMessages: number; delivery: { processed: number; pending: number } }>(`/api/admin/sms-messages/${messageId}/send-now`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
   });
 }
 
