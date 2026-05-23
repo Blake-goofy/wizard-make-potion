@@ -168,9 +168,17 @@ function CameraIcon() {
 function FlashlightIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M9 3.5h6" />
-      <path d="M10 3.5h4v4l2 3v8A1.5 1.5 0 0 1 14.5 20h-5A1.5 1.5 0 0 1 8 18.5v-8l2-3Z" />
-      <path d="M10 13h4" />
+      {/* Body: narrower top, flared bottom */}
+      <path d="M9.5 3h5l1.5 5H8Z" />
+      <rect x="8" y="8" width="8" height="9" rx="1" />
+      {/* Lens ring at bottom of body */}
+      <path d="M8 17h8" />
+      {/* Light rays fanning out below */}
+      <path d="M12 20v2.5" />
+      <path d="M9.2 19.5 7.5 21.3" />
+      <path d="M14.8 19.5l1.7 1.8" />
+      <path d="M7.5 18l-2.2 1" />
+      <path d="M16.5 18l2.2 1" />
     </svg>
   );
 }
@@ -230,7 +238,8 @@ function ScanStatusGlyph({ state }: { state: ScanPanelState }) {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <circle cx="12" cy="12" r="10" />
-        <path d="m7.5 12.5 3 3 6-7" />
+        <path d="M12 8v5" />
+        <circle cx="12" cy="15.5" r="0.5" fill="currentColor" stroke="none" />
       </svg>
     );
   }
@@ -239,7 +248,7 @@ function ScanStatusGlyph({ state }: { state: ScanPanelState }) {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <circle cx="12" cy="12" r="10" />
-        <circle cx="12" cy="12" r="3.25" fill="currentColor" stroke="none" />
+        <path d="m7.5 12.5 3 3 6-7" />
       </svg>
     );
   }

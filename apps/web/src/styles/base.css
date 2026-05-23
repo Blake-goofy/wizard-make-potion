@@ -1381,7 +1381,7 @@ label {
 .scanner-panel {
   display: grid;
   align-content: start;
-  gap: var(--space-3);
+  gap: var(--space-5);
   min-height: 0;
 }
 
@@ -1596,11 +1596,11 @@ label {
 }
 
 .scan-status-indicator.is-used .scan-status-glyph {
-  color: var(--color-success);
+  color: var(--color-warning);
 }
 
 .scan-status-indicator.is-unused .scan-status-glyph {
-  color: var(--color-warning);
+  color: var(--color-success);
 }
 
 .scan-status-indicator.is-not-found .scan-status-glyph {
