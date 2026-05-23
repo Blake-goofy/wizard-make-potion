@@ -55,6 +55,10 @@ describe('order service', () => {
       checkoutIdempotencyKey: '11111111-1111-4111-8111-111111111111',
     });
 
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining("values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending', 'stripe', $14, $15)"),
+      expect.any(Array),
+    );
     expect(db.query).toHaveBeenCalledWith(expect.stringContaining('customer_phone_number'), [
       '00000000-0000-4000-8000-000000000099',
       '00000000-0000-4000-8000-000000000001',

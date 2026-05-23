@@ -100,7 +100,7 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
                                event_reminder_opt_in, upcoming_events_opt_in, sms_opt_in, sms_consent_at,
                                quantity, subtotal_cents, tax_cents, total_cents, status, payment_provider,
                                payment_provider_reference, completed_at)
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'completed', 'dev', $13, now())`,
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'completed', 'dev', $14, now())`,
           [
             orderId,
             input.eventId,
@@ -149,7 +149,7 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
                              event_reminder_opt_in, upcoming_events_opt_in, sms_opt_in, sms_consent_at,
                              quantity, subtotal_cents, tax_cents, total_cents, status, payment_provider,
                              payment_provider_reference, checkout_idempotency_key)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', 'stripe', $13, $14)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending', 'stripe', $14, $15)
          on conflict (checkout_idempotency_key) do nothing`,
         [
           options.orderId,
