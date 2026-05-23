@@ -275,7 +275,7 @@ insert into public.events (
   false
 );
 
-insert into public.users (email, display_name, phone_number, role, password_hash)
+insert into public.users (email, display_name, role, password_hash)
 values (
   'admin@wizardmakepotion.local',
   'Local Admin',
