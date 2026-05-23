@@ -848,6 +848,36 @@ label {
   max-width: 100%;
 }
 
+@supports (-webkit-touch-callout: none) {
+  .admin-events-datetime-group input[type='date'],
+  .admin-events-datetime-group input[type='time'] {
+    display: block;
+    width: 100%;
+    padding-inline: var(--space-2);
+    appearance: auto;
+  }
+
+  .admin-events-datetime-group input[type='date']::-webkit-datetime-edit,
+  .admin-events-datetime-group input[type='date']::-webkit-datetime-edit-fields-wrapper,
+  .admin-events-datetime-group input[type='date']::-webkit-datetime-edit-text,
+  .admin-events-datetime-group input[type='date']::-webkit-datetime-edit-day-field,
+  .admin-events-datetime-group input[type='date']::-webkit-datetime-edit-month-field,
+  .admin-events-datetime-group input[type='date']::-webkit-datetime-edit-year-field,
+  .admin-events-datetime-group input[type='time']::-webkit-datetime-edit,
+  .admin-events-datetime-group input[type='time']::-webkit-datetime-edit-fields-wrapper,
+  .admin-events-datetime-group input[type='time']::-webkit-datetime-edit-text,
+  .admin-events-datetime-group input[type='time']::-webkit-datetime-edit-hour-field,
+  .admin-events-datetime-group input[type='time']::-webkit-datetime-edit-minute-field,
+  .admin-events-datetime-group input[type='time']::-webkit-datetime-edit-meridiem-field {
+    padding: 0;
+  }
+
+  .admin-events-datetime-group input[type='date']::-webkit-inner-spin-button,
+  .admin-events-datetime-group input[type='time']::-webkit-inner-spin-button {
+    height: auto;
+  }
+}
+
 .admin-events-form textarea {
   min-height: 7rem;
 }
