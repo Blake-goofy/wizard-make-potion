@@ -179,7 +179,6 @@ export default function GuestCheckoutPage() {
       />
       <section className="guest-checkout-panel">
         <div className="guest-checkout-event">
-          <p className="eyebrow">Checkout</p>
           <h1>{event.name}</h1>
           <p>{formatEventDate(event.startsAt)}</p>
           <p>{event.address}</p>
