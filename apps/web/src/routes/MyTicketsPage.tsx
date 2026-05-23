@@ -19,7 +19,12 @@ function formatDate(value: string) {
 }
 
 function buildTicketLink(orderId: string) {
-  return `${window.location.origin}/?order=${orderId}`;
+  const url = new URL(window.location.origin);
+
+  url.searchParams.set('order', orderId);
+  url.searchParams.set('from', 'myTickets');
+
+  return url.toString();
 }
 
 function getOrderArrivalStatus(order: Pick<AccountOrderView, 'tickets'>): ArrivalStatus {

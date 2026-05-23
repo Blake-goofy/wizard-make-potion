@@ -113,6 +113,9 @@ export const scanTicketDetailSchema = ticketViewSchema.extend({
   eventStartsAt: isoDatetimeSchema,
   orderId: z.string().uuid(),
   customerEmail: z.string().email(),
+  customerName: z.string().trim().min(1),
+  orderUsedTicketCount: z.number().int().nonnegative(),
+  orderTicketCount: z.number().int().positive(),
 });
 
 export const scanEventAttendanceSchema = z.object({

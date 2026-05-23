@@ -56,7 +56,12 @@ function estimateNetCents(totalCents: number) {
 }
 
 function buildTicketLink(orderId: string) {
-  return `${window.location.origin}/?order=${orderId}`;
+  const url = new URL(window.location.origin);
+
+  url.searchParams.set('order', orderId);
+  url.searchParams.set('from', 'sales');
+
+  return url.toString();
 }
 
 function getOrderCustomerLabel(order: Pick<AdminOrderView, 'customerDisplayName' | 'customerEmail'>) {

@@ -438,6 +438,13 @@ export function updateTicketUsage(ticketId: string, input: UpdateTicketUsageInpu
   });
 }
 
+export function markTicketGroupArrived(ticketId: string, token: string) {
+  return request<{ ticket: ScanTicketDetail; attendance: ScanEventAttendance }>(`/api/scanner/tickets/${ticketId}/group-arrived`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
 export function getOrderConfirmation(orderId: string) {
   return request<{ order: ConfirmationOrderView }>(`/api/orders/${orderId}/confirmation`);
 }

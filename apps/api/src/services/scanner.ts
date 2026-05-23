@@ -32,6 +32,18 @@ async function getTicketById(client: PoolClient, ticketId: string) {
             o.event_id as "eventId",
             o.id as "orderId",
             o.customer_email as "customerEmail",
+            coalesce(o.customer_name, u.display_name, o.customer_email) as "customerName",
+            (
+              select count(*)::int
+              from tickets order_tickets
+              where order_tickets.order_id = t.order_id
+                and order_tickets.used_at is not null
+            ) as "orderUsedTicketCount",
+            (
+              select count(*)::int
+              from tickets order_tickets
+              where order_tickets.order_id = t.order_id
+            ) as "orderTicketCount",
             e.name as "eventName",
             e.starts_at as "eventStartsAt",
             t.scan_token as "scanToken",
@@ -43,6 +55,7 @@ async function getTicketById(client: PoolClient, ticketId: string) {
             ) as "ticketNumber"
      from tickets t
      join orders o on o.id = t.order_id
+     left join users u on lower(u.email) = lower(o.customer_email)
      join events e on e.id = o.event_id
      where t.id = $1
        and o.status = 'completed'`,
@@ -79,6 +92,18 @@ export function createScannerService(deps: { db: Database }) {
                   o.event_id as "eventId",
                   o.id as "orderId",
                   o.customer_email as "customerEmail",
+                  coalesce(o.customer_name, u.display_name, o.customer_email) as "customerName",
+                  (
+                    select count(*)::int
+                    from tickets order_tickets
+                    where order_tickets.order_id = t.order_id
+                      and order_tickets.used_at is not null
+                  ) as "orderUsedTicketCount",
+                  (
+                    select count(*)::int
+                    from tickets order_tickets
+                    where order_tickets.order_id = t.order_id
+                  ) as "orderTicketCount",
                   e.name as "eventName",
                   e.starts_at as "eventStartsAt",
                   t.scan_token as "scanToken",
@@ -90,6 +115,7 @@ export function createScannerService(deps: { db: Database }) {
                   ) as "ticketNumber"
            from tickets t
            join orders o on o.id = t.order_id
+           left join users u on lower(u.email) = lower(o.customer_email)
            join events e on e.id = o.event_id
            where t.scan_token = $1
              and o.event_id = $2
@@ -187,6 +213,55 @@ export function createScannerService(deps: { db: Database }) {
         if (!attendance) {
           throw new Error('Attendance was not found for the selected event.');
         }
+        return { ticket: updatedTicket, attendance };
+      });
+    },
+
+    async markGroupArrived(ticketId: string, scannerLabel?: string) {
+      return deps.db.transaction(async (client) => {
+        const currentTicket = await client.query(
+          `select t.id,
+                  o.id as "orderId",
+                  o.event_id as "eventId"
+           from tickets t
+           join orders o on o.id = t.order_id
+           where t.id = $1
+             and o.status = 'completed'
+           for update of t`,
+          [ticketId],
+        );
+        const ticket = currentTicket.rows[0] as
+          | { id: string; orderId: string; eventId: string }
+          | undefined;
+
+        if (!ticket) {
+          throw new Error('Ticket was not found.');
+        }
+
+        await client.query(
+          `with updated_tickets as (
+             update tickets
+             set used_at = now()
+             where order_id = $1
+               and used_at is null
+             returning id, scan_token
+           )
+           insert into scan_events (ticket_id, scan_token, result, scanner_label)
+           select id, scan_token, 'manually_used', $2
+           from updated_tickets`,
+          [ticket.orderId, scannerLabel ?? null],
+        );
+
+        const updatedTicket = await getTicketById(client, ticketId);
+        if (!updatedTicket) {
+          throw new Error('Ticket was not found after updating usage.');
+        }
+
+        const attendance = await getEventAttendance(client, ticket.eventId);
+        if (!attendance) {
+          throw new Error('Attendance was not found for the selected event.');
+        }
+
         return { ticket: updatedTicket, attendance };
       });
     },

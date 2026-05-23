@@ -11,7 +11,8 @@ type ConfirmationPageProps = {
   orderId: string;
   token: string;
   user: SessionUser | null;
-  onBackToSales: () => void;
+  backButtonLabel: string;
+  onBack: () => void;
 };
 
 function formatCurrency(cents: number) {
@@ -95,7 +96,7 @@ function TicketQrCode({ scanToken }: { scanToken: string }) {
   );
 }
 
-export default function ConfirmationPage({ orderId, token, user, onBackToSales }: ConfirmationPageProps) {
+export default function ConfirmationPage({ orderId, token, user, backButtonLabel, onBack }: ConfirmationPageProps) {
   const [order, setOrder] = useState<ConfirmationOrderView | null>(null);
   const [message, setMessage] = useState('Loading purchased tickets.');
   const [isLoadingOrder, setIsLoadingOrder] = useState(true);
@@ -262,14 +263,12 @@ export default function ConfirmationPage({ orderId, token, user, onBackToSales }
                     </article>
                   ))}
                 </div>
-                {canManageTicketUsage ? (
-                  <button className="primary-button button-with-arrow confirmation-back-button" type="button" onClick={onBackToSales}>
-                    <ButtonArrowIcon />
-                    <span>Back to sales</span>
-                  </button>
-                ) : null}
               </div>
             ) : null}
+            <button className="primary-button button-with-arrow confirmation-back-button" type="button" onClick={onBack}>
+              <ButtonArrowIcon />
+              <span>{backButtonLabel}</span>
+            </button>
             <div className="confirmation-summary">
               <h2 className="confirmation-summary-title">Order Summary</h2>
               <dl className="confirmation-summary-lines">

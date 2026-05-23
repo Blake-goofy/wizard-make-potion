@@ -19,6 +19,7 @@ const ScanPage = lazy(() => import('./routes/ScanPage'));
 const TermsPage = lazy(() => import('./routes/TermsPage'));
 
 type RouteKey = 'home' | 'myTickets' | 'account' | 'adminEvents' | 'adminMessages' | 'adminUsers' | 'auth' | 'createAccount' | 'guestCheckout' | 'privacyPolicy' | 'terms' | 'scan' | 'sales' | 'confirmation';
+type ConfirmationOrigin = 'home' | 'myTickets' | 'scan' | 'sales';
 
 const sessionTokenKey = 'sessionToken';
 const routeHashByKey: Record<Exclude<RouteKey, 'confirmation'>, string> = {
@@ -66,16 +67,46 @@ function getConfirmationOrderIdFromLocation() {
   return new URLSearchParams(window.location.search).get('order') ?? '';
 }
 
-function syncConfirmationOrderId(orderId: string) {
+function getConfirmationOriginFromLocation(): ConfirmationOrigin {
+  const origin = new URLSearchParams(window.location.search).get('from');
+
+  if (origin === 'myTickets' || origin === 'scan' || origin === 'sales') {
+    return origin;
+  }
+
+  return 'home';
+}
+
+function syncConfirmationLocation(orderId: string, origin: ConfirmationOrigin) {
   const url = new URL(window.location.href);
 
   if (orderId) {
     url.searchParams.set('order', orderId);
+    if (origin === 'home') {
+      url.searchParams.delete('from');
+    } else {
+      url.searchParams.set('from', origin);
+    }
   } else {
     url.searchParams.delete('order');
+    url.searchParams.delete('from');
   }
 
   window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+}
+
+function getConfirmationBackRoute(origin: ConfirmationOrigin): Exclude<RouteKey, 'confirmation'> {
+  if (origin === 'myTickets') return 'myTickets';
+  if (origin === 'scan') return 'scan';
+  if (origin === 'sales') return 'sales';
+  return 'home';
+}
+
+function getConfirmationBackLabel(origin: ConfirmationOrigin) {
+  if (origin === 'myTickets') return 'Back to my tickets';
+  if (origin === 'scan') return 'Back to scan';
+  if (origin === 'sales') return 'Back to sales';
+  return 'Back to home';
 }
 
 function getRouteFromHash() {
@@ -277,6 +308,7 @@ function SignInIcon() {
 
 export function App() {
   const initialConfirmationOrderId = getConfirmationOrderIdFromLocation();
+  const initialConfirmationOrigin = getConfirmationOriginFromLocation();
   const initialToken = localStorage.getItem(sessionTokenKey) ?? '';
   const accountShellRef = useRef<HTMLDivElement | null>(null);
   const [route, setRoute] = useState<RouteKey>(initialConfirmationOrderId ? 'confirmation' : getRouteFromHash());
@@ -287,6 +319,7 @@ export function App() {
   const [isCheckingSession, setIsCheckingSession] = useState(Boolean(initialToken));
   const [accountMessage, setAccountMessage] = useState('');
   const [confirmationOrderId, setConfirmationOrderId] = useState(initialConfirmationOrderId);
+  const [confirmationOrigin, setConfirmationOrigin] = useState<ConfirmationOrigin>(initialConfirmationOrigin);
   const [isHatAnimating, setIsHatAnimating] = useState(false);
   const isAdmin = user?.role === 'admin';
   const isScanner = user?.role === 'scanner' || isAdmin;
@@ -382,30 +415,45 @@ export function App() {
       return token && isAdmin ? <AdminEventsPage token={token} /> : homePage;
     }
     if (route === 'myTickets') return token ? <MyTicketsPage token={token} /> : <AuthPage onSession={handleSession} />;
-    if (route === 'scan') return <ScanPage token={token} user={user} onViewOrder={openConfirmationOrder} />;
+    if (route === 'scan') return <ScanPage token={token} user={user} onViewOrder={(orderId) => openConfirmationOrder(orderId, 'scan')} />;
     if (route === 'sales') return <SalesPage token={token} />;
     if (route === 'confirmation') {
-      return confirmationOrderId ? <ConfirmationPage orderId={confirmationOrderId} token={token} user={user} onBackToSales={() => setRouteAndSyncUrl('sales')} /> : homePage;
+      return confirmationOrderId ? (
+        <ConfirmationPage
+          orderId={confirmationOrderId}
+          token={token}
+          user={user}
+          backButtonLabel={getConfirmationBackLabel(confirmationOrigin)}
+          onBack={() => setRouteAndSyncUrl(getConfirmationBackRoute(confirmationOrigin))}
+        />
+      ) : homePage;
     }
     return homePage;
-  }, [confirmationOrderId, handleAccountDeleted, handleAdminUserUpdated, handleSession, handleUserChange, isAdmin, openConfirmationOrder, route, token, user]);
+  }, [confirmationOrderId, confirmationOrigin, handleAccountDeleted, handleAdminUserUpdated, handleSession, handleUserChange, isAdmin, openConfirmationOrder, route, token, user]);
 
   function setRouteAndSyncUrl(nextRoute: RouteKey) {
     setRoute(nextRoute);
 
     if (nextRoute !== 'confirmation') {
       setConfirmationOrderId('');
-      syncConfirmationOrderId('');
+      setConfirmationOrigin('home');
+      syncConfirmationLocation('', 'home');
       syncRouteHash(nextRoute);
     }
   }
 
-  function openConfirmationOrder(orderId: string) {
+  function openConfirmationOrder(orderId: string, origin: ConfirmationOrigin = 'home') {
     setConfirmationOrderId(orderId);
+    setConfirmationOrigin(origin);
     setRoute('confirmation');
 
     const url = new URL(window.location.href);
     url.searchParams.set('order', orderId);
+    if (origin === 'home') {
+      url.searchParams.delete('from');
+    } else {
+      url.searchParams.set('from', origin);
+    }
     url.hash = '';
     window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 

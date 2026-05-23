@@ -9,6 +9,12 @@ const scannerAttendanceParamsSchema = z.object({
   eventId: z.string().uuid(),
 });
 
+function createHttpError(message: string, statusCode: number) {
+  const error = new Error(message) as Error & { statusCode: number };
+  error.statusCode = statusCode;
+  return error;
+}
+
 export async function registerScannerRoutes(
   server: FastifyInstance,
   deps: { scanner: ScannerService; auth: AuthService; appSettings: AppSettingsService },
@@ -45,5 +51,23 @@ export async function registerScannerRoutes(
     const result = await deps.scanner.scanTicket(input);
 
     return reply.send(result);
+  });
+
+  server.post('/api/scanner/tickets/:ticketId/group-arrived', async (request) => {
+    const user = await deps.auth.requireScanner(request);
+    const ticketId = z
+      .string()
+      .uuid()
+      .parse((request.params as { ticketId?: string }).ticketId);
+
+    try {
+      return await deps.scanner.markGroupArrived(ticketId, user.email);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Ticket was not found.') {
+        throw createHttpError(error.message, 404);
+      }
+
+      throw error;
+    }
   });
 }

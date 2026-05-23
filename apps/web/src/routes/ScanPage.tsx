@@ -4,7 +4,7 @@ import ActionDialog from '../components/ActionDialog';
 import LoadingOverlay from '../components/LoadingOverlay';
 import ToastRegion from '../components/ToastRegion';
 import { useToast } from '../hooks/useToast';
-import { getScannerAttendance, getScannerEvents, getScannerSettings, scanTicket, updateTicketUsage, type EventView } from '../lib/api';
+import { getScannerAttendance, getScannerEvents, getScannerSettings, markTicketGroupArrived, scanTicket, updateTicketUsage, type EventView } from '../lib/api';
 import { useQrScanner } from '../hooks/useQrScanner';
 
 const defaultScanDebounceMs = 3000;
@@ -108,6 +108,9 @@ function buildPreviewResult(status: PreviewScanStatus): {
         eventStartsAt: '2026-10-31T19:00:00.000Z',
         orderId: previewOrderIds[status],
         customerEmail: 'preview@wizard.test',
+        customerName: 'Blake Becker',
+        orderUsedTicketCount: status === 'valid' ? 1 : 2,
+        orderTicketCount: 3,
         ticketNumber: status === 'valid' ? 18 : 19,
         scanToken: `preview-${status}`,
       },
@@ -154,17 +157,97 @@ function ScanPendingIcon() {
   return <span aria-hidden="true" className="scan-notice-spinner" />;
 }
 
-function getStatusMessage(scanResult: ScanTicketResult | null, scannerError: string | null) {
-  if (scannerError) return scannerError;
-  if (!scanResult) return 'Point the camera at a ticket QR code.';
-  if (scanResult.status === 'valid') return scanResult.message;
-  if (scanResult.status === 'already_used') return scanResult.message;
-  return 'No ticket matched that code.';
+type ScanPanelState = 'used' | 'unused' | 'not-found' | 'ready' | 'scanning';
+
+function formatRelativeScanTime(lastScannedAt: number, now: number) {
+  const elapsedSeconds = Math.max(0, Math.floor((now - lastScannedAt) / 1000));
+
+  if (elapsedSeconds < 10) return 'Scanned just now';
+  if (elapsedSeconds < 60) return `Scanned ${elapsedSeconds} seconds ago`;
+
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+
+  if (elapsedMinutes === 1) return 'Scanned 1 minute ago';
+  if (elapsedMinutes < 60) return `Scanned ${elapsedMinutes} minutes ago`;
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+
+  if (elapsedHours === 1) return 'Scanned 1 hour ago';
+  if (elapsedHours < 24) return `Scanned ${elapsedHours} hours ago`;
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+
+  if (elapsedDays === 1) return 'Scanned 1 day ago';
+  return `Scanned ${elapsedDays} days ago`;
 }
 
-function formatTicketState(ticket: UsageActionTicket | null) {
-  if (!ticket) return 'No Ticket';
-  return ticket.usedAt ? 'Used' : 'Unused';
+function getScanPanelState(isScanPending: boolean, scanResult: ScanTicketResult | null, scannedTicket: UsageActionTicket | null): ScanPanelState {
+  if (isScanPending) return 'scanning';
+  if (!scanResult) return 'ready';
+  if (scanResult.status === 'not_found') return 'not-found';
+  return scannedTicket?.usedAt ? 'used' : 'unused';
+}
+
+function getScanPanelStatusLabel(panelState: ScanPanelState) {
+  if (panelState === 'used') return 'Used';
+  if (panelState === 'unused') return 'Unused';
+  if (panelState === 'not-found') return 'Not found';
+  if (panelState === 'scanning') return 'Scanning';
+  return 'Ready';
+}
+
+function getScanHeadline(lastScannedAt: number | null, now: number, isScanPending: boolean, scannerError: string | null) {
+  if (isScanPending) return 'Scanning now';
+  if (scannerError) return 'Scanner unavailable';
+  if (lastScannedAt) return formatRelativeScanTime(lastScannedAt, now);
+  return 'Ready to scan';
+}
+
+function getScanDetailLine(scanResult: ScanTicketResult | null, scannedTicket: UsageActionTicket | null, isScanPending: boolean, scannerError: string | null) {
+  if (isScanPending) return 'Checking ticket now.';
+  if (scannerError) return scannerError;
+  if (scannedTicket) return `Ticket ${scannedTicket.ticketNumber} for ${scannedTicket.customerName}`;
+  if (scanResult?.status === 'not_found') return 'No matching ticket found';
+  return 'Point the camera at a ticket QR code.';
+}
+
+function ScanStatusGlyph({ state }: { state: ScanPanelState }) {
+  if (state === 'scanning') {
+    return <span aria-hidden="true" className="scan-notice-spinner" />;
+  }
+
+  if (state === 'used') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="10" />
+        <path d="m7.5 12.5 3 3 6-7" />
+      </svg>
+    );
+  }
+
+  if (state === 'unused') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="10" />
+        <circle cx="12" cy="12" r="3.25" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+
+  if (state === 'not-found') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="12" r="10" />
+        <path d="m8.5 8.5 7 7M15.5 8.5l-7 7" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="10" />
+    </svg>
+  );
 }
 
 type ScanPageProps = {
@@ -176,6 +259,8 @@ type ScanPageProps = {
 export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const [scanResult, setScanResult] = useState<ScanTicketResult | null>(null);
+  const [lastScannedAt, setLastScannedAt] = useState<number | null>(null);
+  const [scanTimeNow, setScanTimeNow] = useState(() => Date.now());
   const [events, setEvents] = useState<EventView[]>([]);
   const [scanDebounceMs, setScanDebounceMs] = useState(defaultScanDebounceMs);
   const [selectedEventId, setSelectedEventId] = useState('');
@@ -235,6 +320,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
 
   function presentScanResult(result: ScanTicketResult, attendanceOverride?: ScanEventAttendance | null) {
     setScanResult(result);
+    setLastScannedAt(Date.now());
 
     const nextAttendance = attendanceOverride === undefined ? result.attendance : attendanceOverride;
     if (nextAttendance) setLastAttendance(nextAttendance);
@@ -266,6 +352,20 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
   }, [notice]);
 
   useEffect(() => {
+    if (!lastScannedAt) return;
+
+    setScanTimeNow(Date.now());
+
+    const intervalId = window.setInterval(() => {
+      setScanTimeNow(Date.now());
+    }, 30_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [lastScannedAt]);
+
+  useEffect(() => {
     if (!import.meta.env.DEV) return;
 
     window.__scannerPreview = {
@@ -277,6 +377,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
       reset: () => {
         setScanStatus('idle');
         setScanResult(null);
+        setLastScannedAt(null);
         setLastAttendance(null);
         setNotice(null);
       },
@@ -430,10 +531,43 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
     }
   }
 
+  async function handleGroupArrival() {
+    if (!token || !scannedTicket) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const result = await markTicketGroupArrived(scannedTicket.id, token);
+
+      setScanResult((current) => {
+        if (!current?.ticket || current.ticket.id !== result.ticket.id) return current;
+
+        return {
+          ...current,
+          ticket: result.ticket,
+        };
+      });
+      setLastAttendance(result.attendance);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not mark the group as arrived.', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   const scannedOrderId = scanResult?.ticket?.orderId ?? '';
   const activeNoticeCopy = notice ? noticeCopy(notice.status) : null;
   const actionLabel = scannedTicket?.usedAt ? 'Undo' : 'Redo';
   const isScanPending = scanStatus === 'scanning';
+  const scanPanelState = getScanPanelState(isScanPending, scanResult, scannedTicket);
+  const scanHeadline = getScanHeadline(lastScannedAt, scanTimeNow, isScanPending, scanner.error);
+  const scanDetailLine = getScanDetailLine(scanResult, scannedTicket, isScanPending, scanner.error);
+  const orderArrivalCount = scannedTicket ? `${scannedTicket.orderUsedTicketCount}/${scannedTicket.orderTicketCount}` : '';
+  const canMarkGroupArrived = Boolean(
+    canManageTicketUsage
+      && scannedTicket
+      && scannedTicket.orderUsedTicketCount < scannedTicket.orderTicketCount,
+  );
   const attendanceCountLabel = isLoadingAttendance ? '.../...'
     : attendance ? `${attendance.usedTicketCount}/${attendance.totalTicketCount}` : '-/-';
 
@@ -485,34 +619,46 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
             ) : null}
           </div>
           <div className={`scan-status-card scan-status-${scanResult?.status ?? 'idle'}`}>
-            <div className="scan-status-top-row">
+            <div className="scan-status-copy">
+              <strong className="scan-status-headline">{scanHeadline}</strong>
+              <p className="scan-status-detail">{scanDetailLine}</p>
               {scannedOrderId || (canManageTicketUsage && scannedTicket) ? (
                 <div className="scan-status-actions">
                   {scannedOrderId ? (
-                    <button type="button" onClick={() => onViewOrder(scannedOrderId)}>
+                    <button className="scan-status-action-button" type="button" onClick={() => onViewOrder(scannedOrderId)}>
                       View Ticket
                     </button>
                   ) : null}
                   {canManageTicketUsage && scannedTicket ? (
-                    <button disabled={isSubmitting} type="button" onClick={() => openUsageDialog(scannedTicket)}>
+                    <button
+                      className={`scan-status-action-button scan-status-action-button-secondary${isSubmitting ? ' is-disabled' : ''}`}
+                      disabled={isSubmitting}
+                      type="button"
+                      onClick={() => openUsageDialog(scannedTicket)}
+                    >
                       {actionLabel}
                     </button>
                   ) : null}
+                  {canMarkGroupArrived ? (
+                    <button
+                      className={`scan-status-action-button scan-status-action-button-success${isSubmitting ? ' is-disabled' : ''}`}
+                      disabled={isSubmitting}
+                      type="button"
+                      onClick={() => void handleGroupArrival()}
+                    >
+                      Mark Group Arrived
+                    </button>
+                  ) : null}
                 </div>
-              ) : (
-                <div className="scan-status-actions" aria-hidden="true" />
-              )}
-              <div className="scan-ticket-state" aria-label="Current scanned ticket state">
-                <strong>{formatTicketState(scannedTicket)}</strong>
-                <span>ticket state</span>
-              </div>
+              ) : null}
             </div>
-            <p className="status-text">{getStatusMessage(scanResult, scanner.error)}</p>
-            {scannedTicket ? (
-              <p className="status-text">
-                Ticket {scannedTicket.ticketNumber} for {scannedTicket.customerEmail}
-              </p>
-            ) : null}
+            <div className={`scan-status-indicator is-${scanPanelState}`} aria-label={`Ticket status ${getScanPanelStatusLabel(scanPanelState)}`}>
+              <div className="scan-status-glyph" aria-hidden="true">
+                <ScanStatusGlyph state={scanPanelState} />
+              </div>
+              <span>{getScanPanelStatusLabel(scanPanelState)}</span>
+              {orderArrivalCount ? <strong className="scan-status-count">{orderArrivalCount}</strong> : null}
+            </div>
           </div>
           <div className="scan-attendance-card" aria-label="Event attendance scan count">
             <label className="scan-attendance-select">
@@ -523,6 +669,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
                 onChange={(event) => {
                   setSelectedEventId(event.target.value);
                   setScanResult(null);
+                  setLastScannedAt(null);
                   setNotice(null);
                 }}
               >
@@ -554,7 +701,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
           onConfirm={() => void handleConfirmUsageAction()}
         />
       </section>
-      {isSubmitting ? <LoadingOverlay label="Saving ticket status" detail="Updating whether the scanned ticket is used." variant="scanner" /> : null}
+      {isSubmitting ? <LoadingOverlay label="Saving arrival status" detail="Updating ticket arrival for the scanned order." variant="scanner" /> : null}
     </>
   );
 }
