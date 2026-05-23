@@ -1478,6 +1478,7 @@ label {
 .scan-status-card {
   display: grid;
   gap: var(--space-3);
+  padding-bottom: var(--space-3);
 }
 
 .scan-status-header {
@@ -1516,14 +1517,16 @@ label {
 .scan-status-action-button {
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  min-height: 2.4rem;
-  padding: 0.35rem 0.8rem;
+  min-height: 44px;
+  padding: 0.55rem 0.95rem;
   background: var(--color-action);
   color: var(--color-on-action);
-  font-size: 0.78rem;
+  font-size: 0.84rem;
   font-weight: 700;
+  line-height: 1.1;
   letter-spacing: 0;
   text-transform: none;
+  white-space: nowrap;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1628,8 +1631,9 @@ label {
   }
 
   .scan-status-action-button {
-    padding-inline: 0.7rem;
-    font-size: 0.74rem;
+    min-height: 42px;
+    padding-inline: 0.82rem;
+    font-size: 0.8rem;
   }
 
   .scan-status-indicator {

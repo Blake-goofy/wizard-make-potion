@@ -168,17 +168,13 @@ function CameraIcon() {
 function FlashlightIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      {/* Body: narrower top, flared bottom */}
-      <path d="M9.5 3h5l1.5 5H8Z" />
-      <rect x="8" y="8" width="8" height="9" rx="1" />
-      {/* Lens ring at bottom of body */}
-      <path d="M8 17h8" />
-      {/* Light rays fanning out below */}
-      <path d="M12 20v2.5" />
-      <path d="M9.2 19.5 7.5 21.3" />
-      <path d="M14.8 19.5l1.7 1.8" />
-      <path d="M7.5 18l-2.2 1" />
-      <path d="M16.5 18l2.2 1" />
+      <path d="M4.9 17.7 10.8 11.8l2.3 2.3-5.9 5.9L4.9 17.7Z" />
+      <path d="M10.8 11.8 12.8 9.8l3.3 3.3-2 2" />
+      <path d="M12.8 9.8 15.3 7.1l4 4-2.8 2.3-3.7-3.6Z" />
+      <circle cx="9.1" cy="15.9" r="1.15" />
+      <path d="M18.1 6.5 18.7 4.5" />
+      <path d="M20 8.1 21.8 7.5" />
+      <path d="M19.3 6.9 20.7 5.5" />
     </svg>
   );
 }
@@ -620,7 +616,7 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
                     type="button"
                     onClick={() => void handleGroupArrival()}
                   >
-                    Mark Group Arrived
+                    Arrive Group
                   </button>
                   <button
                     className={`scan-status-action-button scan-status-action-button-secondary${isViewTicketDisabled ? ' is-disabled' : ''}`}
