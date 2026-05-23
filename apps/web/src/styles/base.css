@@ -31,10 +31,17 @@ button {
   color: var(--color-control-text);
   background: var(--color-surface-strong);
   font-weight: 700;
+  -webkit-tap-highlight-color: transparent;
 }
 
-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-surface-inverse) 10%, var(--color-surface-strong) 90%);
+button:focus:not(:focus-visible) {
+  box-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-surface-inverse) 10%, var(--color-surface-strong) 90%);
+  }
 }
 
 button:disabled {
@@ -1188,12 +1195,14 @@ label {
   border-color: var(--color-action);
 }
 
-.primary-button:hover:not(:disabled),
-.stack-form > button[type='submit']:hover:not(:disabled),
-.purchase-form > .stripe-checkout-button:hover:not(:disabled),
-.confirmation-panel .panel-header-row > button:hover:not(:disabled) {
-  background: var(--color-action-strong);
-  border-color: var(--color-action-strong);
+@media (hover: hover) and (pointer: fine) {
+  .primary-button:hover:not(:disabled),
+  .stack-form > button[type='submit']:hover:not(:disabled),
+  .purchase-form > .stripe-checkout-button:hover:not(:disabled),
+  .confirmation-panel .panel-header-row > button:hover:not(:disabled) {
+    background: var(--color-action-strong);
+    border-color: var(--color-action-strong);
+  }
 }
 
 .panel-header-row,
@@ -1352,6 +1361,23 @@ label {
   gap: var(--space-2);
 }
 
+.scanner-control-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+}
+
+.scanner-control-button svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+}
+
 .scanner-panel {
   display: grid;
   align-content: start;
@@ -1451,18 +1477,20 @@ label {
 
 .scan-status-card {
   display: grid;
+  gap: var(--space-3);
+}
+
+.scan-status-header {
+  display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-  background: var(--color-surface-strong);
 }
 
 .scan-status-copy {
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .scan-attendance-card span {
@@ -1473,17 +1501,10 @@ label {
 }
 
 .scan-status-headline {
-  font-size: 0.8rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.scan-status-detail {
-  margin: 0;
   font-size: 1rem;
-  font-weight: 700;
-  line-height: 1.35;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 .scan-status-actions {
@@ -1494,40 +1515,33 @@ label {
 
 .scan-status-action-button {
   border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 0.65rem 1rem;
+  border-radius: var(--radius-sm);
+  min-height: 2.4rem;
+  padding: 0.35rem 0.8rem;
   background: var(--color-action);
   color: var(--color-on-action);
-  font-size: 0.8rem;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
-.scan-status-action-button:hover:not(:disabled),
-.scan-status-action-button:focus-visible {
-  background: var(--color-action-hover);
+@media (hover: hover) and (pointer: fine) {
+  .scan-status-action-button:hover:not(:disabled) {
+    background: var(--color-action-hover);
+  }
 }
 
 .scan-status-action-button-secondary {
-  background: var(--color-warning);
-  color: var(--color-text-inverse);
+  background: var(--color-surface-strong);
+  border-color: var(--color-border);
+  color: var(--color-control-text);
 }
 
-.scan-status-action-button-secondary:hover:not(:disabled),
-.scan-status-action-button-secondary:focus-visible {
-  background: var(--color-danger-strong);
-  color: var(--color-on-danger);
-}
-
-.scan-status-action-button-success {
-  background: var(--color-success);
-  color: var(--color-text-inverse);
-}
-
-.scan-status-action-button-success:hover:not(:disabled),
-.scan-status-action-button-success:focus-visible {
-  background: #97dfb7;
+@media (hover: hover) and (pointer: fine) {
+  .scan-status-action-button-secondary:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-surface-inverse) 10%, var(--color-surface-strong) 90%);
+  }
 }
 
 .scan-status-action-button.is-disabled {
@@ -1539,7 +1553,7 @@ label {
   display: grid;
   justify-items: center;
   align-content: center;
-  min-width: 5.75rem;
+  min-width: 4.5rem;
   border-left: 1px solid var(--color-border);
   padding-left: var(--space-3);
 }
@@ -1604,15 +1618,26 @@ label {
 }
 
 @media (max-width: 420px) {
-  .scan-status-card {
-    grid-template-columns: minmax(0, 1fr);
+  .scan-status-header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+  }
+
+  .scan-status-actions {
+    gap: 0.45rem;
+  }
+
+  .scan-status-action-button {
+    padding-inline: 0.7rem;
+    font-size: 0.74rem;
   }
 
   .scan-status-indicator {
-    border-left: 0;
-    border-top: 1px solid var(--color-border);
-    padding-left: 0;
-    padding-top: var(--space-3);
+    min-width: 4rem;
+    border-left: 1px solid var(--color-border);
+    border-top: 0;
+    padding-left: var(--space-2);
+    padding-top: 0;
   }
 }
 
@@ -1621,10 +1646,6 @@ label {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-  background: var(--color-surface-strong);
 }
 
 .scan-attendance-select {
@@ -1647,10 +1668,6 @@ label {
   flex: 0 0 auto;
   font-size: clamp(2rem, 10vw, 3.5rem);
   line-height: 0.9;
-}
-
-.scan-status-idle {
-  background: var(--color-surface-strong);
 }
 
 .table-list {

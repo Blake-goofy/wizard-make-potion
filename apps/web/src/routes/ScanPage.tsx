@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ScanEventAttendance, ScanTicketResult, SessionUser } from '@potion/shared';
-import ActionDialog from '../components/ActionDialog';
 import LoadingOverlay from '../components/LoadingOverlay';
 import ToastRegion from '../components/ToastRegion';
 import { useToast } from '../hooks/useToast';
-import { getScannerAttendance, getScannerEvents, getScannerSettings, markTicketGroupArrived, scanTicket, updateTicketUsage, type EventView } from '../lib/api';
+import { getScannerAttendance, getScannerEvents, getScannerSettings, markTicketGroupArrived, scanTicket, type EventView } from '../lib/api';
 import { useQrScanner } from '../hooks/useQrScanner';
 
 const defaultScanDebounceMs = 3000;
@@ -157,6 +156,25 @@ function ScanPendingIcon() {
   return <span aria-hidden="true" className="scan-notice-spinner" />;
 }
 
+function CameraIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M5 8.5A1.5 1.5 0 0 1 6.5 7h2.35l1.1-1.6A1.5 1.5 0 0 1 11.18 4h1.64a1.5 1.5 0 0 1 1.23.64L15.15 7h2.35A1.5 1.5 0 0 1 19 8.5v8A1.5 1.5 0 0 1 17.5 18h-11A1.5 1.5 0 0 1 5 16.5Z" />
+      <circle cx="12" cy="12.5" r="3.25" />
+    </svg>
+  );
+}
+
+function FlashlightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M9 3.5h6" />
+      <path d="M10 3.5h4v4l2 3v8A1.5 1.5 0 0 1 14.5 20h-5A1.5 1.5 0 0 1 8 18.5v-8l2-3Z" />
+      <path d="M10 13h4" />
+    </svg>
+  );
+}
+
 type ScanPanelState = 'used' | 'unused' | 'not-found' | 'ready' | 'scanning';
 
 function formatRelativeScanTime(lastScannedAt: number, now: number) {
@@ -201,14 +219,6 @@ function getScanHeadline(lastScannedAt: number | null, now: number, isScanPendin
   if (scannerError) return 'Scanner unavailable';
   if (lastScannedAt) return formatRelativeScanTime(lastScannedAt, now);
   return 'Ready to scan';
-}
-
-function getScanDetailLine(scanResult: ScanTicketResult | null, scannedTicket: UsageActionTicket | null, isScanPending: boolean, scannerError: string | null) {
-  if (isScanPending) return 'Checking ticket now.';
-  if (scannerError) return scannerError;
-  if (scannedTicket) return `Ticket ${scannedTicket.ticketNumber} for ${scannedTicket.customerName}`;
-  if (scanResult?.status === 'not_found') return 'No matching ticket found';
-  return 'Point the camera at a ticket QR code.';
 }
 
 function ScanStatusGlyph({ state }: { state: ScanPanelState }) {
@@ -269,10 +279,6 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
   const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning'>('idle');
   const [notice, setNotice] = useState<ScanNotice | null>(null);
-  const [pendingUsageAction, setPendingUsageAction] = useState<{
-    ticket: UsageActionTicket;
-    nextUsed: boolean;
-  } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const {
     toastMessage,
@@ -499,38 +505,6 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
     }
   }
 
-  function openUsageDialog(ticket: UsageActionTicket) {
-    setPendingUsageAction({ ticket, nextUsed: !ticket.usedAt });
-  }
-
-  async function handleConfirmUsageAction() {
-    if (!pendingUsageAction || !token) return;
-
-    setIsSubmitting(true);
-
-    try {
-      const result = await updateTicketUsage(pendingUsageAction.ticket.id, { used: pendingUsageAction.nextUsed }, token);
-
-      setScanResult((current) => {
-        if (!current?.ticket || current.ticket.id !== result.ticket.id) return current;
-
-        return {
-          ...current,
-          ticket: {
-            ...current.ticket,
-            usedAt: result.ticket.usedAt,
-          },
-        };
-      });
-      setLastAttendance(result.attendance);
-      setPendingUsageAction(null);
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Could not update ticket usage.', 'error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
   async function handleGroupArrival() {
     if (!token || !scannedTicket) return;
 
@@ -557,17 +531,17 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
 
   const scannedOrderId = scanResult?.ticket?.orderId ?? '';
   const activeNoticeCopy = notice ? noticeCopy(notice.status) : null;
-  const actionLabel = scannedTicket?.usedAt ? 'Undo' : 'Redo';
   const isScanPending = scanStatus === 'scanning';
   const scanPanelState = getScanPanelState(isScanPending, scanResult, scannedTicket);
   const scanHeadline = getScanHeadline(lastScannedAt, scanTimeNow, isScanPending, scanner.error);
-  const scanDetailLine = getScanDetailLine(scanResult, scannedTicket, isScanPending, scanner.error);
   const orderArrivalCount = scannedTicket ? `${scannedTicket.orderUsedTicketCount}/${scannedTicket.orderTicketCount}` : '';
   const canMarkGroupArrived = Boolean(
     canManageTicketUsage
       && scannedTicket
       && scannedTicket.orderUsedTicketCount < scannedTicket.orderTicketCount,
   );
+  const isViewTicketDisabled = !scannedOrderId || isSubmitting;
+  const isMarkGroupArrivedDisabled = !canMarkGroupArrived || isSubmitting;
   const attendanceCountLabel = isLoadingAttendance ? '.../...'
     : attendance ? `${attendance.usedTicketCount}/${attendance.totalTicketCount}` : '-/-';
 
@@ -611,53 +585,51 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
         </div>
         <div className="scanner-panel">
           <div className="scanner-controls">
-            <button onClick={() => void handleCameraToggle()}>
-              {scanner.isRunning ? 'Stop Camera' : 'Start Camera'}
+            <button
+              className={`scanner-control-button${scanner.isRunning ? '' : ' primary-button'}`}
+              onClick={() => void handleCameraToggle()}
+              type="button"
+            >
+              <CameraIcon />
+              <span>{scanner.isRunning ? 'Stop Camera' : 'Start Camera'}</span>
             </button>
             {scanner.canUseTorch ? (
-              <button onClick={scanner.toggleTorch}>{scanner.torchEnabled ? 'Torch Off' : 'Torch On'}</button>
+              <button className="scanner-control-button" onClick={scanner.toggleTorch} type="button">
+                <FlashlightIcon />
+                <span>{scanner.torchEnabled ? 'Torch Off' : 'Torch On'}</span>
+              </button>
             ) : null}
           </div>
           <div className={`scan-status-card scan-status-${scanResult?.status ?? 'idle'}`}>
-            <div className="scan-status-copy">
-              <strong className="scan-status-headline">{scanHeadline}</strong>
-              <p className="scan-status-detail">{scanDetailLine}</p>
-              {scannedOrderId || (canManageTicketUsage && scannedTicket) ? (
+            <div className="scan-status-header">
+              <div className="scan-status-copy">
+                <strong className="scan-status-headline">{scanHeadline}</strong>
                 <div className="scan-status-actions">
-                  {scannedOrderId ? (
-                    <button className="scan-status-action-button" type="button" onClick={() => onViewOrder(scannedOrderId)}>
-                      View Ticket
-                    </button>
-                  ) : null}
-                  {canManageTicketUsage && scannedTicket ? (
-                    <button
-                      className={`scan-status-action-button scan-status-action-button-secondary${isSubmitting ? ' is-disabled' : ''}`}
-                      disabled={isSubmitting}
-                      type="button"
-                      onClick={() => openUsageDialog(scannedTicket)}
-                    >
-                      {actionLabel}
-                    </button>
-                  ) : null}
-                  {canMarkGroupArrived ? (
-                    <button
-                      className={`scan-status-action-button scan-status-action-button-success${isSubmitting ? ' is-disabled' : ''}`}
-                      disabled={isSubmitting}
-                      type="button"
-                      onClick={() => void handleGroupArrival()}
-                    >
-                      Mark Group Arrived
-                    </button>
-                  ) : null}
+                  <button
+                    className={`scan-status-action-button${isMarkGroupArrivedDisabled ? ' is-disabled' : ''}`}
+                    disabled={isMarkGroupArrivedDisabled}
+                    type="button"
+                    onClick={() => void handleGroupArrival()}
+                  >
+                    Mark Group Arrived
+                  </button>
+                  <button
+                    className={`scan-status-action-button scan-status-action-button-secondary${isViewTicketDisabled ? ' is-disabled' : ''}`}
+                    disabled={isViewTicketDisabled}
+                    type="button"
+                    onClick={() => onViewOrder(scannedOrderId)}
+                  >
+                    View Ticket
+                  </button>
                 </div>
-              ) : null}
-            </div>
-            <div className={`scan-status-indicator is-${scanPanelState}`} aria-label={`Ticket status ${getScanPanelStatusLabel(scanPanelState)}`}>
-              <div className="scan-status-glyph" aria-hidden="true">
-                <ScanStatusGlyph state={scanPanelState} />
               </div>
-              <span>{getScanPanelStatusLabel(scanPanelState)}</span>
-              {orderArrivalCount ? <strong className="scan-status-count">{orderArrivalCount}</strong> : null}
+              <div className={`scan-status-indicator is-${scanPanelState}`} aria-label={`Ticket status ${getScanPanelStatusLabel(scanPanelState)}`}>
+                <div className="scan-status-glyph" aria-hidden="true">
+                  <ScanStatusGlyph state={scanPanelState} />
+                </div>
+                <span>{getScanPanelStatusLabel(scanPanelState)}</span>
+                {orderArrivalCount ? <strong className="scan-status-count">{orderArrivalCount}</strong> : null}
+              </div>
             </div>
           </div>
           <div className="scan-attendance-card" aria-label="Event attendance scan count">
@@ -684,22 +656,6 @@ export default function ScanPage({ token, user, onViewOrder }: ScanPageProps) {
             <strong>{attendanceCountLabel}</strong>
           </div>
         </div>
-        <ActionDialog
-          confirmLabel={pendingUsageAction?.nextUsed ? 'Redo' : 'Undo'}
-          confirmTone={pendingUsageAction?.nextUsed ? 'default' : 'danger'}
-          description={
-            pendingUsageAction
-              ? pendingUsageAction.nextUsed
-                ? `Mark ticket ${pendingUsageAction.ticket.ticketNumber} as used again?`
-                : `Mark ticket ${pendingUsageAction.ticket.ticketNumber} as unused and make it scannable again?`
-              : ''
-          }
-          isOpen={Boolean(pendingUsageAction)}
-          isSubmitting={isSubmitting}
-          title={pendingUsageAction?.nextUsed ? 'Redo Ticket Use' : 'Undo Ticket Use'}
-          onClose={() => setPendingUsageAction(null)}
-          onConfirm={() => void handleConfirmUsageAction()}
-        />
       </section>
       {isSubmitting ? <LoadingOverlay label="Saving arrival status" detail="Updating ticket arrival for the scanned order." variant="scanner" /> : null}
     </>

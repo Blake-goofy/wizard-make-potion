@@ -1,22 +1,107 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import type { AdminManagedUser, SessionUser } from '@potion/shared';
 import LoadingOverlay, { type LoadingSkeletonVariant } from './components/LoadingOverlay';
 import { HomePage } from './routes/HomePage';
 import { WizardHatMark } from './components/WizardHatMark';
 import { getCurrentUser } from './lib/api';
 
-const AccountPage = lazy(() => import('./routes/AccountPage'));
-const AdminEventsPage = lazy(() => import('./routes/AdminEventsPage'));
-const AdminMessagesPage = lazy(() => import('./routes/AdminMessagesPage'));
-const AdminUsersPage = lazy(() => import('./routes/AdminUsersPage'));
-const SalesPage = lazy(() => import('./routes/SalesPage'));
-const MyTicketsPage = lazy(() => import('./routes/MyTicketsPage'));
-const AuthPage = lazy(() => import('./routes/AuthPage'));
-const ConfirmationPage = lazy(() => import('./routes/ConfirmationPage'));
-const GuestCheckoutPage = lazy(() => import('./routes/GuestCheckoutPage'));
-const PrivacyPolicyPage = lazy(() => import('./routes/PrivacyPolicyPage'));
-const ScanPage = lazy(() => import('./routes/ScanPage'));
-const TermsPage = lazy(() => import('./routes/TermsPage'));
+const routeImportReloadStorageKey = 'wizard-route-import-reload';
+
+function getImportErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return typeof error === 'string' ? error : '';
+}
+
+function getDynamicImportErrorFingerprint(error: unknown) {
+  const message = getImportErrorMessage(error);
+
+  if (
+    !message ||
+    (!message.includes('Failed to fetch dynamically imported module') &&
+      !message.includes('Importing a module script failed') &&
+      !/Loading chunk [\w-]+ failed/i.test(message))
+  ) {
+    return null;
+  }
+
+  const moduleUrlMatch = message.match(/https?:\/\/\S+|\/assets\/[^\s)]+/i);
+
+  return moduleUrlMatch?.[0] ?? `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function lazyRoute<TModule extends { default: ComponentType<any> }>(load: () => Promise<TModule>) {
+  return lazy(async () => {
+    const module = await load();
+    sessionStorage.removeItem(routeImportReloadStorageKey);
+    return module;
+  });
+}
+
+class RouteErrorBoundary extends Component<
+  { children: ReactNode; fallbackVariant: LoadingSkeletonVariant },
+  { error: unknown; isRefreshing: boolean }
+> {
+  override state = { error: null, isRefreshing: false };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { error, isRefreshing: false };
+  }
+
+  override componentDidCatch(error: unknown) {
+    const fingerprint = getDynamicImportErrorFingerprint(error);
+
+    if (!fingerprint || sessionStorage.getItem(routeImportReloadStorageKey) === fingerprint) {
+      return;
+    }
+
+    sessionStorage.setItem(routeImportReloadStorageKey, fingerprint);
+    this.setState({ error, isRefreshing: true }, () => {
+      window.location.reload();
+    });
+  }
+
+  override render() {
+    if (!this.state.error) {
+      return this.props.children;
+    }
+
+    if (this.state.isRefreshing) {
+      return <LoadingOverlay label="Refreshing app" detail="Loading the latest version of this page." variant={this.props.fallbackVariant} />;
+    }
+
+    const isDynamicImportFailure = getDynamicImportErrorFingerprint(this.state.error) !== null;
+
+    return (
+      <section className="content-panel loading-page-shell" role="alert" aria-live="polite">
+        <h1>{isDynamicImportFailure ? 'Refresh required' : 'Page unavailable'}</h1>
+        <p className="status-text">
+          {isDynamicImportFailure
+            ? 'This screen changed while your tab was open. Refresh to load the latest files.'
+            : 'Something went wrong while loading this screen. Refresh and try again.'}
+        </p>
+        <button className="primary-button" type="button" onClick={() => window.location.reload()}>
+          Refresh page
+        </button>
+      </section>
+    );
+  }
+}
+
+const AccountPage = lazyRoute(() => import('./routes/AccountPage'));
+const AdminEventsPage = lazyRoute(() => import('./routes/AdminEventsPage'));
+const AdminMessagesPage = lazyRoute(() => import('./routes/AdminMessagesPage'));
+const AdminUsersPage = lazyRoute(() => import('./routes/AdminUsersPage'));
+const SalesPage = lazyRoute(() => import('./routes/SalesPage'));
+const MyTicketsPage = lazyRoute(() => import('./routes/MyTicketsPage'));
+const AuthPage = lazyRoute(() => import('./routes/AuthPage'));
+const ConfirmationPage = lazyRoute(() => import('./routes/ConfirmationPage'));
+const GuestCheckoutPage = lazyRoute(() => import('./routes/GuestCheckoutPage'));
+const PrivacyPolicyPage = lazyRoute(() => import('./routes/PrivacyPolicyPage'));
+const ScanPage = lazyRoute(() => import('./routes/ScanPage'));
+const TermsPage = lazyRoute(() => import('./routes/TermsPage'));
 
 type RouteKey = 'home' | 'myTickets' | 'account' | 'adminEvents' | 'adminMessages' | 'adminUsers' | 'auth' | 'createAccount' | 'guestCheckout' | 'privacyPolicy' | 'terms' | 'scan' | 'sales' | 'confirmation';
 type ConfirmationOrigin = 'home' | 'myTickets' | 'scan' | 'sales';
@@ -310,6 +395,8 @@ export function App() {
   const initialConfirmationOrderId = getConfirmationOrderIdFromLocation();
   const initialConfirmationOrigin = getConfirmationOriginFromLocation();
   const initialToken = localStorage.getItem(sessionTokenKey) ?? '';
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const sideDrawerRef = useRef<HTMLElement | null>(null);
   const accountShellRef = useRef<HTMLDivElement | null>(null);
   const [route, setRoute] = useState<RouteKey>(initialConfirmationOrderId ? 'confirmation' : getRouteFromHash());
   const [menuOpen, setMenuOpen] = useState(false);
@@ -415,7 +502,7 @@ export function App() {
       return token && isAdmin ? <AdminEventsPage token={token} /> : homePage;
     }
     if (route === 'myTickets') return token ? <MyTicketsPage token={token} /> : <AuthPage onSession={handleSession} />;
-    if (route === 'scan') return <ScanPage token={token} user={user} onViewOrder={(orderId) => openConfirmationOrder(orderId, 'scan')} />;
+    if (route === 'scan') return <ScanPage token={token} user={user} onViewOrder={(orderId: string) => openConfirmationOrder(orderId, 'scan')} />;
     if (route === 'sales') return <SalesPage token={token} />;
     if (route === 'confirmation') {
       return confirmationOrderId ? (
@@ -463,8 +550,16 @@ export function App() {
 
   function navigate(nextRoute: RouteKey) {
     setRouteAndSyncUrl(nextRoute);
-    setMenuOpen(false);
+    closeMenu();
     setAccountOpen(false);
+  }
+
+  function closeMenu() {
+    if (sideDrawerRef.current?.contains(document.activeElement)) {
+      menuButtonRef.current?.focus();
+    }
+
+    setMenuOpen(false);
   }
 
   function handleMenuButtonClick() {
@@ -555,7 +650,7 @@ export function App() {
     <div className={`app-shell${route === 'scan' ? ' app-shell-scanner' : ''}`}>
       <header className="app-header">
         <div className="app-header-leading">
-          <button className="icon-button" type="button" aria-label="Open menu" onClick={handleMenuButtonClick}>
+          <button className="icon-button" type="button" aria-label="Open menu" onClick={handleMenuButtonClick} ref={menuButtonRef}>
             <MenuIcon />
           </button>
           <button
@@ -606,11 +701,11 @@ export function App() {
         </div>
       </header>
       {user && accountOpen ? <button className="drawer-backdrop" type="button" aria-label="Close account menu" onClick={() => setAccountOpen(false)} /> : null}
-      {menuOpen ? <button className="drawer-backdrop" type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} /> : null}
-      <aside className={`side-drawer${menuOpen ? ' is-open' : ''}`} aria-label="Primary menu" aria-hidden={!menuOpen}>
+      {menuOpen ? <button className="drawer-backdrop" type="button" aria-label="Close menu" onClick={closeMenu} /> : null}
+      <aside className={`side-drawer${menuOpen ? ' is-open' : ''}`} aria-label="Primary menu" aria-hidden={!menuOpen} ref={sideDrawerRef}>
         <div className="drawer-header">
           <strong>Menu</strong>
-          <button className="drawer-close-button" type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)}>
+          <button className="drawer-close-button" type="button" aria-label="Close menu" onClick={closeMenu}>
             <CloseIcon />
           </button>
         </div>
@@ -655,7 +750,9 @@ export function App() {
         </nav>
       </aside>
       <main>
-        <Suspense fallback={<LoadingOverlay label="Loading page" detail="Bringing in the next screen." variant={getRouteLoadingVariant(route)} />}>{currentView}</Suspense>
+        <RouteErrorBoundary key={route} fallbackVariant={getRouteLoadingVariant(route)}>
+          <Suspense fallback={<LoadingOverlay label="Loading page" detail="Bringing in the next screen." variant={getRouteLoadingVariant(route)} />}>{currentView}</Suspense>
+        </RouteErrorBoundary>
       </main>
       {isCheckingSession ? <LoadingOverlay label="Restoring session" detail="Checking your saved sign-in." variant={getRouteLoadingVariant(route)} /> : null}
     </div>
