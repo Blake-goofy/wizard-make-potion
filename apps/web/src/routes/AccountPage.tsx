@@ -30,6 +30,8 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
   const [profile, setProfile] = useState<AccountProfile | null>(user);
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(user?.phoneNumber));
+  const [eventReminderOptIn, setEventReminderOptIn] = useState(user?.eventReminderOptIn ?? false);
+  const [upcomingEventsOptIn, setUpcomingEventsOptIn] = useState(user?.upcomingEventsOptIn ?? false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -51,8 +53,11 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
   const isDeletingRef = useRef(false);
   const persistedDisplayName = profile?.displayName ?? '';
   const persistedPhoneNumber = createPhoneMask(profile?.phoneNumber);
+  const persistedEventReminderOptIn = profile?.eventReminderOptIn ?? false;
+  const persistedUpcomingEventsOptIn = profile?.upcomingEventsOptIn ?? false;
   const isDisplayNameDirty = displayName.trim() !== persistedDisplayName;
   const isPhoneNumberDirty = phoneNumber !== persistedPhoneNumber;
+  const isPreferencesDirty = eventReminderOptIn !== persistedEventReminderOptIn || upcomingEventsOptIn !== persistedUpcomingEventsOptIn;
 
   function clearToastTimers() {
     if (toastDismissTimeoutRef.current !== null) {
@@ -119,6 +124,8 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     setProfile(user);
     setDisplayName(user.displayName);
     setPhoneNumber(createPhoneMask(user.phoneNumber));
+    setEventReminderOptIn(user.eventReminderOptIn);
+    setUpcomingEventsOptIn(user.upcomingEventsOptIn);
   }, [user]);
 
   useEffect(() => {
@@ -132,6 +139,8 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
         setProfile(result.account);
         setDisplayName(result.account.displayName);
         setPhoneNumber(createPhoneMask(result.account.phoneNumber));
+        setEventReminderOptIn(result.account.eventReminderOptIn);
+        setUpcomingEventsOptIn(result.account.upcomingEventsOptIn);
       })
       .catch((error) => {
         if (!isCurrent) return;
@@ -172,7 +181,12 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     };
   }, []);
 
-  async function saveAccountChanges(nextValues: { displayName?: string; phoneNumber?: string | null }) {
+  async function saveAccountChanges(nextValues: {
+    displayName?: string;
+    phoneNumber?: string | null;
+    eventReminderOptIn?: boolean;
+    upcomingEventsOptIn?: boolean;
+  }) {
     if (!profile) {
       return null;
     }
@@ -181,6 +195,8 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
       {
         displayName: nextValues.displayName ?? profile.displayName,
         phoneNumber: nextValues.phoneNumber === undefined ? profile.phoneNumber : nextValues.phoneNumber,
+        eventReminderOptIn: nextValues.eventReminderOptIn ?? profile.eventReminderOptIn,
+        upcomingEventsOptIn: nextValues.upcomingEventsOptIn ?? profile.upcomingEventsOptIn,
       },
       token,
     );
@@ -291,6 +307,33 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     }
   }
 
+  async function handleSavePreferences() {
+    if (!profile || !isPreferencesDirty) {
+      return;
+    }
+
+    if (isSavingRef.current) return;
+
+    isSavingRef.current = true;
+    setIsSaving(true);
+
+    try {
+      const account = await saveAccountChanges({ eventReminderOptIn, upcomingEventsOptIn });
+
+      if (account) {
+        setEventReminderOptIn(account.eventReminderOptIn);
+        setUpcomingEventsOptIn(account.upcomingEventsOptIn);
+      }
+
+      showToast('Settings saved.', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not save account changes.', 'error');
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
+  }
+
   async function handleDeleteAccount() {
     if (isDeletingRef.current) return;
 
@@ -394,6 +437,34 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
             ) : null
           }
         />
+        <div className="account-preferences-group" aria-label="Notification preferences">
+          <p className="account-preferences-heading">Notifications</p>
+          <label className="checkout-checkbox">
+            <input type="checkbox" checked={eventReminderOptIn} onChange={(event) => setEventReminderOptIn(event.target.checked)} />
+            <span>Remind me about the events I buy tickets for.</span>
+          </label>
+          <label className="checkout-checkbox">
+            <input type="checkbox" checked={upcomingEventsOptIn} onChange={(event) => setUpcomingEventsOptIn(event.target.checked)} />
+            <span>Keep me posted on new events and ticket releases.</span>
+          </label>
+          {isPreferencesDirty ? (
+            <div className="account-preferences-actions">
+              <button
+                type="button"
+                disabled={isSaving || isDeleting}
+                onClick={() => {
+                  setEventReminderOptIn(persistedEventReminderOptIn);
+                  setUpcomingEventsOptIn(persistedUpcomingEventsOptIn);
+                }}
+              >
+                Cancel
+              </button>
+              <button type="button" className="primary-button" disabled={isSaving || isDeleting} onClick={() => void handleSavePreferences()}>
+                Save Preferences
+              </button>
+            </div>
+          ) : null}
+        </div>
         <div className="account-actions">
           <button type="button" disabled={isSaving || isDeleting || isChangingPassword} onClick={() => setIsPasswordDialogOpen(true)}>
             Change Password

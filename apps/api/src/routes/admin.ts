@@ -1,8 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import type { Database } from '@potion/db';
 import {
+  adminEventCreateInputSchema,
+  adminEventUpdateInputSchema,
   adminUserUpdateInputSchema,
   createAccountInputSchema,
+  eventSchema,
   loginInputSchema,
   requestPasswordResetInputSchema,
   resetPasswordInputSchema,
@@ -14,6 +17,7 @@ import { createRateLimitGuard } from '../security/rateLimit.js';
 import type { AuthService } from '../services/auth.js';
 import type { EmailQueueService } from '../services/emailQueue.js';
 import type { ScannerService } from '../services/scanner.js';
+import { parseEventRecord } from '../services/eventRecords.js';
 
 const authRateLimitMessage = 'Too many attempts. Please wait a moment and try again.';
 
@@ -27,6 +31,43 @@ function createHttpError(message: string, statusCode: number) {
   const error = new Error(message) as Error & { statusCode: number };
   error.statusCode = statusCode;
   return error;
+}
+
+function createSlugFromName(name: string) {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return slug || 'event';
+}
+
+async function createUniqueEventSlug(
+  db: Pick<Database, 'query'>,
+  name: string,
+  options: { excludeEventId?: string } = {},
+) {
+  const baseSlug = createSlugFromName(name);
+  const result = await db.query<{ slug: string }>(
+    `select slug
+     from events
+     where (slug = $1 or slug like $2)
+       and ($3::uuid is null or id <> $3)`,
+    [baseSlug, `${baseSlug}-%`, options.excludeEventId ?? null],
+  );
+  const usedSlugs = new Set(result.rows.map((row) => row.slug));
+
+  if (!usedSlugs.has(baseSlug)) return baseSlug;
+
+  let suffix = 2;
+  while (usedSlugs.has(`${baseSlug}-${suffix}`)) {
+    suffix += 1;
+  }
+
+  return `${baseSlug}-${suffix}`;
 }
 
 export async function registerAdminRoutes(
@@ -86,6 +127,76 @@ export async function registerAdminRoutes(
     return { users };
   });
 
+  server.get('/api/admin/events', async (request) => {
+    await deps.auth.requireAdmin(request);
+    const result = await deps.db.query(
+      `select id, slug, name, starts_at as "startsAt", address, description,
+              ticket_price_cents as "ticketPriceCents", tax_rate_bps as "taxRateBps",
+              min_tickets_per_order as "minTicketsPerOrder",
+              max_tickets_per_order as "maxTicketsPerOrder", is_active as "isActive"
+       from events
+       order by is_active desc, starts_at desc`,
+    );
+
+    return { events: result.rows.map((row) => parseEventRecord(row)) };
+  });
+
+  server.post('/api/admin/events', async (request, reply) => {
+    await deps.auth.requireAdmin(request);
+    const input = adminEventCreateInputSchema.parse(request.body);
+    const event = await deps.db.transaction(async (client) => {
+      const slug = await createUniqueEventSlug(client, input.name);
+      const result = await client.query(
+        `insert into events (slug, name, starts_at, address, description, ticket_price_cents)
+         values ($1, $2, $3, $4, $5, $6)
+         returning id, slug, name, starts_at as "startsAt", address, description,
+                   ticket_price_cents as "ticketPriceCents", tax_rate_bps as "taxRateBps",
+                   min_tickets_per_order as "minTicketsPerOrder",
+                   max_tickets_per_order as "maxTicketsPerOrder", is_active as "isActive"`,
+        [slug, input.name, input.startsAt, input.address, input.description, input.ticketPriceCents],
+      );
+
+      return eventSchema.parse(result.rows[0]);
+    });
+
+    return reply.code(201).send({ event });
+  });
+
+  server.put('/api/admin/events/:eventId', async (request) => {
+    await deps.auth.requireAdmin(request);
+    const eventId = z
+      .string()
+      .uuid()
+      .parse((request.params as { eventId?: string }).eventId);
+    const input = adminEventUpdateInputSchema.parse(request.body);
+    const event = await deps.db.transaction(async (client) => {
+      const slug = await createUniqueEventSlug(client, input.name, { excludeEventId: eventId });
+      const result = await client.query(
+        `update events
+         set slug = $2,
+             name = $3,
+             starts_at = $4,
+             address = $5,
+             description = $6,
+             ticket_price_cents = $7,
+             is_active = $8,
+             updated_at = now()
+         where id = $1
+         returning id, slug, name, starts_at as "startsAt", address, description,
+                   ticket_price_cents as "ticketPriceCents", tax_rate_bps as "taxRateBps",
+                   min_tickets_per_order as "minTicketsPerOrder",
+                   max_tickets_per_order as "maxTicketsPerOrder", is_active as "isActive"`,
+        [eventId, slug, input.name, input.startsAt, input.address, input.description, input.ticketPriceCents, input.isActive],
+      );
+      const updatedEvent = result.rows[0];
+      if (!updatedEvent) throw createHttpError('Event was not found.', 404);
+
+      return eventSchema.parse(updatedEvent);
+    });
+
+    return { event };
+  });
+
   server.put('/api/admin/users/:userId', async (request) => {
     const userId = z
       .string()
@@ -110,6 +221,7 @@ export async function registerAdminRoutes(
               row_number() over (partition by o.id order by t.created_at asc, t.id asc)::int as "ticketNumber",
               t.used_at as "usedAt",
               t.scan_token as "scanToken",
+            coalesce(o.customer_name, u.display_name) as "customerDisplayName",
               o.customer_email as "customerEmail",
               o.total_cents as "totalCents",
               o.created_at as "createdAt",
@@ -118,6 +230,7 @@ export async function registerAdminRoutes(
        from tickets t
        join orders o on o.id = t.order_id
        join events e on e.id = o.event_id
+        left join users u on lower(u.email) = lower(o.customer_email)
        where o.status = 'completed'
             and ($1::uuid is null or o.event_id = $1)
        order by o.created_at desc, t.created_at asc, t.id asc

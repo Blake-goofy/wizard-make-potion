@@ -1,5 +1,7 @@
 import type {
   AccountProfile,
+  AdminEventCreateInput,
+  AdminEventUpdateInput,
   AdminManagedUser,
   AdminUserUpdateInput,
   ChangePasswordInput,
@@ -22,6 +24,7 @@ import type {
 
 export type EventView = {
   id: string;
+  slug: string;
   name: string;
   startsAt: string;
   address: string;
@@ -64,6 +67,7 @@ export type AdminTicketView = {
   orderId: string;
   ticketNumber: number;
   usedAt: string | null;
+  customerDisplayName: string | null;
   customerEmail: string;
   totalCents: number;
   createdAt: string;
@@ -190,17 +194,21 @@ export function getActiveEvent() {
   return request<{ event: EventView | null }>('/api/events/active');
 }
 
-export function createDevOrder(input: CreateOrderInput) {
+export function createDevOrder(input: CreateOrderInput, token?: string | null) {
   return request<DevOrderResult>('/api/orders/dev-complete', {
     method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     body: JSON.stringify(input),
   });
 }
 
-export function createStripeCheckout(input: CreateOrderInput, checkoutAttemptId = crypto.randomUUID()) {
+export function createStripeCheckout(input: CreateOrderInput, checkoutAttemptId = crypto.randomUUID(), token?: string | null) {
   return request<StripeCheckoutResult>('/api/payments/stripe-checkout', {
     method: 'POST',
-    headers: { 'Idempotency-Key': checkoutAttemptId },
+    headers: {
+      'Idempotency-Key': checkoutAttemptId,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify(input),
   });
 }
@@ -318,6 +326,28 @@ export function getAdminTickets(token: string, eventId?: string) {
 export function getAdminUsers(token: string) {
   return request<{ users: AdminManagedUser[] }>('/api/admin/users', {
     headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function getAdminEvents(token: string) {
+  return request<{ events: EventView[] }>('/api/admin/events', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function createAdminEvent(input: AdminEventCreateInput, token: string) {
+  return request<{ event: EventView }>('/api/admin/events', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateAdminEvent(eventId: string, input: AdminEventUpdateInput, token: string) {
+  return request<{ event: EventView }>(`/api/admin/events/${eventId}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(input),
   });
 }
 

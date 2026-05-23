@@ -15,9 +15,28 @@ export const eventSchema = z.object({
     maxTicketsPerOrder: z.number().int().positive(),
     isActive: z.boolean(),
 });
+const adminEventBaseInputSchema = z.object({
+    name: z.string().trim().min(1).max(160),
+    startsAt: z.string().datetime(),
+    address: z.string().trim().min(1).max(240),
+    description: z.string().trim().min(1).max(2000),
+    ticketPriceCents: z.number().int().nonnegative(),
+});
+const phoneNumberSchema = z
+    .string()
+    .trim()
+    .regex(/^\(\d{3}\) \d{3}-\d{4}$/);
+export const adminEventCreateInputSchema = adminEventBaseInputSchema;
+export const adminEventUpdateInputSchema = adminEventBaseInputSchema.extend({
+    isActive: z.boolean(),
+});
 export const createOrderInputSchema = z.object({
     eventId: z.string().uuid(),
     customerEmail: z.string().email(),
+    customerName: z.string().trim().min(1).max(120).optional(),
+    customerPhoneNumber: phoneNumberSchema.optional(),
+    eventReminderOptIn: z.boolean().optional(),
+    upcomingEventsOptIn: z.boolean().optional(),
     quantity: z.number().int().positive(),
 });
 export const pricingQuoteSchema = z.object({
@@ -64,15 +83,16 @@ export const loginInputSchema = z.object({
     password: z.string().min(1),
 });
 const passwordSchema = z.string().min(8).max(128);
-const phoneNumberSchema = z
-    .string()
-    .trim()
-    .regex(/^\(\d{3}\) \d{3}-\d{4}$/);
+const notificationPreferencesShape = {
+    eventReminderOptIn: z.boolean(),
+    upcomingEventsOptIn: z.boolean(),
+};
 export const createAccountInputSchema = z.object({
     email: z.string().email(),
     displayName: z.string().min(1).max(120),
     password: passwordSchema,
     phoneNumber: phoneNumberSchema.optional(),
+    ...notificationPreferencesShape,
 });
 export const verifyAccountInputSchema = z.object({
     email: z.string().email(),
@@ -85,6 +105,7 @@ export const sessionUserSchema = z.object({
     displayName: z.string().min(1),
     role: userRoleSchema,
     phoneNumber: phoneNumberSchema.nullable(),
+    ...notificationPreferencesShape,
 });
 export const accountProfileSchema = z.object({
     id: z.string().uuid(),
@@ -92,6 +113,7 @@ export const accountProfileSchema = z.object({
     displayName: z.string().min(1),
     role: userRoleSchema,
     phoneNumber: phoneNumberSchema.nullable(),
+    ...notificationPreferencesShape,
 });
 export const adminManagedUserSchema = z.object({
     id: z.string().uuid(),
@@ -103,6 +125,7 @@ export const adminManagedUserSchema = z.object({
 export const updateAccountInputSchema = z.object({
     displayName: z.string().trim().min(1).max(120),
     phoneNumber: phoneNumberSchema.nullable(),
+    ...notificationPreferencesShape,
 });
 export const adminUserUpdateInputSchema = z.object({
     role: userRoleSchema,

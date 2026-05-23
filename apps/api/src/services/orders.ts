@@ -91,13 +91,18 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
         const providerReference = `dev_${orderId}`;
 
         await client.query(
-          `insert into orders (id, event_id, customer_email, quantity, subtotal_cents, tax_cents,
+          `insert into orders (id, event_id, customer_email, customer_name, customer_phone_number,
+                               event_reminder_opt_in, upcoming_events_opt_in, quantity, subtotal_cents, tax_cents,
                                total_cents, status, payment_provider, payment_provider_reference, completed_at)
-           values ($1, $2, $3, $4, $5, $6, $7, 'completed', 'dev', $8, now())`,
+           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'completed', 'dev', $12, now())`,
           [
             orderId,
             input.eventId,
             input.customerEmail,
+            input.customerName ?? null,
+            input.customerPhoneNumber ?? null,
+            input.eventReminderOptIn ?? false,
+            input.upcomingEventsOptIn ?? false,
             input.quantity,
             quote.subtotalCents,
             quote.taxCents,
@@ -131,14 +136,19 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
       checkoutIdempotencyKey: string;
     }) {
       await deps.db.query(
-        `insert into orders (id, event_id, customer_email, quantity, subtotal_cents, tax_cents,
+        `insert into orders (id, event_id, customer_email, customer_name, customer_phone_number,
+                             event_reminder_opt_in, upcoming_events_opt_in, quantity, subtotal_cents, tax_cents,
                              total_cents, status, payment_provider, payment_provider_reference, checkout_idempotency_key)
-         values ($1, $2, $3, $4, $5, $6, $7, 'pending', 'stripe', $8, $9)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', 'stripe', $12, $13)
          on conflict (checkout_idempotency_key) do nothing`,
         [
           options.orderId,
           options.input.eventId,
           options.input.customerEmail,
+          options.input.customerName ?? null,
+          options.input.customerPhoneNumber ?? null,
+          options.input.eventReminderOptIn ?? false,
+          options.input.upcomingEventsOptIn ?? false,
           options.input.quantity,
           options.quote.subtotalCents,
           options.quote.taxCents,

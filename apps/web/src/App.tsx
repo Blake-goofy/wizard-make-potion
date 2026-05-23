@@ -6,22 +6,27 @@ import { WizardHatMark } from './components/WizardHatMark';
 import { getCurrentUser } from './lib/api';
 
 const AccountPage = lazy(() => import('./routes/AccountPage'));
+const AdminEventsPage = lazy(() => import('./routes/AdminEventsPage'));
 const AdminUsersPage = lazy(() => import('./routes/AdminUsersPage'));
 const SalesPage = lazy(() => import('./routes/SalesPage'));
 const MyTicketsPage = lazy(() => import('./routes/MyTicketsPage'));
 const AuthPage = lazy(() => import('./routes/AuthPage'));
 const ConfirmationPage = lazy(() => import('./routes/ConfirmationPage'));
+const GuestCheckoutPage = lazy(() => import('./routes/GuestCheckoutPage'));
 const ScanPage = lazy(() => import('./routes/ScanPage'));
 
-type RouteKey = 'home' | 'myTickets' | 'account' | 'adminUsers' | 'auth' | 'scan' | 'sales' | 'confirmation';
+type RouteKey = 'home' | 'myTickets' | 'account' | 'adminEvents' | 'adminUsers' | 'auth' | 'createAccount' | 'guestCheckout' | 'scan' | 'sales' | 'confirmation';
 
 const sessionTokenKey = 'sessionToken';
 const routeHashByKey: Record<Exclude<RouteKey, 'confirmation'>, string> = {
   home: '',
   myTickets: 'my-tickets',
   account: 'account',
+  adminEvents: 'admin-events',
   adminUsers: 'admin-users',
   auth: 'sign-in',
+  createAccount: 'create-account',
+  guestCheckout: 'guest-checkout',
   scan: 'scan',
   sales: 'sales',
 };
@@ -31,9 +36,14 @@ const routeKeyByHash: Record<string, Exclude<RouteKey, 'confirmation'>> = {
   tickets: 'home',
   'my-tickets': 'myTickets',
   account: 'account',
+  'admin-events': 'adminEvents',
+  events: 'adminEvents',
   'admin-users': 'adminUsers',
   users: 'adminUsers',
   'sign-in': 'auth',
+  'create-account': 'createAccount',
+  'guest-checkout': 'guestCheckout',
+  checkout: 'guestCheckout',
   scan: 'scan',
   scanner: 'scan',
   sales: 'sales',
@@ -74,7 +84,10 @@ function getRouteLoadingVariant(route: RouteKey): LoadingSkeletonVariant {
   if (route === 'home') return 'purchase';
   if (route === 'myTickets') return 'tickets';
   if (route === 'scan') return 'scanner';
+  if (route === 'adminEvents') return 'account';
   if (route === 'adminUsers') return 'account';
+  if (route === 'createAccount') return 'auth';
+  if (route === 'guestCheckout') return 'purchase';
   return route;
 }
 
@@ -82,8 +95,11 @@ function getRouteTitle(route: RouteKey) {
   if (route === 'home') return 'Wizard Make Potion';
   if (route === 'myTickets') return 'My Tickets';
   if (route === 'account') return 'Account';
+  if (route === 'adminEvents') return 'Events';
   if (route === 'adminUsers') return 'User Access';
   if (route === 'auth') return 'Sign In';
+  if (route === 'createAccount') return 'Create Account';
+  if (route === 'guestCheckout') return 'Checkout';
   if (route === 'scan') return 'Scan Tickets';
   if (route === 'sales') return 'Ticket Sales';
   if (route === 'confirmation') return 'Order Confirmation';
@@ -187,6 +203,17 @@ function SalesIcon() {
   );
 }
 
+function CalendarIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M7 4v3M17 4v3" />
+      <path d="M5.5 6h13A1.5 1.5 0 0 1 20 7.5v11A1.5 1.5 0 0 1 18.5 20h-13A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6Z" />
+      <path d="M4 10h16" />
+      <path d="M8 14h3M8 17h6" />
+    </svg>
+  );
+}
+
 function UsersIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -276,9 +303,15 @@ export function App() {
 
     if (route === 'scan' && !isScanner) {
       setRouteAndSyncUrl(user ? 'myTickets' : 'home');
+    } else if (route === 'adminEvents' && !isAdmin) {
+      setRouteAndSyncUrl('home');
     } else if (route === 'adminUsers' && !isAdmin) {
       setRouteAndSyncUrl('home');
     } else if (route === 'sales' && !canViewTicketSales) {
+      setRouteAndSyncUrl('home');
+    } else if (route === 'guestCheckout' && user) {
+      setRouteAndSyncUrl('home');
+    } else if (route === 'createAccount' && user) {
       setRouteAndSyncUrl('home');
     } else if (route === 'account' && !user) {
       setRouteAndSyncUrl('auth');
@@ -288,20 +321,27 @@ export function App() {
   }, [canViewTicketSales, isAdmin, isCheckingSession, isScanner, route, user]);
 
   const currentView = useMemo(() => {
+    const homePage = <HomePage token={token} user={user} onCreateAccount={() => navigate('createAccount')} onContinueAsGuest={() => navigate('guestCheckout')} />;
+
     if (route === 'auth') return <AuthPage onSession={handleSession} />;
+    if (route === 'createAccount') return <AuthPage initialMode="create" onSession={handleSession} />;
+    if (route === 'guestCheckout') return user ? homePage : <GuestCheckoutPage />;
     if (route === 'account') {
       return token ? <AccountPage token={token} user={user} onUserChange={handleUserChange} onAccountDeleted={handleAccountDeleted} /> : <AuthPage onSession={handleSession} />;
     }
     if (route === 'adminUsers') {
-      return token && isAdmin ? <AdminUsersPage token={token} currentUser={user} onCurrentUserUpdated={handleAdminUserUpdated} /> : <HomePage user={user} />;
+      return token && isAdmin ? <AdminUsersPage token={token} currentUser={user} onCurrentUserUpdated={handleAdminUserUpdated} /> : homePage;
+    }
+    if (route === 'adminEvents') {
+      return token && isAdmin ? <AdminEventsPage token={token} /> : homePage;
     }
     if (route === 'myTickets') return token ? <MyTicketsPage token={token} /> : <AuthPage onSession={handleSession} />;
     if (route === 'scan') return <ScanPage token={token} user={user} onViewOrder={openConfirmationOrder} />;
     if (route === 'sales') return <SalesPage token={token} />;
     if (route === 'confirmation') {
-      return confirmationOrderId ? <ConfirmationPage orderId={confirmationOrderId} token={token} user={user} onBackToSales={() => setRouteAndSyncUrl('sales')} /> : <HomePage user={user} />;
+      return confirmationOrderId ? <ConfirmationPage orderId={confirmationOrderId} token={token} user={user} onBackToSales={() => setRouteAndSyncUrl('sales')} /> : homePage;
     }
-    return <HomePage user={user} />;
+    return homePage;
   }, [confirmationOrderId, handleAccountDeleted, handleAdminUserUpdated, handleSession, handleUserChange, isAdmin, openConfirmationOrder, route, token, user]);
 
   function setRouteAndSyncUrl(nextRoute: RouteKey) {
@@ -488,7 +528,7 @@ export function App() {
               My Tickets
             </DrawerItem>
           ) : (
-            <DrawerItem active={route === 'auth'} icon={<SignInIcon />} onClick={() => navigate('auth')}>
+            <DrawerItem active={route === 'auth' || route === 'createAccount'} icon={<SignInIcon />} onClick={() => navigate('auth')}>
               Sign In
             </DrawerItem>
           )}
@@ -500,6 +540,11 @@ export function App() {
           {canViewTicketSales ? (
             <DrawerItem active={route === 'sales'} icon={<SalesIcon />} onClick={() => navigate('sales')}>
               Sales
+            </DrawerItem>
+          ) : null}
+          {isAdmin ? (
+            <DrawerItem active={route === 'adminEvents'} icon={<CalendarIcon />} onClick={() => navigate('adminEvents')}>
+              Events
             </DrawerItem>
           ) : null}
           {isAdmin ? (

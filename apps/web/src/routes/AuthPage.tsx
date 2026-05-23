@@ -9,6 +9,7 @@ type AuthMode = 'sign-in' | 'create' | 'verify' | 'forgot' | 'reset';
 
 type AuthPageProps = {
   onSession: (token: string, user: SessionUser) => void;
+  initialMode?: Extract<AuthMode, 'sign-in' | 'create'>;
 };
 
 function isExistingAccountError(message: string) {
@@ -17,14 +18,16 @@ function isExistingAccountError(message: string) {
   return normalizedMessage.includes('account already exists') && normalizedMessage.includes('email');
 }
 
-export default function AuthPage({ onSession }: AuthPageProps) {
-  const [mode, setMode] = useState<AuthMode>('sign-in');
+export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPageProps) {
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [resetPassword, setResetPassword] = useState('');
   const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
   const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(''));
+  const [eventReminderOptIn, setEventReminderOptIn] = useState(true);
+  const [upcomingEventsOptIn, setUpcomingEventsOptIn] = useState(true);
   const [code, setCode] = useState('');
   const [message, setMessage] = useState('');
   const [toastMessage, setToastMessage] = useState('');
@@ -88,6 +91,18 @@ export default function AuthPage({ onSession }: AuthPageProps) {
       clearToastTimers();
     };
   }, []);
+
+  useEffect(() => {
+    setMode(initialMode);
+    setMessage('');
+    clearToastTimers();
+    setToastMessage('');
+    setIsToastClosing(false);
+
+    if (initialMode !== 'create') {
+      setHasEmailConflict(false);
+    }
+  }, [initialMode]);
 
   function showError(nextMessage: string, options?: { highlightEmail?: boolean }) {
     setMessage('');
@@ -179,7 +194,14 @@ export default function AuthPage({ onSession }: AuthPageProps) {
     if (!beginSubmission('Creating account')) return;
 
     try {
-      const result = await createAccount({ email, displayName, password, phoneNumber: nextPhoneNumber || undefined });
+      const result = await createAccount({
+        email,
+        displayName,
+        password,
+        phoneNumber: nextPhoneNumber || undefined,
+        eventReminderOptIn,
+        upcomingEventsOptIn,
+      });
       setEmail(result.email);
       setHasEmailConflict(false);
       setMode('verify');
@@ -330,6 +352,16 @@ export default function AuthPage({ onSession }: AuthPageProps) {
             Password
             <input type="password" required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} />
           </label>
+          <div className="auth-preferences-group" aria-label="Notification preferences">
+            <label className="checkout-checkbox">
+              <input type="checkbox" checked={eventReminderOptIn} onChange={(event) => setEventReminderOptIn(event.target.checked)} />
+              <span>Remind me about the events I buy tickets for.</span>
+            </label>
+            <label className="checkout-checkbox">
+              <input type="checkbox" checked={upcomingEventsOptIn} onChange={(event) => setUpcomingEventsOptIn(event.target.checked)} />
+              <span>Keep me posted on new events and ticket releases.</span>
+            </label>
+          </div>
           <button type="submit" disabled={isSubmitting}>
             Send Verification Code
           </button>

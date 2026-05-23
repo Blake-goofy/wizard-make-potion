@@ -8,6 +8,8 @@ type MyTicketsPageProps = {
   token: string;
 };
 
+type ArrivalStatus = 'unused' | 'partial' | 'used';
+
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 }
@@ -18,6 +20,28 @@ function formatDate(value: string) {
 
 function buildTicketLink(orderId: string) {
   return `${window.location.origin}/?order=${orderId}`;
+}
+
+function getOrderArrivalStatus(order: Pick<AccountOrderView, 'tickets'>): ArrivalStatus {
+  const usedCount = order.tickets.filter((ticket) => ticket.usedAt).length;
+
+  if (usedCount === 0) return 'unused';
+  if (usedCount >= order.tickets.length) return 'used';
+  return 'partial';
+}
+
+function formatOrderArrivalStatus(order: Pick<AccountOrderView, 'tickets'>) {
+  const status = getOrderArrivalStatus(order);
+
+  if (status === 'used') return 'Used';
+  if (status === 'partial') return 'Partially used';
+  return 'Unused';
+}
+
+function getTicketStatusClassName(status: ArrivalStatus) {
+  if (status === 'used') return 'is-used';
+  if (status === 'partial') return 'is-partial';
+  return 'is-unused';
 }
 
 export default function MyTicketsPage({ token }: MyTicketsPageProps) {
@@ -92,43 +116,74 @@ export default function MyTicketsPage({ token }: MyTicketsPageProps) {
     />
     <section className="account-tickets-page">
       <p className="status-text">Click a purchase record to view your ticket QR code.</p>
+      <div className="account-tickets-legend" aria-label="Ticket status legend">
+        <span className="account-tickets-legend-item">
+          <span aria-hidden="true" className="ticket-sales-status-dot is-unused"></span>
+          <span>Unused</span>
+        </span>
+        <span className="account-tickets-legend-item">
+          <span aria-hidden="true" className="ticket-sales-status-dot is-partial"></span>
+          <span>Partially used</span>
+        </span>
+        <span className="account-tickets-legend-item">
+          <span aria-hidden="true" className="ticket-sales-status-dot is-used"></span>
+          <span>Used</span>
+        </span>
+      </div>
       <div className="account-tickets-table-shell">
         <table className="account-tickets-table">
           <thead>
             <tr>
-              <th scope="col">Purchase date</th>
-              <th scope="col">Total</th>
+              <th scope="col">Event name</th>
               <th scope="col">People</th>
+              <th scope="col">Sts</th>
             </tr>
           </thead>
-          <tbody>
-            {visibleOrders.length ? (
-              visibleOrders.map((order) => (
-                <tr
-                  className="account-tickets-row"
-                  key={order.id}
-                  tabIndex={0}
-                  onClick={() => openTicketConfirmation(order.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      openTicketConfirmation(order.id);
-                    }
-                  }}
-                >
-                  <td>{formatDate(order.createdAt)}</td>
-                  <td>{formatCurrency(order.totalCents)}</td>
-                  <td>{order.peopleCount}</td>
-                </tr>
-              ))
-            ) : (
+          {visibleOrders.length ? (
+            visibleOrders.map((order) => {
+              const status = getOrderArrivalStatus(order);
+              const statusLabel = formatOrderArrivalStatus(order);
+
+              return (
+                <tbody className="account-tickets-order-group" key={order.id}>
+                  <tr
+                    className="account-tickets-row account-tickets-row-primary"
+                    tabIndex={0}
+                    onClick={() => openTicketConfirmation(order.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openTicketConfirmation(order.id);
+                      }
+                    }}
+                  >
+                    <td className="account-tickets-cell-primary" title={order.eventName}>{order.eventName}</td>
+                    <td className="account-tickets-cell-metric">{order.peopleCount}</td>
+                    <td className="account-tickets-status-cell" rowSpan={2}>
+                      <span
+                        aria-hidden="true"
+                        className={`ticket-sales-status-dot ${getTicketStatusClassName(status)}`}
+                        title={statusLabel}
+                      ></span>
+                      <span className="visually-hidden">{statusLabel}</span>
+                    </td>
+                  </tr>
+                  <tr className="account-tickets-row account-tickets-row-secondary" onClick={() => openTicketConfirmation(order.id)}>
+                    <td className="account-tickets-cell-secondary">{formatDate(order.createdAt)}</td>
+                    <td className="account-tickets-cell-secondary account-tickets-cell-metric">{formatCurrency(order.totalCents)}</td>
+                  </tr>
+                </tbody>
+              );
+            })
+          ) : (
+            <tbody>
               <tr>
                 <td className="account-tickets-empty" colSpan={3}>
                   {message || 'No available tickets found for this account.'}
                 </td>
               </tr>
-            )}
-          </tbody>
+            </tbody>
+          )}
         </table>
       </div>
     </section>

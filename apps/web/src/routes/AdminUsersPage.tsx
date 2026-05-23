@@ -159,12 +159,6 @@ export default function AdminUsersPage({ token, currentUser, onCurrentUserUpdate
         onTouchCancel={handleToastTouchCancel}
       />
       <section className="content-panel admin-users-panel">
-        <div className="admin-users-header">
-          <p className="eyebrow">Admin</p>
-          <h1>User Access</h1>
-          <p className="status-text">Select a user, then confirm each role or status change with its matching checkmark.</p>
-        </div>
-
         <div className="stack-form admin-users-form">
           <label>
             User

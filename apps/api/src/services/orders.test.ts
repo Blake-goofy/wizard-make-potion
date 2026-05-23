@@ -19,6 +19,55 @@ function createConfig(): AppConfig {
 }
 
 describe('order service', () => {
+  it('stores checkout contact and opt-in fields when creating a pending Stripe order', async () => {
+    const db = {
+      query: vi.fn().mockResolvedValue({ rows: [] }),
+    };
+    const orders = createOrderService({
+      db: db as never,
+      emailQueue: { enqueueTicketEmail: vi.fn(), processPending: vi.fn() } as never,
+      config: createConfig(),
+      appSettings: { getEventSettings: vi.fn() } as never,
+    });
+
+    await orders.createPendingStripeOrder({
+      orderId: '00000000-0000-4000-8000-000000000099',
+      input: {
+        eventId: '00000000-0000-4000-8000-000000000001',
+        customerEmail: 'guest@example.com',
+        customerName: 'Guest Buyer',
+        customerPhoneNumber: '(555) 123-4567',
+        eventReminderOptIn: true,
+        upcomingEventsOptIn: true,
+        quantity: 2,
+      },
+      quote: {
+        quantity: 2,
+        subtotalCents: 5000,
+        taxCents: 450,
+        totalCents: 5450,
+      },
+      providerReference: 'cs_test_checkout',
+      checkoutIdempotencyKey: '11111111-1111-4111-8111-111111111111',
+    });
+
+    expect(db.query).toHaveBeenCalledWith(expect.stringContaining('customer_phone_number'), [
+      '00000000-0000-4000-8000-000000000099',
+      '00000000-0000-4000-8000-000000000001',
+      'guest@example.com',
+      'Guest Buyer',
+      '(555) 123-4567',
+      true,
+      true,
+      2,
+      5000,
+      450,
+      5450,
+      'cs_test_checkout',
+      '11111111-1111-4111-8111-111111111111',
+    ]);
+  });
+
   it('uses app settings for event expiry when quoting an order', async () => {
     const db = {
       query: vi.fn().mockResolvedValue({

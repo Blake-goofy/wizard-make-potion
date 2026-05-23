@@ -13,7 +13,7 @@ export const themeSections = [
     title: 'Text',
     tokens: {
       '--color-text': '#f5efff',
-      '--color-muted-text': '#cbbfe0',
+      '--color-muted-text': '#ddd4f0',
       '--color-control-text': '#ebe1fb',
       '--color-icon': '#b09ccf',
       '--color-text-inverse': '#1a1520',

@@ -2,11 +2,10 @@ create extension if not exists pgcrypto;
 
 create table public.app_settings (
   id boolean primary key default true,
-  default_tax_rate_bps integer not null default 900,
   event_expiry_buffer_minutes integer not null default 360,
   scan_debounce_ms integer not null default 3000,
-  email_from_address text not null default 'tickets@wizardmakepotion.local',
-  email_from_name text not null default 'Wizard Make Potion Tickets',
+  email_from_address text not null default 'info@wizardmakepotion.com',
+  email_from_name text not null default 'Wizard Make Potion',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint app_settings_single_row check (id = true)
@@ -32,6 +31,10 @@ create table public.orders (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references public.events(id),
   customer_email text not null,
+  customer_name text,
+  customer_phone_number text,
+  event_reminder_opt_in boolean not null default false,
+  upcoming_events_opt_in boolean not null default false,
   quantity integer not null check (quantity > 0),
   subtotal_cents integer not null check (subtotal_cents >= 0),
   tax_cents integer not null check (tax_cents >= 0),
@@ -39,8 +42,10 @@ create table public.orders (
   status text not null check (status in ('pending', 'completed', 'cancelled', 'refunded')),
   payment_provider text not null default 'dev',
   payment_provider_reference text not null,
+  checkout_idempotency_key text,
   created_at timestamptz not null default now(),
   completed_at timestamptz,
+  constraint orders_checkout_idempotency_key_unique unique (checkout_idempotency_key),
   unique (payment_provider, payment_provider_reference),
   constraint orders_completed_requires_timestamp check (status <> 'completed' or completed_at is not null)
 );
@@ -84,6 +89,8 @@ create table public.users (
   role text not null default 'customer' check (role in ('customer', 'scanner', 'admin')),
   password_hash text not null,
   phone_number text,
+  event_reminder_opt_in boolean not null default false,
+  upcoming_events_opt_in boolean not null default false,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -95,6 +102,18 @@ create table public.account_verification_codes (
   display_name text not null,
   phone_number text,
   password_hash text not null,
+  event_reminder_opt_in boolean not null default false,
+  upcoming_events_opt_in boolean not null default false,
+  code_hash text not null,
+  expires_at timestamptz not null,
+  consumed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table public.password_reset_codes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  email text not null,
   code_hash text not null,
   expires_at timestamptz not null,
   consumed_at timestamptz,
@@ -114,6 +133,9 @@ create index idx_users_email on public.users(email);
 create index idx_users_role on public.users(role);
 create index idx_account_verification_codes_email_created_at on public.account_verification_codes(email, created_at desc);
 create index idx_account_verification_codes_expires_at on public.account_verification_codes(expires_at);
+create index idx_password_reset_codes_email_created_at on public.password_reset_codes(email, created_at desc);
+create index idx_password_reset_codes_user_id on public.password_reset_codes(user_id);
+create index idx_password_reset_codes_expires_at on public.password_reset_codes(expires_at);
 
 alter table public.app_settings enable row level security;
 alter table public.events enable row level security;
@@ -123,6 +145,7 @@ alter table public.scan_events enable row level security;
 alter table public.email_outbox enable row level security;
 alter table public.users enable row level security;
 alter table public.account_verification_codes enable row level security;
+alter table public.password_reset_codes enable row level security;
 
 revoke all on table public.app_settings from anon, authenticated;
 revoke all on table public.events from anon, authenticated;
@@ -132,6 +155,7 @@ revoke all on table public.scan_events from anon, authenticated;
 revoke all on table public.email_outbox from anon, authenticated;
 revoke all on table public.users from anon, authenticated;
 revoke all on table public.account_verification_codes from anon, authenticated;
+revoke all on table public.password_reset_codes from anon, authenticated;
 revoke all on all sequences in schema public from anon, authenticated;
 
 alter default privileges in schema public revoke all on tables from anon, authenticated;
@@ -153,15 +177,15 @@ insert into public.events (
   is_active
 ) values (
   'local-potion-night',
-  'Wizard Make Potion Night',
-  '2026-10-31 19:00:00-04',
-  '123 Cauldron Lane, Local Dev',
+  'Test Event Name',
+  '2026-10-10 19:00:00-04',
+  '1001 E rd, Edmond Ok',
   'A local development event for testing ticket purchase, email, and scanning flows.',
-  2500,
+  1200,
   900,
   1,
   10,
-  true
+  false
 );
 
 insert into public.users (email, display_name, role, password_hash)

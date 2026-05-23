@@ -484,15 +484,15 @@ label {
   stroke-width: 2;
 }
 
-.purchase-layout,
+.purchase-layout {
+  display: grid;
+  gap: var(--space-5);
+}
+
 .content-panel {
   display: grid;
   gap: var(--space-5);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-5);
-  background: var(--color-surface);
-  box-shadow: var(--shadow-panel);
+  align-content: start;
 }
 
 .confirmation-panel,
@@ -502,8 +502,18 @@ label {
   gap: var(--space-4);
 }
 
+.auth-panel {
+  width: min(100%, 32rem);
+  margin: 0 auto;
+}
+
 .auth-status-text {
   margin: 0;
+}
+
+.auth-preferences-group {
+  display: grid;
+  gap: var(--space-3);
 }
 
 .toast-stack {
@@ -648,13 +658,52 @@ label {
   line-height: 1;
 }
 
+.event-summary {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.event-summary h1 {
+  margin-bottom: 0;
+}
+
 .confirmation-panel h2 {
   font-size: clamp(1.6rem, 6vw, 2.8rem);
 }
 
-.event-summary p,
+.event-summary p {
+  margin: 0;
+  color: var(--color-muted-text);
+}
+
 .status-text {
   color: var(--color-muted-text);
+}
+
+.event-logistics {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.event-date {
+  color: var(--color-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.event-address {
+  font-size: 0.9rem;
+}
+
+.event-description {
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.event-ticket-price {
+  color: var(--color-accent);
+  font-size: 1.15rem;
+  font-weight: 800;
 }
 
 .eyebrow {
@@ -671,6 +720,54 @@ label {
   gap: var(--space-4);
 }
 
+.purchase-form {
+  align-content: start;
+}
+
+.guest-choice-panel {
+  align-self: start;
+}
+
+.guest-checkout-panel {
+  display: grid;
+  gap: var(--space-5);
+  width: min(100%, 42rem);
+  margin: 0 auto;
+}
+
+.guest-checkout-event {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.guest-checkout-event h1 {
+  margin-bottom: var(--space-2);
+  font-size: clamp(2rem, 9vw, 4rem);
+  line-height: 1;
+}
+
+.guest-checkout-event p:not(.eyebrow) {
+  margin: 0;
+  color: var(--color-muted-text);
+}
+
+.checkout-checkbox {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-control-text);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.checkout-checkbox input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
 .account-settings-panel h2 {
   margin: 0;
   font-size: 1.1rem;
@@ -678,10 +775,14 @@ label {
 
 .account-settings-panel {
   gap: var(--space-4);
+  width: min(100%, 40rem);
+  margin: 0 auto;
 }
 
 .admin-users-panel {
   gap: var(--space-4);
+  width: min(100%, 40rem);
+  margin: 0 auto;
 }
 
 .admin-users-header {
@@ -697,6 +798,45 @@ label {
   gap: var(--space-3);
 }
 
+.admin-events-panel {
+  width: min(100%, 44rem);
+  margin: 0 auto;
+  gap: var(--space-4);
+}
+
+.admin-events-header {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.admin-events-header h1 {
+  margin-bottom: 0;
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+.admin-events-mode-row,
+.admin-events-field-row {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.admin-events-form {
+  gap: var(--space-3);
+}
+
+.admin-events-form textarea {
+  min-height: 7rem;
+}
+
+@media (min-width: 640px) {
+  .admin-events-mode-row,
+  .admin-events-field-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
 .account-meta-grid {
   display: grid;
   gap: var(--space-2);
@@ -705,10 +845,6 @@ label {
 .account-meta-card {
   display: grid;
   gap: var(--space-1);
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-strong);
 }
 
 .account-meta-label {
@@ -717,6 +853,25 @@ label {
 
 .account-settings-form {
   gap: var(--space-3);
+}
+
+.account-preferences-group {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.account-preferences-heading {
+  margin: 0;
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.account-preferences-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .account-password-fields {
@@ -865,6 +1020,16 @@ label {
 .receipt-lines {
   display: grid;
   gap: var(--space-3);
+}
+
+.order-summary {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+.order-summary-total {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
 }
 
 .ticket-card {
@@ -1187,12 +1352,30 @@ label {
 .account-tickets-page {
   display: grid;
   gap: var(--space-3);
+  width: min(100%, 56rem);
+  margin: 0 auto;
+}
+
+.account-tickets-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  color: var(--color-muted-text);
+  font-size: 0.86rem;
+}
+
+.account-tickets-legend-item {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
 }
 
 .account-tickets-table-shell {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface-strong);
+  overflow-x: auto;
 }
 
 .account-tickets-table {
@@ -1209,6 +1392,7 @@ label {
 .account-tickets-table th {
   border-bottom: 1px solid var(--color-border);
   color: var(--color-muted-text);
+  background: var(--color-surface);
   font-size: 0.86rem;
   font-weight: 800;
   white-space: nowrap;
@@ -1218,18 +1402,50 @@ label {
   border-bottom: 1px solid var(--color-border);
 }
 
-.account-tickets-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
 .account-tickets-row {
   cursor: pointer;
 }
 
-.account-tickets-row:hover,
 .account-tickets-row:focus-visible {
-  background: var(--color-surface);
   outline: none;
+}
+
+.account-tickets-order-group:hover td,
+.account-tickets-order-group:focus-within td {
+  background: var(--color-surface);
+}
+
+.account-tickets-order-group td {
+  border-bottom: 0;
+}
+
+.account-tickets-order-group + .account-tickets-order-group .account-tickets-row-primary td,
+.account-tickets-order-group + .account-tickets-order-group .account-tickets-status-cell {
+  border-top: 1px solid var(--color-border);
+}
+
+.account-tickets-row-primary td {
+  padding-top: var(--space-3);
+  padding-bottom: 0;
+}
+
+.account-tickets-row-secondary td {
+  padding-top: 0.2rem;
+  padding-bottom: var(--space-3);
+}
+
+.account-tickets-cell-primary {
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.account-tickets-cell-secondary {
+  color: var(--color-muted-text);
+  font-size: 0.84rem;
+}
+
+.account-tickets-cell-metric {
+  text-align: right;
 }
 
 .account-tickets-table th:nth-child(2),
@@ -1243,8 +1459,20 @@ label {
 }
 
 .account-tickets-table th:last-child,
-.account-tickets-table td:last-child {
+.account-tickets-status-cell {
   text-align: right;
+}
+
+.account-tickets-table th:last-child,
+.account-tickets-table td:last-child {
+  width: 2.2rem;
+  min-width: 2.2rem;
+  padding-left: var(--space-1);
+  padding-right: var(--space-2);
+}
+
+.account-tickets-status-cell {
+  vertical-align: middle;
 }
 
 .account-tickets-empty {
@@ -1323,6 +1551,7 @@ label {
   position: relative;
   border-bottom: 1px solid var(--color-border);
   color: var(--color-muted-text);
+  background: var(--color-surface);
   font-size: 0.86rem;
   font-weight: 800;
   white-space: nowrap;
@@ -1429,6 +1658,34 @@ label {
   justify-content: flex-end;
 }
 
+.ticket-sales-name-filter {
+  width: min(100%, 16rem);
+  text-transform: none;
+}
+
+.ticket-sales-name-filter input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.7rem;
+  color: var(--color-text);
+  background: var(--color-background);
+  font: inherit;
+  font-size: 1rem;
+  text-transform: none;
+}
+
+.ticket-sales-name-filter input::placeholder {
+  color: var(--color-muted-text);
+}
+
+.ticket-sales-name-filter input:focus-visible {
+  outline: none;
+  border-color: var(--color-text);
+}
+
 .ticket-sales-filter-button {
   min-height: 0;
   border: 0;
@@ -1469,6 +1726,7 @@ label {
 
 .table-filter-popover input {
   min-width: 0;
+  font-size: 1rem;
 }
 
 .table-filter-popover-email {
@@ -1537,6 +1795,16 @@ label {
   background: transparent;
   font-size: 1rem;
   text-transform: uppercase;
+}
+
+.table-filter-close svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .table-filter-close:hover,
@@ -1728,6 +1996,8 @@ label {
 
 .confirmation-page {
   gap: var(--space-6);
+  width: min(100%, 54rem);
+  margin: 0 auto;
 }
 
 .confirmation-hero {
@@ -2102,6 +2372,9 @@ label {
 
 .loading-page-shell {
   min-height: 12rem;
+  align-content: center;
+  width: min(100%, 36rem);
+  margin: 0 auto;
 }
 
 .loading-overlay {

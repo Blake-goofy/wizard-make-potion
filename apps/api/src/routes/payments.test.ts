@@ -1,6 +1,8 @@
 import Fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { SessionUser } from '@potion/shared';
 import type { AppConfig } from '../config.js';
+import type { AuthService } from '../services/auth.js';
 import type { OrderService } from '../services/orders.js';
 import { registerPaymentRoutes } from './payments.js';
 
@@ -69,7 +71,29 @@ function createOrders(): OrderService {
   } as unknown as OrderService;
 }
 
-async function createServer(config = createConfig(), orders = createOrders()) {
+function createAuth(): AuthService {
+  return {
+    requireUser: vi.fn(async (request) => {
+      const authorization = request.headers.authorization;
+
+      if (authorization === 'Bearer signed-in-token') {
+        return {
+          id: '00000000-0000-4000-8000-000000000099',
+          email: 'member@example.com',
+          displayName: 'Signed In Member',
+          role: 'customer',
+          phoneNumber: '(555) 222-3333',
+          eventReminderOptIn: false,
+          upcomingEventsOptIn: true,
+        } satisfies SessionUser;
+      }
+
+      throw Object.assign(new Error('Sign-in required.'), { statusCode: 401 });
+    }),
+  } as unknown as AuthService;
+}
+
+async function createServer(config = createConfig(), orders = createOrders(), auth = createAuth()) {
   const server = Fastify();
 
   server.setErrorHandler((error, _request, reply) => {
@@ -83,8 +107,8 @@ async function createServer(config = createConfig(), orders = createOrders()) {
     return reply.code(statusCode).send({ message });
   });
 
-  await registerPaymentRoutes(server, { config, orders });
-  return { server, orders };
+  await registerPaymentRoutes(server, { config, auth, orders });
+  return { server, orders, auth };
 }
 
 afterEach(() => {
@@ -163,6 +187,80 @@ describe('payment routes', () => {
       expect(orders.createPendingStripeOrder).toHaveBeenCalledTimes(2);
       expect(orders.createPendingStripeOrder).toHaveBeenNthCalledWith(1, expect.objectContaining({ checkoutIdempotencyKey }));
       expect(orders.createPendingStripeOrder).toHaveBeenNthCalledWith(2, expect.objectContaining({ checkoutIdempotencyKey }));
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('passes guest checkout contact and opt-in fields to pending order creation', async () => {
+    stripeMocks.createCheckoutSession.mockResolvedValue({ id: 'cs_test_checkout', url: 'https://checkout.stripe.test/session' });
+    const { server, orders } = await createServer();
+
+    try {
+      const response = await server.inject({
+        method: 'POST',
+        url: '/api/payments/stripe-checkout',
+        headers: { 'Idempotency-Key': checkoutIdempotencyKey },
+        payload: {
+          eventId,
+          customerEmail: 'guest@example.com',
+          customerName: 'Guest Buyer',
+          customerPhoneNumber: '(555) 123-4567',
+          eventReminderOptIn: true,
+          upcomingEventsOptIn: true,
+          quantity: 1,
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(orders.createPendingStripeOrder).toHaveBeenCalledWith(expect.objectContaining({
+        input: expect.objectContaining({
+          customerName: 'Guest Buyer',
+          customerPhoneNumber: '(555) 123-4567',
+          eventReminderOptIn: true,
+          upcomingEventsOptIn: true,
+        }),
+      }));
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('overrides checkout email and opt-ins from the signed-in account', async () => {
+    stripeMocks.createCheckoutSession.mockResolvedValue({ id: 'cs_test_checkout', url: 'https://checkout.stripe.test/session' });
+    const { server, orders, auth } = await createServer();
+
+    try {
+      const response = await server.inject({
+        method: 'POST',
+        url: '/api/payments/stripe-checkout',
+        headers: {
+          'Idempotency-Key': checkoutIdempotencyKey,
+          Authorization: 'Bearer signed-in-token',
+        },
+        payload: {
+          eventId,
+          customerEmail: 'guest@example.com',
+          eventReminderOptIn: true,
+          upcomingEventsOptIn: false,
+          quantity: 1,
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(auth.requireUser).toHaveBeenCalledTimes(1);
+      expect(orders.quoteOrder).toHaveBeenCalledWith(expect.objectContaining({
+        customerEmail: 'member@example.com',
+        eventReminderOptIn: false,
+        upcomingEventsOptIn: true,
+      }));
+      expect(orders.createPendingStripeOrder).toHaveBeenCalledWith(expect.objectContaining({
+        input: expect.objectContaining({
+          customerEmail: 'member@example.com',
+          eventReminderOptIn: false,
+          upcomingEventsOptIn: true,
+        }),
+      }));
     } finally {
       await server.close();
     }

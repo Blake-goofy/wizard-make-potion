@@ -3,7 +3,9 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import Stripe from 'stripe';
 import { createOrderInputSchema } from '@potion/shared';
 import type { AppConfig } from '../config.js';
+import type { AuthService } from '../services/auth.js';
 import type { OrderService } from '../services/orders.js';
+import { resolveCheckoutInput } from './checkoutInput.js';
 
 const stripeCheckoutUnavailableMessage = 'Could not open Stripe checkout. Please try again.';
 const idempotencyKeyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -81,10 +83,11 @@ function readCheckoutIdempotencyKey(request: FastifyRequest) {
 
 export async function registerPaymentRoutes(
   server: FastifyInstance,
-  deps: { config: AppConfig; orders: OrderService },
+  deps: { config: AppConfig; auth: AuthService; orders: OrderService },
 ) {
   server.post('/api/payments/stripe-checkout', async (request, reply) => {
-    const input = createOrderInputSchema.parse(request.body);
+    const requestedInput = createOrderInputSchema.parse(request.body);
+    const input = await resolveCheckoutInput(request, deps.auth, requestedInput);
     const checkoutIdempotencyKey = readCheckoutIdempotencyKey(request);
     const stripe = getStripe(deps.config);
     const { event, quote } = await deps.orders.quoteOrder(input);

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import LoadingOverlay from '../components/LoadingOverlay';
 import ToastRegion from '../components/ToastRegion';
 import { useToast } from '../hooks/useToast';
@@ -8,11 +8,12 @@ type SalesPageProps = {
   token: string;
 };
 
-type FilterKey = 'email' | 'status' | null;
+type FilterKey = 'status' | null;
 type ArrivalStatus = 'unused' | 'partial' | 'used';
 
 type AdminOrderView = {
   id: string;
+  customerDisplayName: string | null;
   customerEmail: string;
   totalCents: number;
   createdAt: string;
@@ -58,6 +59,12 @@ function buildTicketLink(orderId: string) {
   return `${window.location.origin}/?order=${orderId}`;
 }
 
+function getOrderCustomerLabel(order: Pick<AdminOrderView, 'customerDisplayName' | 'customerEmail'>) {
+  const displayName = order.customerDisplayName?.trim();
+
+  return displayName && displayName.length > 0 ? displayName : order.customerEmail;
+}
+
 export default function SalesPage({ token }: SalesPageProps) {
   const [tickets, setTickets] = useState<AdminTicketView[]>([]);
   const [events, setEvents] = useState<EventView[]>([]);
@@ -65,17 +72,14 @@ export default function SalesPage({ token }: SalesPageProps) {
   const [message, setMessage] = useState('Loading purchased tickets.');
   const [isLoadingTickets, setIsLoadingTickets] = useState(true);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
-  const [emailFilter, setEmailFilter] = useState('');
+  const [nameFilter, setNameFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<Record<ArrivalStatus, boolean>>({
     unused: true,
     partial: true,
     used: true,
   });
   const [openFilter, setOpenFilter] = useState<FilterKey>(null);
-  const [emailPopoverWidth, setEmailPopoverWidth] = useState<number | null>(null);
-  const tableShellRef = useRef<HTMLDivElement | null>(null);
-  const emailFilterRef = useRef<HTMLDivElement | null>(null);
-  const emailFilterInputRef = useRef<HTMLInputElement | null>(null);
+  const nameFilterInputRef = useRef<HTMLInputElement | null>(null);
   const statusFilterRef = useRef<HTMLDivElement | null>(null);
   const {
     toastMessage,
@@ -137,16 +141,14 @@ export default function SalesPage({ token }: SalesPageProps) {
   }, [isLoadingEvents, selectedEventId, token]);
 
   useEffect(() => {
-    if (!openFilter) return;
+    if (openFilter !== 'status') return;
 
     function handlePointerDown(event: PointerEvent) {
       const target = event.target;
 
       if (!(target instanceof Node)) return;
 
-      const activeFilterRef = openFilter === 'email' ? emailFilterRef : statusFilterRef;
-
-      if (activeFilterRef.current?.contains(target)) return;
+      if (statusFilterRef.current?.contains(target)) return;
 
       setOpenFilter(null);
     }
@@ -161,62 +163,6 @@ export default function SalesPage({ token }: SalesPageProps) {
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown, true);
       window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [openFilter]);
-
-  useEffect(() => {
-    if (openFilter !== 'email') return;
-
-    const input = emailFilterInputRef.current;
-
-    if (!input || emailFilter.length === 0) return;
-
-    const frame = window.requestAnimationFrame(() => {
-      input.focus();
-      input.select();
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [openFilter]);
-
-  useLayoutEffect(() => {
-    if (openFilter !== 'email') {
-      setEmailPopoverWidth(null);
-      return;
-    }
-
-    const tableShell = tableShellRef.current;
-    const emailFilter = emailFilterRef.current;
-
-    if (!tableShell || !emailFilter) return;
-
-    function updateEmailPopoverWidth() {
-      const currentTableShell = tableShellRef.current;
-      const currentEmailFilter = emailFilterRef.current;
-
-      if (!currentTableShell || !currentEmailFilter) return;
-
-      const shellBounds = currentTableShell.getBoundingClientRect();
-      const filterBounds = currentEmailFilter.getBoundingClientRect();
-      const availableWidth = Math.floor(shellBounds.right - filterBounds.left);
-
-      setEmailPopoverWidth(availableWidth > 0 ? availableWidth : null);
-    }
-
-    updateEmailPopoverWidth();
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateEmailPopoverWidth();
-    });
-
-    resizeObserver.observe(tableShell);
-    window.addEventListener('resize', updateEmailPopoverWidth);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateEmailPopoverWidth);
     };
   }, [openFilter]);
 
@@ -236,6 +182,7 @@ export default function SalesPage({ token }: SalesPageProps) {
 
       ordersById.set(ticket.orderId, {
         id: ticket.orderId,
+        customerDisplayName: ticket.customerDisplayName,
         customerEmail: ticket.customerEmail,
         totalCents: ticket.totalCents,
         createdAt: ticket.createdAt,
@@ -250,16 +197,16 @@ export default function SalesPage({ token }: SalesPageProps) {
   }, [tickets]);
 
   const filteredOrders = useMemo(() => {
-    const normalizedEmailFilter = emailFilter.trim().toLowerCase();
+    const normalizedNameFilter = nameFilter.trim().toLowerCase();
 
     return orders.filter((order) => {
-      const matchesEmail =
-        normalizedEmailFilter.length === 0 || order.customerEmail.toLowerCase().includes(normalizedEmailFilter);
+      const matchesName =
+        normalizedNameFilter.length === 0 || getOrderCustomerLabel(order).toLowerCase().includes(normalizedNameFilter);
       const matchesStatus = statusFilter[getOrderArrivalStatus(order)];
 
-      return matchesEmail && matchesStatus;
+      return matchesName && matchesStatus;
     });
-  }, [emailFilter, orders, statusFilter]);
+  }, [nameFilter, orders, statusFilter]);
 
   const filteredSummary = useMemo(
     () => {
@@ -320,9 +267,9 @@ export default function SalesPage({ token }: SalesPageProps) {
     window.location.assign(buildTicketLink(orderId));
   }
 
-  function clearEmailFilter() {
-    setEmailFilter('');
-    emailFilterInputRef.current?.focus();
+  function clearNameFilter() {
+    setNameFilter('');
+    nameFilterInputRef.current?.focus();
   }
 
   return (
@@ -357,61 +304,24 @@ export default function SalesPage({ token }: SalesPageProps) {
           </select>
         </label>
       </div>
-      <div className="ticket-sales-table-shell" ref={tableShellRef}>
+      <div className="ticket-sales-table-shell">
         <table className="ticket-sales-table">
           <thead>
             <tr>
               <th scope="col">
-                <div className="ticket-sales-filter" ref={emailFilterRef}>
-                  <button
-                    aria-expanded={openFilter === 'email'}
-                    className={`ticket-sales-filter-button${emailFilter ? ' has-value' : ''}`}
-                    type="button"
-                    onClick={() => toggleFilter('email')}
-                  >
-                    Email
-                  </button>
-                  {openFilter === 'email' ? (
-                    <div
-                      aria-label="Filter by email"
-                      className="table-filter-popover table-filter-popover-email"
-                      role="dialog"
-                      style={
-                        emailPopoverWidth
-                          ? {
-                              width: `${Math.min(emailPopoverWidth, 384)}px`,
-                              maxWidth: `${emailPopoverWidth}px`,
-                            }
-                          : undefined
-                      }
-                    >
-                      <div className="table-filter-popover-header">
-                        <strong>Email filter</strong>
-                        <button
-                          aria-label="Close email filter"
-                          className="table-filter-close"
-                          type="button"
-                          onClick={() => setOpenFilter(null)}
-                        >
-                          x
-                        </button>
-                      </div>
-                      <div className={`table-filter-input-shell${emailFilter ? ' has-action' : ''}`}>
-                        <input
-                          autoFocus
-                          ref={emailFilterInputRef}
-                          placeholder="Contains email"
-                          type="text"
-                          value={emailFilter}
-                          onChange={(event) => setEmailFilter(event.target.value)}
-                        />
-                        {emailFilter ? (
-                          <button className="table-filter-input-action" type="button" onClick={clearEmailFilter}>
-                            Clear
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
+                <div className={`ticket-sales-name-filter table-filter-input-shell${nameFilter ? ' has-action' : ''}`}>
+                  <input
+                    aria-label="Search name"
+                    ref={nameFilterInputRef}
+                    placeholder="Search name"
+                    type="text"
+                    value={nameFilter}
+                    onChange={(event) => setNameFilter(event.target.value)}
+                  />
+                  {nameFilter ? (
+                    <button className="table-filter-input-action" type="button" onClick={clearNameFilter}>
+                      Clear
+                    </button>
                   ) : null}
                 </div>
               </th>
@@ -438,7 +348,10 @@ export default function SalesPage({ token }: SalesPageProps) {
                           type="button"
                           onClick={() => setOpenFilter(null)}
                         >
-                          x
+                          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M6 6 18 18" />
+                            <path d="M18 6 6 18" />
+                          </svg>
                         </button>
                       </div>
                       <label className="table-filter-checkbox">
@@ -501,7 +414,7 @@ export default function SalesPage({ token }: SalesPageProps) {
                       }
                     }}
                   >
-                    <td className="ticket-sales-cell-primary" title={order.customerEmail}>{order.customerEmail}</td>
+                    <td className="ticket-sales-cell-primary" title={getOrderCustomerLabel(order)}>{getOrderCustomerLabel(order)}</td>
                     <td className="ticket-sales-cell-metric">{order.ticketCount}</td>
                     <td className="ticket-sales-status-cell" rowSpan={2}>
                       <span

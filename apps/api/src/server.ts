@@ -128,7 +128,7 @@ export async function buildServer(config: AppConfig) {
   await registerHealthRoutes(server, { db });
   await registerAccountRoutes(server, { auth });
   await registerEventRoutes(server, { db, appSettings });
-  await registerPaymentRoutes(server, { config, orders });
+  await registerPaymentRoutes(server, { config, auth, orders });
   await registerOrderRoutes(server, { auth, orders });
   await registerScannerRoutes(server, { scanner, auth, appSettings });
   await registerAdminRoutes(server, { auth, db, emailQueue, scanner });

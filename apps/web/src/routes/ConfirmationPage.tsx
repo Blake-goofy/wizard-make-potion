@@ -216,9 +216,6 @@ export default function ConfirmationPage({ orderId, token, user, onBackToSales }
         {order ? (
           <>
             <div className="confirmation-hero">
-              <div className="confirmation-status-row">
-                <p className="eyebrow">{order.status === 'pending' ? 'Processing' : 'Order Confirmed'}</p>
-              </div>
               <h1>{order.status === 'pending' ? 'Preparing your tickets' : "You're all set"}</h1>
               <div className="confirmation-event-block">
                 <strong>{order.eventName}</strong>

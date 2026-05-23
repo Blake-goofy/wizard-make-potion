@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import type { SessionUser } from '@potion/shared';
 import ButtonArrowIcon from '../components/ButtonArrowIcon';
 import LoadingOverlay from '../components/LoadingOverlay';
+import { PhoneNumberInput, createPhoneMask, getPhoneDigits, getStoredPhoneNumber } from '../components/PhoneNumberInput';
 import ToastRegion from '../components/ToastRegion';
 import { useToast } from '../hooks/useToast';
 import { createStripeCheckout, type EventView, getActiveEvent } from '../lib/api';
@@ -10,12 +10,9 @@ function formatCurrency(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 }
 
-type HomePageProps = {
-  token: string | null;
-  user: SessionUser | null;
-  onCreateAccount: () => void;
-  onContinueAsGuest: () => void;
-};
+function formatEventDate(value: string) {
+  return new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(value));
+}
 
 function OrderSummary({ event, quantity }: { event: EventView; quantity: number }) {
   const subtotalCents = event.ticketPriceCents * quantity;
@@ -44,8 +41,13 @@ function OrderSummary({ event, quantity }: { event: EventView; quantity: number 
   );
 }
 
-export function HomePage({ token, user, onCreateAccount, onContinueAsGuest }: HomePageProps) {
+export default function GuestCheckoutPage() {
   const [event, setEvent] = useState<EventView | null>(null);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(''));
+  const [eventReminderOptIn, setEventReminderOptIn] = useState(true);
+  const [upcomingEventsOptIn, setUpcomingEventsOptIn] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [status, setStatus] = useState('');
   const [isLoadingEvent, setIsLoadingEvent] = useState(true);
@@ -92,7 +94,21 @@ export function HomePage({ token, user, onCreateAccount, onContinueAsGuest }: Ho
 
   async function handleSubmit(formEvent: FormEvent) {
     formEvent.preventDefault();
-    if (!event || !user || checkoutAttemptIdRef.current) return;
+    if (!event || checkoutAttemptIdRef.current) return;
+
+    const digits = getPhoneDigits(phoneNumber);
+    const customerPhoneNumber = getStoredPhoneNumber(phoneNumber);
+    const customerName = name.trim();
+
+    if (!customerName) {
+      showToast('Enter your name.', 'error');
+      return;
+    }
+
+    if (digits.length > 0 && digits.length !== 10) {
+      showToast('Enter a 10-digit phone number.', 'error');
+      return;
+    }
 
     const checkoutAttemptId = crypto.randomUUID();
     checkoutAttemptIdRef.current = checkoutAttemptId;
@@ -100,7 +116,15 @@ export function HomePage({ token, user, onCreateAccount, onContinueAsGuest }: Ho
     setStatus('');
 
     try {
-      const result = await createStripeCheckout({ eventId: event.id, customerEmail: user.email, quantity }, checkoutAttemptId, token);
+      const result = await createStripeCheckout({
+        eventId: event.id,
+        customerEmail: email,
+        customerName,
+        customerPhoneNumber: customerPhoneNumber || undefined,
+        eventReminderOptIn,
+        upcomingEventsOptIn,
+        quantity,
+      }, checkoutAttemptId);
       window.location.assign(result.checkoutUrl);
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Could not open Stripe checkout.', 'error');
@@ -137,29 +161,49 @@ export function HomePage({ token, user, onCreateAccount, onContinueAsGuest }: Ho
 
   return (
     <>
-    <ToastRegion
-      message={toastMessage}
-      tone={toastTone}
-      version={toastVersion}
-      isClosing={isToastClosing}
-      onDismiss={dismissToast}
-      onTouchStart={handleToastTouchStart}
-      onTouchEnd={handleToastTouchEnd}
-      onTouchCancel={handleToastTouchCancel}
-    />
-    <section className="purchase-layout">
-      <div className="event-summary">
-        <h1>{event.name}</h1>
-        <div className="event-logistics">
-          <p className="event-date">{new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(event.startsAt))}</p>
-          <p className="event-address">{event.address}</p>
+      <ToastRegion
+        message={toastMessage}
+        tone={toastTone}
+        version={toastVersion}
+        isClosing={isToastClosing}
+        onDismiss={dismissToast}
+        onTouchStart={handleToastTouchStart}
+        onTouchEnd={handleToastTouchEnd}
+        onTouchCancel={handleToastTouchCancel}
+      />
+      <section className="guest-checkout-panel">
+        <div className="guest-checkout-event">
+          <p className="eyebrow">Checkout</p>
+          <h1>{event.name}</h1>
+          <p>{formatEventDate(event.startsAt)}</p>
+          <p>{event.address}</p>
         </div>
-        {event.description ? <p className="event-description">{event.description}</p> : null}
-        {!user ? <p className="event-ticket-price">{formatCurrency(event.ticketPriceCents)} per ticket</p> : null}
-      </div>
-
-      {user ? (
-        <form className="purchase-form" onSubmit={handleSubmit}>
+        <form className="stack-form guest-checkout-form" onSubmit={handleSubmit}>
+          <label>
+            Name
+            <input required value={name} onChange={(event) => setName(event.target.value)} />
+          </label>
+          <label>
+            Email
+            <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+          </label>
+          <PhoneNumberInput label="Phone Number (Optional)" value={phoneNumber} onChange={setPhoneNumber} />
+          <label className="checkout-checkbox">
+            <input
+              type="checkbox"
+              checked={eventReminderOptIn}
+              onChange={(event) => setEventReminderOptIn(event.target.checked)}
+            />
+            <span>Send reminders about this event</span>
+          </label>
+          <label className="checkout-checkbox">
+            <input
+              type="checkbox"
+              checked={upcomingEventsOptIn}
+              onChange={(event) => setUpcomingEventsOptIn(event.target.checked)}
+            />
+            <span>Alert me about other upcoming events</span>
+          </label>
           <label className="purchase-quantity-field">
             Quantity
             <select value={quantity} onChange={(event) => setQuantity(Number(event.target.value))}>
@@ -171,25 +215,14 @@ export function HomePage({ token, user, onCreateAccount, onContinueAsGuest }: Ho
             </select>
           </label>
           <OrderSummary event={event} quantity={quantity} />
-          <button className="stripe-checkout-button" type="submit" disabled={isSubmitting}>
+          <button className="stripe-checkout-button primary-button" type="submit" disabled={isSubmitting}>
             {isSubmitting ? <span aria-hidden="true" className="stripe-checkout-spinner" /> : null}
             <span>{isSubmitting ? 'Opening Stripe' : 'Pay With Stripe'}</span>
             {!isSubmitting ? <ButtonArrowIcon /> : null}
           </button>
         </form>
-      ) : (
-        <div className="purchase-form guest-choice-panel">
-          <button className="primary-button button-with-arrow" type="button" onClick={onCreateAccount}>
-            <span>Create account to buy tickets</span>
-            <ButtonArrowIcon />
-          </button>
-          <button className="text-button" type="button" onClick={onContinueAsGuest}>
-            Continue as guest
-          </button>
-        </div>
-      )}
-    </section>
-    {isSubmitting ? <LoadingOverlay label="Opening Stripe" detail="Sending your order details to checkout." variant="purchase" /> : null}
+      </section>
+      {isSubmitting ? <LoadingOverlay label="Opening Stripe" detail="Sending your order details to checkout." variant="purchase" /> : null}
     </>
   );
 }

@@ -110,7 +110,13 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
 
   async function findSessionUser(userId: string) {
     const result = await db.query(
-      `select id, email, display_name as "displayName", role, phone_number as "phoneNumber"
+      `select id,
+              email,
+              display_name as "displayName",
+              role,
+              phone_number as "phoneNumber",
+              event_reminder_opt_in as "eventReminderOptIn",
+              upcoming_events_opt_in as "upcomingEventsOptIn"
        from users
        where id = $1 and is_active = true`,
       [userId],
@@ -157,13 +163,24 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
       const passwordHash = hashPassword(input.password);
       const codeHash = hashVerificationCode(email, code);
       const phoneNumber = input.phoneNumber?.trim() || null;
+      const eventReminderOptIn = input.eventReminderOptIn;
+      const upcomingEventsOptIn = input.upcomingEventsOptIn;
       const verificationEmail = renderAccountVerificationEmail({ code });
 
       await db.transaction(async (client) => {
         await client.query(
-          `insert into account_verification_codes (email, display_name, password_hash, code_hash, phone_number, expires_at)
-           values ($1, $2, $3, $4, $5, now() + interval '15 minutes')`,
-          [email, input.displayName.trim(), passwordHash, codeHash, phoneNumber],
+          `insert into account_verification_codes (
+             email,
+             display_name,
+             password_hash,
+             code_hash,
+             phone_number,
+             event_reminder_opt_in,
+             upcoming_events_opt_in,
+             expires_at
+           )
+           values ($1, $2, $3, $4, $5, $6, $7, now() + interval '15 minutes')`,
+          [email, input.displayName.trim(), passwordHash, codeHash, phoneNumber, eventReminderOptIn, upcomingEventsOptIn],
         );
 
         await client.query(
@@ -186,7 +203,13 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
     async verifyAccount(input: VerifyAccountInput) {
       const email = normalizeEmail(input.email);
       const result = await db.query(
-        `select id, display_name as "displayName", password_hash as "passwordHash", code_hash as "codeHash", phone_number as "phoneNumber"
+        `select id,
+          display_name as "displayName",
+          password_hash as "passwordHash",
+          code_hash as "codeHash",
+          phone_number as "phoneNumber",
+          event_reminder_opt_in as "eventReminderOptIn",
+          upcoming_events_opt_in as "upcomingEventsOptIn"
          from account_verification_codes
          where lower(email) = $1 and consumed_at is null and expires_at > now()
          order by created_at desc
@@ -202,16 +225,40 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
       const userResult = await db.transaction(async (client) => {
         await client.query(`update account_verification_codes set consumed_at = now() where id = $1`, [pendingAccount.id]);
         const verified = await client.query(
-          `insert into users (email, display_name, role, password_hash, phone_number, is_active)
-           values ($1, $2, 'customer', $3, $4, true)
+          `insert into users (
+             email,
+             display_name,
+             role,
+             password_hash,
+             phone_number,
+             event_reminder_opt_in,
+             upcoming_events_opt_in,
+             is_active
+           )
+           values ($1, $2, 'customer', $3, $4, $5, $6, true)
            on conflict (email) do update
            set display_name = excluded.display_name,
                password_hash = excluded.password_hash,
                phone_number = excluded.phone_number,
+               event_reminder_opt_in = excluded.event_reminder_opt_in,
+               upcoming_events_opt_in = excluded.upcoming_events_opt_in,
                is_active = true,
                updated_at = now()
-           returning id, email, display_name as "displayName", role, phone_number as "phoneNumber"`,
-          [email, pendingAccount.displayName, pendingAccount.passwordHash, pendingAccount.phoneNumber],
+           returning id,
+                     email,
+                     display_name as "displayName",
+                     role,
+                     phone_number as "phoneNumber",
+                     event_reminder_opt_in as "eventReminderOptIn",
+                     upcoming_events_opt_in as "upcomingEventsOptIn"`,
+          [
+            email,
+            pendingAccount.displayName,
+            pendingAccount.passwordHash,
+            pendingAccount.phoneNumber,
+            pendingAccount.eventReminderOptIn,
+            pendingAccount.upcomingEventsOptIn,
+          ],
         );
         return verified.rows[0];
       });
@@ -223,7 +270,14 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
     async login(input: LoginInput) {
       const email = normalizeEmail(input.email);
       const result = await db.query(
-        `select id, email, display_name as "displayName", role, phone_number as "phoneNumber", password_hash as "passwordHash"
+        `select id,
+                email,
+                display_name as "displayName",
+                role,
+                phone_number as "phoneNumber",
+                event_reminder_opt_in as "eventReminderOptIn",
+                upcoming_events_opt_in as "upcomingEventsOptIn",
+                password_hash as "passwordHash"
          from users
          where lower(email) = lower($1) and is_active = true`,
         [email],
@@ -370,10 +424,18 @@ export function createAuthService(config: AppConfig, db: Database, emailQueue: E
         `update users
          set display_name = $2,
              phone_number = $3,
+             event_reminder_opt_in = $4,
+             upcoming_events_opt_in = $5,
              updated_at = now()
          where id = $1 and is_active = true
-         returning id, email, display_name as "displayName", role, phone_number as "phoneNumber"`,
-        [user.id, nextDisplayName, input.phoneNumber],
+         returning id,
+                   email,
+                   display_name as "displayName",
+                   role,
+                   phone_number as "phoneNumber",
+                   event_reminder_opt_in as "eventReminderOptIn",
+                   upcoming_events_opt_in as "upcomingEventsOptIn"`,
+        [user.id, nextDisplayName, input.phoneNumber, input.eventReminderOptIn, input.upcomingEventsOptIn],
       );
 
       const updatedUser = result.rows[0];
