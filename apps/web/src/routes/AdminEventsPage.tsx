@@ -241,11 +241,6 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
       />
       <section className="content-panel admin-events-panel">
         <section className="stack-form admin-events-form" aria-label="Event management">
-          <div className="admin-events-header">
-            <h1>Event Management</h1>
-            <p className="status-text">Create new events or update the event details used by reminder messages.</p>
-          </div>
-
           <div className="admin-events-mode-row">
             <label>
               Event
