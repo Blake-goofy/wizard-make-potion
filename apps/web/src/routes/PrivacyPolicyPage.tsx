@@ -42,7 +42,7 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2>Your Choices</h2>
           <p>
-            You can choose whether to receive text messages by leaving SMS checkboxes unchecked, updating your account
+            You can choose whether to receive text messages by leaving the SMS checkbox unchecked, updating your account
             preferences, or replying STOP to any text message. You can reply HELP for assistance.
           </p>
         </section>
@@ -56,8 +56,8 @@ export default function PrivacyPolicyPage() {
       </div>
 
       <nav className="legal-page-links" aria-label="Policy navigation">
-        <a href="#terms-and-conditions">View Terms and Conditions</a>
-        <a href="#">Back to Home</a>
+        <a href="/terms-and-conditions">View Terms and Conditions</a>
+        <a href="/events">Back to Events</a>
       </nav>
     </section>
   );

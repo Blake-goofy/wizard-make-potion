@@ -14,15 +14,13 @@ export async function resolveCheckoutInput(request: FastifyRequest, auth: AuthSe
 
   const user = await auth.requireUser(request);
   const hasVerifiedPhone = Boolean(user.phoneNumber && user.phoneVerifiedAt);
-  const eventReminderOptIn = hasVerifiedPhone ? user.eventReminderOptIn : false;
-  const upcomingEventsOptIn = hasVerifiedPhone ? user.upcomingEventsOptIn : false;
+  const smsOptIn = hasVerifiedPhone ? user.smsOptIn : false;
 
   return {
     ...input,
     customerEmail: user.email,
     customerName: user.displayName,
     customerPhoneNumber: user.phoneNumber ?? undefined,
-    eventReminderOptIn,
-    upcomingEventsOptIn,
+    smsOptIn,
   };
 }

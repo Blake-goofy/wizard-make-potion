@@ -15,8 +15,8 @@ function createAuth(): AuthService {
           displayName: 'Signed In Member',
           role: 'customer',
           phoneNumber: '(555) 222-3333',
-          eventReminderOptIn: false,
-          upcomingEventsOptIn: true,
+          phoneVerifiedAt: '2026-05-23T12:00:00.000Z',
+          smsOptIn: true,
         } satisfies SessionUser;
       }
 
@@ -49,7 +49,7 @@ async function createServer(auth = createAuth(), orders = createOrders()) {
 }
 
 describe('order routes', () => {
-  it('overrides dev-complete checkout email and opt-ins from the signed-in account', async () => {
+  it('overrides dev-complete checkout email and SMS consent from the signed-in account', async () => {
     const { server, auth, orders } = await createServer();
 
     try {
@@ -60,8 +60,7 @@ describe('order routes', () => {
         payload: {
           eventId: '00000000-0000-4000-8000-000000000001',
           customerEmail: 'guest@example.com',
-          eventReminderOptIn: true,
-          upcomingEventsOptIn: false,
+          smsOptIn: false,
           quantity: 1,
         },
       });
@@ -70,8 +69,7 @@ describe('order routes', () => {
       expect(auth.requireUser).toHaveBeenCalledTimes(1);
       expect(orders.createDevCompletedOrder).toHaveBeenCalledWith(expect.objectContaining({
         customerEmail: 'member@example.com',
-        eventReminderOptIn: false,
-        upcomingEventsOptIn: true,
+        smsOptIn: true,
       }));
     } finally {
       await server.close();

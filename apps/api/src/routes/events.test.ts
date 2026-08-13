@@ -52,4 +52,62 @@ describe('event routes', () => {
       await server.close();
     }
   });
+
+  it('lists active events in date order', async () => {
+    const db = createDb([{
+      id: '00000000-0000-4000-8000-000000000001',
+      slug: 'test-event',
+      name: 'Potion Night',
+      startsAt: '2026-05-22T18:00:00.000Z',
+      address: '123 Test Lane',
+      description: null,
+      ticketPriceCents: 2500,
+      taxRateBps: 900,
+      minTicketsPerOrder: 1,
+      maxTicketsPerOrder: 8,
+      isActive: true,
+    }]);
+    const server = Fastify();
+
+    await registerEventRoutes(server, { db: db as never, appSettings: createAppSettings() as never });
+
+    try {
+      const response = await server.inject({ method: 'GET', url: '/api/events' });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ events: [expect.objectContaining({ slug: 'test-event' })] });
+      expect(db.query).toHaveBeenCalledWith(expect.stringContaining('order by starts_at asc'), [expect.any(String)]);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('looks up an active event by slug', async () => {
+    const db = createDb([{
+      id: '00000000-0000-4000-8000-000000000001',
+      slug: 'test-event',
+      name: 'Potion Night',
+      startsAt: '2026-05-22T18:00:00.000Z',
+      address: '123 Test Lane',
+      description: null,
+      ticketPriceCents: 2500,
+      taxRateBps: 900,
+      minTicketsPerOrder: 1,
+      maxTicketsPerOrder: 8,
+      isActive: true,
+    }]);
+    const server = Fastify();
+
+    await registerEventRoutes(server, { db: db as never, appSettings: createAppSettings() as never });
+
+    try {
+      const response = await server.inject({ method: 'GET', url: '/api/events/test-event' });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ event: expect.objectContaining({ slug: 'test-event' }) });
+      expect(db.query).toHaveBeenCalledWith(expect.stringContaining('where slug = $1'), ['test-event', expect.any(String)]);
+    } finally {
+      await server.close();
+    }
+  });
 });

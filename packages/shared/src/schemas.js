@@ -27,7 +27,7 @@ const phoneNumberSchema = z
     .trim()
     .regex(/^\(\d{3}\) \d{3}-\d{4}$/);
 function hasSmsAlertsEnabled(value) {
-    return Boolean(value.eventReminderOptIn || value.upcomingEventsOptIn);
+    return Boolean(value.smsOptIn);
 }
 function addSmsPhoneRequirement(schema, phoneField) {
     return schema.superRefine((value, ctx) => {
@@ -44,12 +44,9 @@ function addSmsPhoneRequirement(schema, phoneField) {
     });
 }
 const notificationPreferenceInputShape = {
-    eventReminderOptIn: z.boolean(),
-    upcomingEventsOptIn: z.boolean(),
+    smsOptIn: z.boolean(),
 };
 const notificationPreferenceOutputShape = {
-    eventReminderOptIn: z.boolean(),
-    upcomingEventsOptIn: z.boolean(),
     smsOptIn: z.boolean(),
 };
 export const adminEventCreateInputSchema = adminEventBaseInputSchema;
@@ -61,8 +58,7 @@ export const createOrderRequestSchema = z.object({
     customerEmail: z.string().email(),
     customerName: z.string().trim().min(1).max(120).optional(),
     customerPhoneNumber: phoneNumberSchema.optional(),
-    eventReminderOptIn: notificationPreferenceInputShape.eventReminderOptIn.optional(),
-    upcomingEventsOptIn: notificationPreferenceInputShape.upcomingEventsOptIn.optional(),
+    smsOptIn: notificationPreferenceInputShape.smsOptIn.optional(),
     quantity: z.number().int().positive(),
 });
 export const createOrderInputSchema = addSmsPhoneRequirement(createOrderRequestSchema, 'customerPhoneNumber');

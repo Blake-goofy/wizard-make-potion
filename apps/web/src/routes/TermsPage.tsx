@@ -57,8 +57,8 @@ export default function TermsPage() {
       </div>
 
       <nav className="legal-page-links" aria-label="Policy navigation">
-        <a href="#privacy-policy">View Privacy Policy</a>
-        <a href="#">Back to Home</a>
+        <a href="/privacy-policy">View Privacy Policy</a>
+        <a href="/events">Back to Events</a>
       </nav>
     </section>
   );

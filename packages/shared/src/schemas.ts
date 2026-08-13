@@ -32,14 +32,13 @@ const phoneNumberSchema = z
   .regex(/^\(\d{3}\) \d{3}-\d{4}$/);
 
 type SmsPhoneValue = {
-  eventReminderOptIn?: boolean;
-  upcomingEventsOptIn?: boolean;
+  smsOptIn?: boolean;
   phoneNumber?: string | null;
   customerPhoneNumber?: string | null;
 };
 
 function hasSmsAlertsEnabled(value: SmsPhoneValue) {
-  return Boolean(value.eventReminderOptIn || value.upcomingEventsOptIn);
+  return Boolean(value.smsOptIn);
 }
 
 function addSmsPhoneRequirement<T extends z.ZodRawShape>(schema: z.ZodObject<T>, phoneField: 'phoneNumber' | 'customerPhoneNumber') {
@@ -59,13 +58,10 @@ function addSmsPhoneRequirement<T extends z.ZodRawShape>(schema: z.ZodObject<T>,
 }
 
 const notificationPreferenceInputShape = {
-  eventReminderOptIn: z.boolean(),
-  upcomingEventsOptIn: z.boolean(),
+  smsOptIn: z.boolean(),
 };
 
 const notificationPreferenceOutputShape = {
-  eventReminderOptIn: z.boolean(),
-  upcomingEventsOptIn: z.boolean(),
   smsOptIn: z.boolean(),
 };
 
@@ -80,8 +76,7 @@ export const createOrderRequestSchema = z.object({
   customerEmail: z.string().email(),
   customerName: z.string().trim().min(1).max(120).optional(),
   customerPhoneNumber: phoneNumberSchema.optional(),
-  eventReminderOptIn: notificationPreferenceInputShape.eventReminderOptIn.optional(),
-  upcomingEventsOptIn: notificationPreferenceInputShape.upcomingEventsOptIn.optional(),
+  smsOptIn: notificationPreferenceInputShape.smsOptIn.optional(),
   quantity: z.number().int().positive(),
 });
 

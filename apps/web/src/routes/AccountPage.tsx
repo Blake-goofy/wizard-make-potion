@@ -39,13 +39,11 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
   const [profile, setProfile] = useState<AccountProfile | null>(user);
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(user?.phoneNumber));
-  const [eventReminderOptIn, setEventReminderOptIn] = useState(user?.eventReminderOptIn ?? false);
-  const [upcomingEventsOptIn, setUpcomingEventsOptIn] = useState(user?.upcomingEventsOptIn ?? false);
+  const [smsOptIn, setSmsOptIn] = useState(user?.smsOptIn ?? false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phoneVerificationCode, setPhoneVerificationCode] = useState('');
-  const [phoneVerificationDestination, setPhoneVerificationDestination] = useState(user?.phoneNumber ?? '');
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -67,8 +65,6 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
   const isDeletingRef = useRef(false);
   const persistedDisplayName = profile?.displayName ?? '';
   const persistedPhoneNumber = createPhoneMask(profile?.phoneNumber);
-  const persistedEventReminderOptIn = profile?.eventReminderOptIn ?? false;
-  const persistedUpcomingEventsOptIn = profile?.upcomingEventsOptIn ?? false;
   const isDisplayNameDirty = displayName.trim() !== persistedDisplayName;
   const isPhoneNumberDirty = phoneNumber !== persistedPhoneNumber;
   const hasSavedPhoneNumber = Boolean(profile?.phoneNumber);
@@ -139,9 +135,7 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     setProfile(user);
     setDisplayName(user.displayName);
     setPhoneNumber(createPhoneMask(user.phoneNumber));
-    setPhoneVerificationDestination(user.phoneNumber ?? '');
-    setEventReminderOptIn(user.eventReminderOptIn);
-    setUpcomingEventsOptIn(user.upcomingEventsOptIn);
+    setSmsOptIn(user.smsOptIn);
   }, [user]);
 
   useEffect(() => {
@@ -155,9 +149,7 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
         setProfile(result.account);
         setDisplayName(result.account.displayName);
         setPhoneNumber(createPhoneMask(result.account.phoneNumber));
-        setPhoneVerificationDestination(result.account.phoneNumber ?? '');
-        setEventReminderOptIn(result.account.eventReminderOptIn);
-        setUpcomingEventsOptIn(result.account.upcomingEventsOptIn);
+        setSmsOptIn(result.account.smsOptIn);
       })
       .catch((error) => {
         if (!isCurrent) return;
@@ -204,14 +196,12 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
       setPhoneVerificationCode('');
     }
 
-    setPhoneVerificationDestination(profile?.phoneNumber ?? '');
   }, [profile?.phoneNumber, profile?.phoneVerifiedAt]);
 
   async function saveAccountChanges(nextValues: {
     displayName?: string;
     phoneNumber?: string | null;
-    eventReminderOptIn?: boolean;
-    upcomingEventsOptIn?: boolean;
+    smsOptIn?: boolean;
   }) {
     if (!profile) {
       return null;
@@ -221,8 +211,7 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
       {
         displayName: nextValues.displayName ?? profile.displayName,
         phoneNumber: nextValues.phoneNumber === undefined ? profile.phoneNumber : nextValues.phoneNumber,
-        eventReminderOptIn: nextValues.eventReminderOptIn ?? profile.eventReminderOptIn,
-        upcomingEventsOptIn: nextValues.upcomingEventsOptIn ?? profile.upcomingEventsOptIn,
+        smsOptIn: nextValues.smsOptIn ?? profile.smsOptIn,
       },
       token,
     );
@@ -287,15 +276,12 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
       const isRemovingPhoneNumber = !nextPhoneNumber;
       const account = await saveAccountChanges({
         phoneNumber: nextPhoneNumber ? nextPhoneNumber : null,
-        eventReminderOptIn: isRemovingPhoneNumber ? false : undefined,
-        upcomingEventsOptIn: isRemovingPhoneNumber ? false : undefined,
+        smsOptIn: isRemovingPhoneNumber ? false : undefined,
       });
 
       if (account) {
         setPhoneNumber(createPhoneMask(account.phoneNumber));
-        setPhoneVerificationDestination(account.phoneNumber ?? '');
-        setEventReminderOptIn(account.eventReminderOptIn);
-        setUpcomingEventsOptIn(account.upcomingEventsOptIn);
+        setSmsOptIn(account.smsOptIn);
         setHasRequestedPhoneVerification(false);
         setPhoneVerificationCode('');
       }
@@ -343,31 +329,26 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     }
   }
 
-  async function handleSavePreferences(nextValues: { eventReminderOptIn: boolean; upcomingEventsOptIn: boolean }) {
+  async function handleSavePreferences(nextSmsOptIn: boolean) {
     if (!profile) {
       return;
     }
 
     if (isSavingRef.current) return;
 
-    const previousEventReminderOptIn = eventReminderOptIn;
-    const previousUpcomingEventsOptIn = upcomingEventsOptIn;
-    const wantsSmsAlerts = nextValues.eventReminderOptIn || nextValues.upcomingEventsOptIn;
+    const previousSmsOptIn = smsOptIn;
 
-    setEventReminderOptIn(nextValues.eventReminderOptIn);
-    setUpcomingEventsOptIn(nextValues.upcomingEventsOptIn);
+    setSmsOptIn(nextSmsOptIn);
 
-    if (wantsSmsAlerts && isPhoneNumberDirty) {
+    if (nextSmsOptIn && isPhoneNumberDirty) {
       showToast('Save your phone number before enabling text alerts.', 'error');
-      setEventReminderOptIn(previousEventReminderOptIn);
-      setUpcomingEventsOptIn(previousUpcomingEventsOptIn);
+      setSmsOptIn(previousSmsOptIn);
       return;
     }
 
-    if (wantsSmsAlerts && !profile.phoneNumber) {
+    if (nextSmsOptIn && !profile.phoneNumber) {
       showToast('Add a phone number before enabling text alerts.', 'error');
-      setEventReminderOptIn(previousEventReminderOptIn);
-      setUpcomingEventsOptIn(previousUpcomingEventsOptIn);
+      setSmsOptIn(previousSmsOptIn);
       return;
     }
 
@@ -375,22 +356,20 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
     setIsSaving(true);
 
     try {
-      const account = await saveAccountChanges(nextValues);
+      const account = await saveAccountChanges({ smsOptIn: nextSmsOptIn });
 
       if (account) {
-        setEventReminderOptIn(account.eventReminderOptIn);
-        setUpcomingEventsOptIn(account.upcomingEventsOptIn);
+        setSmsOptIn(account.smsOptIn);
       }
 
       showToast(
-        wantsSmsAlerts && !account?.phoneVerifiedAt
+        nextSmsOptIn && !account?.phoneVerifiedAt
           ? 'Settings saved. Verify your phone number before text alerts can be sent.'
           : 'Settings saved.',
         'success',
       );
     } catch (error) {
-      setEventReminderOptIn(previousEventReminderOptIn);
-      setUpcomingEventsOptIn(previousUpcomingEventsOptIn);
+      setSmsOptIn(previousSmsOptIn);
       showToast(error instanceof Error ? error.message : 'Could not save account changes.', 'error');
     } finally {
       isSavingRef.current = false;
@@ -413,7 +392,6 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
 
     try {
       const result = await requestPhoneVerification(token);
-      setPhoneVerificationDestination(result.phoneNumber);
       setHasRequestedPhoneVerification(true);
       showToast(result.message, 'success');
     } catch (error) {
@@ -436,7 +414,6 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
       setProfile(result.account);
       onUserChange(result.account);
       setPhoneNumber(createPhoneMask(result.account.phoneNumber));
-      setPhoneVerificationDestination(result.account.phoneNumber ?? '');
       setHasRequestedPhoneVerification(false);
       setPhoneVerificationCode('');
       showToast('Phone number verified.', 'success');
@@ -601,24 +578,13 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
           <label className="checkout-checkbox">
             <input
               type="checkbox"
-              checked={eventReminderOptIn}
+              checked={smsOptIn}
               disabled={isSaving || isDeleting}
               onChange={(event) => {
-                void handleSavePreferences({ eventReminderOptIn: event.target.checked, upcomingEventsOptIn });
+                void handleSavePreferences(event.target.checked);
               }}
             />
-            <span>Text me reminders about the events I buy tickets for.</span>
-          </label>
-          <label className="checkout-checkbox">
-            <input
-              type="checkbox"
-              checked={upcomingEventsOptIn}
-              disabled={isSaving || isDeleting}
-              onChange={(event) => {
-                void handleSavePreferences({ eventReminderOptIn, upcomingEventsOptIn: event.target.checked });
-              }}
-            />
-            <span>Text me about new event ticket releases.</span>
+            <span>Text me about events</span>
           </label>
         </div>
         <div className="account-actions">

@@ -90,8 +90,6 @@ function createAuth(): AuthService {
           role: 'customer',
           phoneNumber: '(555) 222-3333',
           phoneVerifiedAt: '2026-05-23T12:00:00.000Z',
-          eventReminderOptIn: false,
-          upcomingEventsOptIn: true,
           smsOptIn: true,
         } satisfies AuthenticatedUser;
       }
@@ -214,8 +212,7 @@ describe('payment routes', () => {
           customerEmail: 'guest@example.com',
           customerName: 'Guest Buyer',
           customerPhoneNumber: '(555) 123-4567',
-          eventReminderOptIn: true,
-          upcomingEventsOptIn: true,
+          smsOptIn: true,
           quantity: 1,
         },
       });
@@ -225,8 +222,7 @@ describe('payment routes', () => {
       expect(firstCall?.[0].input).toMatchObject({
         customerName: 'Guest Buyer',
         customerPhoneNumber: '(555) 123-4567',
-        eventReminderOptIn: true,
-        upcomingEventsOptIn: true,
+        smsOptIn: true,
       });
     } finally {
       await server.close();
@@ -248,8 +244,7 @@ describe('payment routes', () => {
         payload: {
           eventId,
           customerEmail: 'guest@example.com',
-          eventReminderOptIn: true,
-          upcomingEventsOptIn: false,
+          smsOptIn: false,
           quantity: 1,
         },
       });
@@ -258,15 +253,13 @@ describe('payment routes', () => {
       expect(auth.requireUser).toHaveBeenCalledTimes(1);
       expect(orders.quoteOrder).toHaveBeenCalledWith(expect.objectContaining({
         customerEmail: 'member@example.com',
-        eventReminderOptIn: false,
-        upcomingEventsOptIn: true,
+        smsOptIn: true,
         customerPhoneNumber: '(555) 222-3333',
       }));
       expect(orders.createPendingStripeOrder).toHaveBeenCalledWith(expect.objectContaining({
         input: expect.objectContaining({
           customerEmail: 'member@example.com',
-          eventReminderOptIn: false,
-          upcomingEventsOptIn: true,
+          smsOptIn: true,
           customerPhoneNumber: '(555) 222-3333',
         }),
       }));
@@ -285,8 +278,6 @@ describe('payment routes', () => {
         role: 'customer',
         phoneNumber: '(555) 222-3333',
         phoneVerifiedAt: null,
-        eventReminderOptIn: true,
-        upcomingEventsOptIn: true,
         smsOptIn: true,
       } satisfies AuthenticatedUser),
     } as unknown as AuthService;
@@ -303,8 +294,7 @@ describe('payment routes', () => {
         payload: {
           eventId,
           customerEmail: 'guest@example.com',
-          eventReminderOptIn: true,
-          upcomingEventsOptIn: true,
+          smsOptIn: true,
           quantity: 1,
         },
       });
@@ -313,8 +303,7 @@ describe('payment routes', () => {
       expect(orders.quoteOrder).toHaveBeenCalledWith(expect.objectContaining({
         customerEmail: 'member@example.com',
         customerPhoneNumber: '(555) 222-3333',
-        eventReminderOptIn: false,
-        upcomingEventsOptIn: false,
+        smsOptIn: false,
       }));
     } finally {
       await server.close();

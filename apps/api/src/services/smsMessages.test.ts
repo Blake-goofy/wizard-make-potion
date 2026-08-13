@@ -18,6 +18,7 @@ describe('sms message service', () => {
 
     const result = await service.sendMessageNow('message-1');
 
+    expect(db.query).toHaveBeenNthCalledWith(2, expect.stringContaining('orders.sms_opt_in = true'), ['event-1']);
     expect(db.query).toHaveBeenNthCalledWith(3,
       expect.stringContaining('insert into sms_outbox'),
       ['+15551234567', 'Doors open at 7.', 'reminder'],

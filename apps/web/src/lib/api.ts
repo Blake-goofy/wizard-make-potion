@@ -219,6 +219,14 @@ export function getActiveEvent() {
   return request<{ event: EventView | null }>('/api/events/active');
 }
 
+export function getEvents() {
+  return request<{ events: EventView[] }>('/api/events');
+}
+
+export function getEvent(slug: string) {
+  return request<{ event: EventView }>(`/api/events/${encodeURIComponent(slug)}`);
+}
+
 export function createDevOrder(input: CreateOrderInput, token?: string | null) {
   return request<DevOrderResult>('/api/orders/dev-complete', {
     method: 'POST',

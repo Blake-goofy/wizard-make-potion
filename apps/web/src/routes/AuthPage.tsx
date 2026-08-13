@@ -32,8 +32,7 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
   const [resetPassword, setResetPassword] = useState('');
   const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
   const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(''));
-  const [eventReminderOptIn, setEventReminderOptIn] = useState(false);
-  const [upcomingEventsOptIn, setUpcomingEventsOptIn] = useState(false);
+  const [textOptIn, setTextOptIn] = useState(false);
   const [verificationDestination, setVerificationDestination] = useState('');
   const [code, setCode] = useState('');
   const [message, setMessage] = useState('');
@@ -207,19 +206,13 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     const submittedDisplayName = getFormValue(event.currentTarget, 'displayName').trim();
     const submittedPassword = getFormValue(event.currentTarget, 'password');
     const digits = getPhoneDigits(phoneNumber);
-    const nextPhoneNumber = getStoredPhoneNumber(phoneNumber);
-    const wantsSmsAlerts = eventReminderOptIn || upcomingEventsOptIn;
+    const nextPhoneNumber = textOptIn ? getStoredPhoneNumber(phoneNumber) : '';
 
     setEmail(submittedEmail);
     setDisplayName(submittedDisplayName);
     setPassword(submittedPassword);
 
-    if (digits.length > 0 && digits.length !== 10) {
-      showError('Enter a 10-digit phone number.');
-      return;
-    }
-
-    if (wantsSmsAlerts && digits.length !== 10) {
+    if (textOptIn && digits.length !== 10) {
       showError('Enter a 10-digit phone number to get text alerts.');
       return;
     }
@@ -232,8 +225,7 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
         displayName: submittedDisplayName,
         password: submittedPassword,
         phoneNumber: nextPhoneNumber || undefined,
-        eventReminderOptIn,
-        upcomingEventsOptIn,
+        smsOptIn: textOptIn,
       });
       setEmail(result.email);
       setVerificationDestination(result.verificationDestination);
@@ -443,16 +435,12 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
             Name
             <input name="displayName" required autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
           </label>
-          <PhoneNumberInput label="Phone Number (Optional)" value={phoneNumber} onChange={setPhoneNumber} />
           <div className="auth-preferences-group" aria-label="Notification preferences">
             <label className="checkout-checkbox">
-              <input type="checkbox" checked={eventReminderOptIn} onChange={(event) => setEventReminderOptIn(event.target.checked)} />
-              <span>Text me reminders about the events I buy tickets for.</span>
+              <input type="checkbox" checked={textOptIn} onChange={(event) => setTextOptIn(event.target.checked)} />
+              <span>Text me about events</span>
             </label>
-            <label className="checkout-checkbox">
-              <input type="checkbox" checked={upcomingEventsOptIn} onChange={(event) => setUpcomingEventsOptIn(event.target.checked)} />
-              <span>Text me about new event ticket releases.</span>
-            </label>
+            {textOptIn ? <PhoneNumberInput label="Phone Number" value={phoneNumber} onChange={setPhoneNumber} /> : null}
           </div>
           <button className="button-with-arrow" type="submit" disabled={isSubmitting}>
             <span>Send Verification Code</span>

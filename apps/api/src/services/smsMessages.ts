@@ -56,15 +56,10 @@ export function createSmsMessageService(deps: { db: Database; sms: SmsService })
         const recipientsResult = await deps.db.query<{ phoneNumber: string }>(
           `select distinct on (regexp_replace(customer_phone_number, '\\D', '', 'g')) customer_phone_number as "phoneNumber"
            from orders
-           join users on lower(users.email) = lower(orders.customer_email)
-                     and regexp_replace(coalesce(users.phone_number, ''), '\\D', '', 'g') = regexp_replace(orders.customer_phone_number, '\\D', '', 'g')
-           where event_id = $1
-             and status = 'completed'
-             and event_reminder_opt_in = true
-             and sms_opt_in = true
-             and customer_phone_number is not null
-             and users.is_active = true
-             and users.phone_verified_at is not null
+           where orders.event_id = $1
+             and orders.status = 'completed'
+             and orders.sms_opt_in = true
+             and orders.customer_phone_number is not null
              and not exists (
                select 1
                from sms_stop_list sl
@@ -85,21 +80,15 @@ export function createSmsMessageService(deps: { db: Database; sms: SmsService })
              select phone_number, regexp_replace(phone_number, '\\D', '', 'g') as digits
              from users
              where is_active = true
-               and upcoming_events_opt_in = true
                and sms_opt_in = true
                and phone_number is not null
                and phone_verified_at is not null
              union
              select orders.customer_phone_number as phone_number, regexp_replace(orders.customer_phone_number, '\\D', '', 'g') as digits
              from orders
-             join users on lower(users.email) = lower(orders.customer_email)
-                       and regexp_replace(coalesce(users.phone_number, ''), '\\D', '', 'g') = regexp_replace(orders.customer_phone_number, '\\D', '', 'g')
-             where status = 'completed'
-               and upcoming_events_opt_in = true
-               and sms_opt_in = true
-               and customer_phone_number is not null
-               and users.is_active = true
-               and users.phone_verified_at is not null
+             where orders.status = 'completed'
+               and orders.sms_opt_in = true
+               and orders.customer_phone_number is not null
            ) recipients
            where not exists (
              select 1

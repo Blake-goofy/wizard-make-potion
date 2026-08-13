@@ -48,8 +48,7 @@ describe('auth service', () => {
       displayName: 'Guest Buyer',
       password: 'correct horse battery staple',
       phoneNumber: '(555) 123-4567',
-      eventReminderOptIn: false,
-      upcomingEventsOptIn: false,
+      smsOptIn: false,
     });
 
     expect(clientQuery).toHaveBeenCalledTimes(2);
@@ -80,8 +79,6 @@ describe('auth service', () => {
           role: 'customer',
           phoneNumber: activePhoneNumber,
           phoneVerifiedAt: '2026-05-23T12:00:00.000Z',
-          eventReminderOptIn: false,
-          upcomingEventsOptIn: false,
           smsOptIn: false,
         }],
         rowCount: 1,
@@ -96,8 +93,6 @@ describe('auth service', () => {
             role: 'customer',
             phoneNumber: activePhoneNumber,
             phoneVerifiedAt: null,
-            eventReminderOptIn: false,
-            upcomingEventsOptIn: false,
             smsOptIn: false,
           }],
           rowCount: 1,
@@ -111,8 +106,6 @@ describe('auth service', () => {
             role: 'customer',
             phoneNumber: activePhoneNumber,
             phoneVerifiedAt: null,
-            eventReminderOptIn: false,
-            upcomingEventsOptIn: false,
             smsOptIn: false,
           }],
           rowCount: 1,

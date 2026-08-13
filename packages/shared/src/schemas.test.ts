@@ -8,16 +8,14 @@ describe('shared input schemas', () => {
       customerEmail: 'guest@example.com',
       customerName: 'Guest Buyer',
       customerPhoneNumber: '(555) 123-4567',
-      eventReminderOptIn: true,
-      upcomingEventsOptIn: true,
+      smsOptIn: true,
       quantity: 2,
     })).toEqual({
       eventId: '00000000-0000-4000-8000-000000000001',
       customerEmail: 'guest@example.com',
       customerName: 'Guest Buyer',
       customerPhoneNumber: '(555) 123-4567',
-      eventReminderOptIn: true,
-      upcomingEventsOptIn: true,
+      smsOptIn: true,
       quantity: 2,
     });
   });
@@ -27,7 +25,7 @@ describe('shared input schemas', () => {
       eventId: '00000000-0000-4000-8000-000000000001',
       customerEmail: 'guest@example.com',
       customerName: 'Guest Buyer',
-      eventReminderOptIn: true,
+      smsOptIn: true,
       quantity: 2,
     })).toThrow('Phone number is required when text alerts are enabled.');
   });
@@ -48,15 +46,13 @@ describe('shared input schemas', () => {
       displayName: 'Guest Buyer',
       password: 'correct horse battery staple',
       phoneNumber: '(555) 123-4567',
-      eventReminderOptIn: true,
-      upcomingEventsOptIn: false,
+      smsOptIn: true,
     })).toEqual({
       email: 'guest@example.com',
       displayName: 'Guest Buyer',
       password: 'correct horse battery staple',
       phoneNumber: '(555) 123-4567',
-      eventReminderOptIn: true,
-      upcomingEventsOptIn: false,
+      smsOptIn: true,
     });
   });
 
@@ -64,8 +60,7 @@ describe('shared input schemas', () => {
     expect(() => updateAccountInputSchema.parse({
       displayName: 'A'.repeat(121),
       phoneNumber: null,
-      eventReminderOptIn: true,
-      upcomingEventsOptIn: true,
+      smsOptIn: true,
     })).toThrow();
   });
 
@@ -73,8 +68,7 @@ describe('shared input schemas', () => {
     expect(() => updateAccountInputSchema.parse({
       displayName: 'Guest Buyer',
       phoneNumber: null,
-      eventReminderOptIn: true,
-      upcomingEventsOptIn: true,
+      smsOptIn: true,
     })).toThrow('Phone number is required when text alerts are enabled.');
   });
 

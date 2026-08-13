@@ -41,8 +41,7 @@ describe('order service', () => {
         customerEmail: 'guest@example.com',
         customerName: 'Guest Buyer',
         customerPhoneNumber: '(555) 123-4567',
-        eventReminderOptIn: true,
-        upcomingEventsOptIn: true,
+        smsOptIn: true,
         quantity: 2,
       },
       quote: {
@@ -56,7 +55,7 @@ describe('order service', () => {
     });
 
     expect(db.query).toHaveBeenCalledWith(
-      expect.stringContaining("values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'pending', 'stripe', $14, $15)"),
+      expect.stringContaining("values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'pending', 'stripe', $12, $13)"),
       expect.any(Array),
     );
     expect(db.query).toHaveBeenCalledWith(expect.stringContaining('customer_phone_number'), [
@@ -65,8 +64,6 @@ describe('order service', () => {
       'guest@example.com',
       'Guest Buyer',
       '(555) 123-4567',
-      true,
-      true,
       true,
       expect.any(String),
       2,

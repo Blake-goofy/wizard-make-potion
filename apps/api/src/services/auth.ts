@@ -94,13 +94,6 @@ function hashPhoneVerificationCode(userId: string, phoneNumber: string, code: st
   return createHmac('sha256', secret).update(`${userId}:${phoneNumber}:${code}`).digest('hex');
 }
 
-function deriveSmsOptIn(preferences: {
-  eventReminderOptIn?: boolean;
-  upcomingEventsOptIn?: boolean;
-}) {
-  return Boolean(preferences.eventReminderOptIn || preferences.upcomingEventsOptIn);
-}
-
 export function createAuthService(
   config: AppConfig,
   db: Database,
@@ -152,8 +145,6 @@ export function createAuthService(
               role,
               phone_number as "phoneNumber",
               phone_verified_at as "phoneVerifiedAt",
-              event_reminder_opt_in as "eventReminderOptIn",
-              upcoming_events_opt_in as "upcomingEventsOptIn",
               sms_opt_in as "smsOptIn"
        from users
        where id = $1 and is_active = true`,
@@ -201,9 +192,7 @@ export function createAuthService(
       const passwordHash = hashPassword(input.password);
       const codeHash = hashVerificationCode(email, code);
       const phoneNumber = input.phoneNumber?.trim() || null;
-      const eventReminderOptIn = input.eventReminderOptIn;
-      const upcomingEventsOptIn = input.upcomingEventsOptIn;
-      const smsOptIn = deriveSmsOptIn(input);
+      const smsOptIn = input.smsOptIn;
       const verificationEmail = renderAccountVerificationEmail({ code });
 
       await db.transaction(async (client) => {
@@ -214,21 +203,17 @@ export function createAuthService(
              password_hash,
              code_hash,
              phone_number,
-             event_reminder_opt_in,
-             upcoming_events_opt_in,
              sms_opt_in,
              sms_consent_at,
              expires_at
            )
-           values ($1, $2, $3, $4, $5, $6, $7, $8, $9, now() + interval '15 minutes')`,
+           values ($1, $2, $3, $4, $5, $6, $7, now() + interval '15 minutes')`,
           [
             email,
             input.displayName.trim(),
             passwordHash,
             codeHash,
             phoneNumber,
-            eventReminderOptIn,
-            upcomingEventsOptIn,
             smsOptIn,
             smsOptIn ? new Date().toISOString() : null,
           ],
@@ -263,8 +248,6 @@ export function createAuthService(
           password_hash as "passwordHash",
           code_hash as "codeHash",
           phone_number as "phoneNumber",
-          event_reminder_opt_in as "eventReminderOptIn",
-          upcoming_events_opt_in as "upcomingEventsOptIn",
           sms_opt_in as "smsOptIn",
           sms_consent_at as "smsConsentAt"
          from account_verification_codes
@@ -289,21 +272,17 @@ export function createAuthService(
              password_hash,
              phone_number,
              phone_verified_at,
-             event_reminder_opt_in,
-             upcoming_events_opt_in,
              sms_opt_in,
              sms_consent_at,
              sms_opted_out_at,
              is_active
            )
-           values ($1, $2, 'customer', $3, $4, null, $5, $6, $7, $8, null, true)
+           values ($1, $2, 'customer', $3, $4, null, $5, $6, null, true)
            on conflict (email) do update
            set display_name = excluded.display_name,
                password_hash = excluded.password_hash,
                phone_number = excluded.phone_number,
                phone_verified_at = null,
-               event_reminder_opt_in = excluded.event_reminder_opt_in,
-               upcoming_events_opt_in = excluded.upcoming_events_opt_in,
                sms_opt_in = excluded.sms_opt_in,
                sms_consent_at = case
                  when excluded.sms_opt_in then coalesce(users.sms_consent_at, excluded.sms_consent_at)
@@ -321,16 +300,12 @@ export function createAuthService(
                      role,
                      phone_number as "phoneNumber",
                      phone_verified_at as "phoneVerifiedAt",
-                     event_reminder_opt_in as "eventReminderOptIn",
-                     upcoming_events_opt_in as "upcomingEventsOptIn",
                      sms_opt_in as "smsOptIn"`,
           [
             email,
             pendingAccount.displayName,
             pendingAccount.passwordHash,
             pendingAccount.phoneNumber,
-            pendingAccount.eventReminderOptIn,
-            pendingAccount.upcomingEventsOptIn,
             pendingAccount.smsOptIn,
             pendingAccount.smsConsentAt,
           ],
@@ -351,9 +326,7 @@ export function createAuthService(
                 role,
                 phone_number as "phoneNumber",
                 phone_verified_at as "phoneVerifiedAt",
-                event_reminder_opt_in as "eventReminderOptIn",
-                upcoming_events_opt_in as "upcomingEventsOptIn",
-                  sms_opt_in as "smsOptIn",
+                sms_opt_in as "smsOptIn",
                 password_hash as "passwordHash"
          from users
          where lower(email) = lower($1) and is_active = true`,
@@ -571,8 +544,6 @@ export function createAuthService(
                      role,
                      phone_number as "phoneNumber",
                      phone_verified_at as "phoneVerifiedAt",
-                     event_reminder_opt_in as "eventReminderOptIn",
-                     upcoming_events_opt_in as "upcomingEventsOptIn",
                      sms_opt_in as "smsOptIn"`,
           [user.id],
         );
@@ -589,7 +560,7 @@ export function createAuthService(
     async updateAccount(request: FastifyRequest, input: UpdateAccountInput) {
       const user = await requireUser(request);
       const nextDisplayName = input.displayName.trim();
-      const smsOptIn = deriveSmsOptIn(input);
+      const smsOptIn = input.smsOptIn;
       const result = await db.query(
         `update users
          set display_name = $2,
@@ -598,16 +569,14 @@ export function createAuthService(
                when phone_number is distinct from $3 then null
                else phone_verified_at
              end,
-             event_reminder_opt_in = $4,
-             upcoming_events_opt_in = $5,
-             sms_opt_in = $6,
+             sms_opt_in = $4,
              sms_consent_at = case
-               when $6 and not sms_opt_in then now()
-               when $6 then sms_consent_at
+               when $4 and not sms_opt_in then now()
+               when $4 then sms_consent_at
                else null
              end,
              sms_opted_out_at = case
-               when $6 then null
+               when $4 then null
                when sms_opt_in then now()
                else sms_opted_out_at
              end,
@@ -619,10 +588,8 @@ export function createAuthService(
                    role,
                    phone_number as "phoneNumber",
                    phone_verified_at as "phoneVerifiedAt",
-                   event_reminder_opt_in as "eventReminderOptIn",
-                   upcoming_events_opt_in as "upcomingEventsOptIn",
                    sms_opt_in as "smsOptIn"`,
-        [user.id, nextDisplayName, input.phoneNumber, input.eventReminderOptIn, input.upcomingEventsOptIn, smsOptIn],
+        [user.id, nextDisplayName, input.phoneNumber, smsOptIn],
       );
 
       const updatedUser = result.rows[0];
