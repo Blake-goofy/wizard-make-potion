@@ -921,6 +921,17 @@ label {
   gap: var(--space-3);
 }
 
+.about-contact-list {
+  display: grid;
+  gap: var(--space-2);
+  color: var(--color-muted-text);
+  font-style: normal;
+}
+
+.about-contact-list a {
+  color: var(--color-accent);
+}
+
 .guest-checkout-panel {
   display: grid;
   gap: var(--space-5);
@@ -959,6 +970,17 @@ label {
   height: 1rem;
   margin: 0;
   accent-color: var(--color-accent);
+}
+
+.sms-consent-disclosure {
+  margin: 0;
+  color: var(--color-muted-text);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.sms-consent-disclosure a {
+  color: var(--color-accent);
 }
 
 .account-settings-panel h2 {

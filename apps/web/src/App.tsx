@@ -91,6 +91,7 @@ class RouteErrorBoundary extends Component<
 }
 
 const AccountPage = lazyRoute(() => import('./routes/AccountPage'));
+const AboutPage = lazyRoute(() => import('./routes/AboutPage'));
 const AdminEventsPage = lazyRoute(() => import('./routes/AdminEventsPage'));
 const AdminMessagesPage = lazyRoute(() => import('./routes/AdminMessagesPage'));
 const AdminUsersPage = lazyRoute(() => import('./routes/AdminUsersPage'));
@@ -103,13 +104,14 @@ const PrivacyPolicyPage = lazyRoute(() => import('./routes/PrivacyPolicyPage'));
 const ScanPage = lazyRoute(() => import('./routes/ScanPage'));
 const TermsPage = lazyRoute(() => import('./routes/TermsPage'));
 
-type RouteKey = 'home' | 'event' | 'myTickets' | 'account' | 'adminEvents' | 'adminMessages' | 'adminUsers' | 'auth' | 'createAccount' | 'guestCheckout' | 'privacyPolicy' | 'terms' | 'scan' | 'sales' | 'confirmation';
+type RouteKey = 'home' | 'event' | 'about' | 'myTickets' | 'account' | 'adminEvents' | 'adminMessages' | 'adminUsers' | 'auth' | 'createAccount' | 'guestCheckout' | 'privacyPolicy' | 'terms' | 'scan' | 'sales' | 'confirmation';
 type ConfirmationOrigin = 'home' | 'myTickets' | 'scan' | 'sales';
 type PublicRouteKey = Exclude<RouteKey, 'event' | 'guestCheckout' | 'confirmation'>;
 
 const sessionTokenKey = 'sessionToken';
 const routePathByKey: Record<PublicRouteKey, string> = {
   home: '/events',
+  about: '/about',
   myTickets: '/my-tickets',
   account: '/account',
   adminEvents: '/admin/events',
@@ -128,6 +130,7 @@ const routeKeyByHash: Record<string, Exclude<RouteKey, 'confirmation'>> = {
   tickets: 'home',
   'my-tickets': 'myTickets',
   account: 'account',
+  about: 'about',
   'admin-events': 'adminEvents',
   events: 'home',
   'admin-messages': 'adminMessages',
@@ -239,6 +242,7 @@ function syncRouteLocation(route: RouteKey, eventSlug = '', historyMode: 'push' 
 
 function getRouteLoadingVariant(route: RouteKey): LoadingSkeletonVariant {
   if (route === 'home' || route === 'event') return 'purchase';
+  if (route === 'about') return 'purchase';
   if (route === 'myTickets') return 'tickets';
   if (route === 'scan') return 'scanner';
   if (route === 'adminEvents') return 'account';
@@ -254,6 +258,7 @@ function getRouteLoadingVariant(route: RouteKey): LoadingSkeletonVariant {
 function getRouteTitle(route: RouteKey) {
   if (route === 'home') return 'Events';
   if (route === 'event') return 'Wizard Make Potion';
+  if (route === 'about') return 'About';
   if (route === 'myTickets') return 'My Tickets';
   if (route === 'account') return 'Account';
   if (route === 'adminEvents') return 'Events';
@@ -533,6 +538,7 @@ export function App() {
     if (route === 'auth') return <AuthPage onSession={handleSession} />;
     if (route === 'createAccount') return <AuthPage initialMode="create" onSession={handleSession} />;
     if (route === 'guestCheckout') return user ? homePage : <GuestCheckoutPage eventSlug={eventSlug} />;
+    if (route === 'about') return <AboutPage />;
     if (route === 'privacyPolicy') return <PrivacyPolicyPage />;
     if (route === 'terms') return <TermsPage />;
     if (route === 'account') {
@@ -802,6 +808,8 @@ export function App() {
       </main>
       {route !== 'scan' ? (
         <footer className="legal-footer app-footer" aria-label="Legal links">
+          <a href="/about" onClick={(event) => { event.preventDefault(); navigate('about'); }}>About</a>
+          <span aria-hidden="true">|</span>
           <a href="/privacy-policy" onClick={(event) => { event.preventDefault(); navigate('privacyPolicy'); }}>Privacy Policy</a>
           <span aria-hidden="true">|</span>
           <a href="/terms-and-conditions" onClick={(event) => { event.preventDefault(); navigate('terms'); }}>Terms and Conditions</a>

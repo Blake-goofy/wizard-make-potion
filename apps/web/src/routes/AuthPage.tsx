@@ -206,11 +206,16 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     const submittedDisplayName = getFormValue(event.currentTarget, 'displayName').trim();
     const submittedPassword = getFormValue(event.currentTarget, 'password');
     const digits = getPhoneDigits(phoneNumber);
-    const nextPhoneNumber = textOptIn ? getStoredPhoneNumber(phoneNumber) : '';
+    const nextPhoneNumber = getStoredPhoneNumber(phoneNumber);
 
     setEmail(submittedEmail);
     setDisplayName(submittedDisplayName);
     setPassword(submittedPassword);
+
+    if (digits.length > 0 && digits.length !== 10) {
+      showError('Enter a 10-digit phone number.');
+      return;
+    }
 
     if (textOptIn && digits.length !== 10) {
       showError('Enter a 10-digit phone number to get text alerts.');
@@ -435,12 +440,19 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
             Name
             <input name="displayName" required autoComplete="name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
           </label>
+          <PhoneNumberInput label="Phone Number (Optional)" value={phoneNumber} onChange={setPhoneNumber} />
           <div className="auth-preferences-group" aria-label="Notification preferences">
             <label className="checkout-checkbox">
               <input type="checkbox" checked={textOptIn} onChange={(event) => setTextOptIn(event.target.checked)} />
-              <span>Text me about events</span>
+              <span>I agree to receive SMS event reminders and upcoming event announcements from Wizard Make Potion.</span>
             </label>
-            {textOptIn ? <PhoneNumberInput label="Phone Number" value={phoneNumber} onChange={setPhoneNumber} /> : null}
+            <p className="sms-consent-disclosure">
+              By checking this box and providing your phone number, you agree to receive SMS event reminders and upcoming
+              event announcements from Wizard Make Potion. Message frequency may vary. Standard Message and Data Rates may
+              apply. Reply STOP to opt out. Reply HELP for help. We will not share mobile information with third parties for
+              promotional or marketing purposes. Consent is optional and is not a condition of purchase. See our{' '}
+              <a href="/terms-and-conditions">Terms and Conditions</a> and <a href="/privacy-policy">Privacy Policy</a>.
+            </p>
           </div>
           <button className="button-with-arrow" type="submit" disabled={isSubmitting}>
             <span>Send Verification Code</span>

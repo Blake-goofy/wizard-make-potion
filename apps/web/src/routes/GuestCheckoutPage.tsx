@@ -96,11 +96,16 @@ export default function GuestCheckoutPage({ eventSlug }: { eventSlug: string }) 
     if (!event || checkoutAttemptIdRef.current) return;
 
     const digits = getPhoneDigits(phoneNumber);
-    const customerPhoneNumber = textOptIn ? getStoredPhoneNumber(phoneNumber) : '';
+    const customerPhoneNumber = getStoredPhoneNumber(phoneNumber);
     const customerName = name.trim();
 
     if (!customerName) {
       showToast('Enter your name.', 'error');
+      return;
+    }
+
+    if (digits.length > 0 && digits.length !== 10) {
+      showToast('Enter a 10-digit phone number.', 'error');
       return;
     }
 
@@ -184,15 +189,22 @@ export default function GuestCheckoutPage({ eventSlug }: { eventSlug: string }) 
             Email
             <input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
           </label>
+          <PhoneNumberInput label="Phone Number (Optional)" value={phoneNumber} onChange={setPhoneNumber} />
           <label className="checkout-checkbox">
             <input
               type="checkbox"
               checked={textOptIn}
               onChange={(event) => setTextOptIn(event.target.checked)}
             />
-            <span>Text me about events</span>
+            <span>I agree to receive SMS event reminders and upcoming event announcements from Wizard Make Potion.</span>
           </label>
-          {textOptIn ? <PhoneNumberInput label="Phone Number" value={phoneNumber} onChange={setPhoneNumber} /> : null}
+          <p className="sms-consent-disclosure">
+            By checking this box and providing your phone number, you agree to receive SMS event reminders and upcoming event
+            announcements from Wizard Make Potion. Message frequency may vary. Standard Message and Data Rates may apply.
+            Reply STOP to opt out. Reply HELP for help. We will not share mobile information with third parties for promotional
+            or marketing purposes. Consent is optional and is not a condition of purchase. See our{' '}
+            <a href="/terms-and-conditions">Terms and Conditions</a> and <a href="/privacy-policy">Privacy Policy</a>.
+          </p>
           <label className="purchase-quantity-field">
             Quantity
             <select value={quantity} onChange={(event) => setQuantity(Number(event.target.value))}>

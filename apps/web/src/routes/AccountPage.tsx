@@ -584,8 +584,15 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
                 void handleSavePreferences(event.target.checked);
               }}
             />
-            <span>Text me about events</span>
+            <span>I agree to receive SMS event reminders and upcoming event announcements from Wizard Make Potion.</span>
           </label>
+          <p className="sms-consent-disclosure">
+            By checking this box and providing your phone number, you agree to receive SMS event reminders and upcoming event
+            announcements from Wizard Make Potion. Message frequency may vary. Standard Message and Data Rates may apply.
+            Reply STOP to opt out. Reply HELP for help. We will not share mobile information with third parties for promotional
+            or marketing purposes. Consent is optional and is not a condition of purchase. See our{' '}
+            <a href="/terms-and-conditions">Terms and Conditions</a> and <a href="/privacy-policy">Privacy Policy</a>.
+          </p>
         </div>
         <div className="account-actions">
           <button type="button" disabled={isSaving || isDeleting || isChangingPassword} onClick={() => setIsPasswordDialogOpen(true)}>
