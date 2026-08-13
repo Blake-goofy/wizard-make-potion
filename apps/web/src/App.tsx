@@ -350,6 +350,16 @@ function HomeIcon() {
   );
 }
 
+function AboutIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 10.5v6" />
+      <path d="M12 7.5h.01" />
+    </svg>
+  );
+}
+
 function TicketIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -764,6 +774,9 @@ export function App() {
         <nav className="drawer-nav">
           <DrawerItem active={route === 'home' || route === 'event'} icon={<HomeIcon />} onClick={() => navigate('home')}>
             Events
+          </DrawerItem>
+          <DrawerItem active={route === 'about'} icon={<AboutIcon />} onClick={() => navigate('about')}>
+            About
           </DrawerItem>
           {user ? (
             <DrawerItem active={route === 'myTickets'} icon={<TicketIcon />} onClick={() => navigate('myTickets')}>
