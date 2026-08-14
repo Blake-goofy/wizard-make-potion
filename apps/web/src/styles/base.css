@@ -40,7 +40,11 @@ button:focus:not(:focus-visible) {
 
 @media (hover: hover) and (pointer: fine) {
   button:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--color-surface-inverse) 10%, var(--color-surface-strong) 90%);
+    background: color-mix(
+      in srgb,
+      var(--color-surface-inverse) 10%,
+      var(--color-surface-strong) 90%
+    );
   }
 }
 
@@ -94,7 +98,8 @@ label {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 0 var(--space-3);
-  font-family: ui-monospace, SFMono-Regular, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
   background: var(--color-surface);
 }
 
@@ -156,6 +161,39 @@ label {
 
 .app-shell main {
   min-width: 0;
+  view-transition-name: app-content;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-old(app-content) {
+  animation: app-content-out 90ms ease-in both;
+}
+
+::view-transition-new(app-content) {
+  animation: app-content-in 150ms ease-out both;
+}
+
+@keyframes app-content-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes app-content-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(app-content),
+  ::view-transition-new(app-content) {
+    animation: none;
+  }
 }
 
 .app-shell-scanner {
@@ -1595,7 +1633,11 @@ label {
 
 @media (hover: hover) and (pointer: fine) {
   .scan-status-action-button-secondary:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--color-surface-inverse) 10%, var(--color-surface-strong) 90%);
+    background: color-mix(
+      in srgb,
+      var(--color-surface-inverse) 10%,
+      var(--color-surface-strong) 90%
+    );
   }
 }
 
@@ -2449,7 +2491,9 @@ label {
   font-weight: 700;
   opacity: 0;
   transform: translateY(2px);
-  transition: opacity 140ms ease, transform 140ms ease;
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
   pointer-events: none;
 }
 
@@ -2571,7 +2615,9 @@ label {
   border-radius: 999px;
   border: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-success) 10%, var(--color-surface) 90%);
-  transition: background 200ms ease, border-color 200ms ease;
+  transition:
+    background 200ms ease,
+    border-color 200ms ease;
 }
 
 .ticket-usage-toggle:hover:not(:disabled) .ticket-usage-toggle-track {
@@ -2599,7 +2645,9 @@ label {
   background: var(--color-surface-inverse);
   box-shadow: 0 1px 4px color-mix(in srgb, var(--color-background) 35%, transparent);
   z-index: 1;
-  transition: transform 220ms ease, background 200ms ease;
+  transition:
+    transform 220ms ease,
+    background 200ms ease;
 }
 
 /* track 5.5rem - handle 1.28rem - left inset 0.22rem - right inset 0.22rem = 3.78rem */
@@ -2793,7 +2841,9 @@ label {
 }
 
 @keyframes loading-spinner-rotate {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2887,5 +2937,4 @@ label {
   .confirmation-ticket-card {
     flex-basis: auto;
   }
-
 }

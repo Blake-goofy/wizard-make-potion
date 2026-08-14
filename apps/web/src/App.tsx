@@ -1,8 +1,23 @@
-import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from 'react';
+import {
+  Component,
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type FocusEvent,
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+} from 'react';
+import { flushSync } from 'react-dom';
 import type { AdminManagedUser, SessionUser } from '@potion/shared';
 import LoadingOverlay, { type LoadingSkeletonVariant } from './components/LoadingOverlay';
 import { HomePage } from './routes/HomePage';
 import { getCurrentUser } from './lib/api';
+import { createRoutePreloader } from './lib/routePreload';
 
 const routeImportReloadStorageKey = 'wizard-route-import-reload';
 
@@ -28,7 +43,10 @@ function getDynamicImportErrorFingerprint(error: unknown) {
 
   const moduleUrlMatch = message.match(/https?:\/\/\S+|\/assets\/[^\s)]+/i);
 
-  return moduleUrlMatch?.[0] ?? `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  return (
+    moduleUrlMatch?.[0] ??
+    `${window.location.pathname}${window.location.search}${window.location.hash}`
+  );
 }
 
 function lazyRoute<TModule extends { default: ComponentType<any> }>(load: () => Promise<TModule>) {
@@ -68,7 +86,13 @@ class RouteErrorBoundary extends Component<
     }
 
     if (this.state.isRefreshing) {
-      return <LoadingOverlay label="Refreshing app" detail="Loading the latest version of this page." variant={this.props.fallbackVariant} />;
+      return (
+        <LoadingOverlay
+          label="Refreshing app"
+          detail="Loading the latest version of this page."
+          variant={this.props.fallbackVariant}
+        />
+      );
     }
 
     const isDynamicImportFailure = getDynamicImportErrorFingerprint(this.state.error) !== null;
@@ -89,21 +113,51 @@ class RouteErrorBoundary extends Component<
   }
 }
 
-const AccountPage = lazyRoute(() => import('./routes/AccountPage'));
-const AboutPage = lazyRoute(() => import('./routes/AboutPage'));
-const AdminEventsPage = lazyRoute(() => import('./routes/AdminEventsPage'));
-const AdminMessagesPage = lazyRoute(() => import('./routes/AdminMessagesPage'));
-const AdminUsersPage = lazyRoute(() => import('./routes/AdminUsersPage'));
-const SalesPage = lazyRoute(() => import('./routes/SalesPage'));
-const MyTicketsPage = lazyRoute(() => import('./routes/MyTicketsPage'));
-const AuthPage = lazyRoute(() => import('./routes/AuthPage'));
-const ConfirmationPage = lazyRoute(() => import('./routes/ConfirmationPage'));
-const GuestCheckoutPage = lazyRoute(() => import('./routes/GuestCheckoutPage'));
-const PrivacyPolicyPage = lazyRoute(() => import('./routes/PrivacyPolicyPage'));
-const ScanPage = lazyRoute(() => import('./routes/ScanPage'));
-const TermsPage = lazyRoute(() => import('./routes/TermsPage'));
+const loadAccountPage = createRoutePreloader(() => import('./routes/AccountPage'));
+const loadAboutPage = createRoutePreloader(() => import('./routes/AboutPage'));
+const loadAdminEventsPage = createRoutePreloader(() => import('./routes/AdminEventsPage'));
+const loadAdminMessagesPage = createRoutePreloader(() => import('./routes/AdminMessagesPage'));
+const loadAdminUsersPage = createRoutePreloader(() => import('./routes/AdminUsersPage'));
+const loadSalesPage = createRoutePreloader(() => import('./routes/SalesPage'));
+const loadMyTicketsPage = createRoutePreloader(() => import('./routes/MyTicketsPage'));
+const loadAuthPage = createRoutePreloader(() => import('./routes/AuthPage'));
+const loadConfirmationPage = createRoutePreloader(() => import('./routes/ConfirmationPage'));
+const loadGuestCheckoutPage = createRoutePreloader(() => import('./routes/GuestCheckoutPage'));
+const loadPrivacyPolicyPage = createRoutePreloader(() => import('./routes/PrivacyPolicyPage'));
+const loadScanPage = createRoutePreloader(() => import('./routes/ScanPage'));
+const loadTermsPage = createRoutePreloader(() => import('./routes/TermsPage'));
 
-type RouteKey = 'home' | 'event' | 'about' | 'myTickets' | 'account' | 'adminEvents' | 'adminMessages' | 'adminUsers' | 'auth' | 'createAccount' | 'guestCheckout' | 'privacyPolicy' | 'terms' | 'scan' | 'sales' | 'confirmation';
+const AccountPage = lazyRoute(loadAccountPage);
+const AboutPage = lazyRoute(loadAboutPage);
+const AdminEventsPage = lazyRoute(loadAdminEventsPage);
+const AdminMessagesPage = lazyRoute(loadAdminMessagesPage);
+const AdminUsersPage = lazyRoute(loadAdminUsersPage);
+const SalesPage = lazyRoute(loadSalesPage);
+const MyTicketsPage = lazyRoute(loadMyTicketsPage);
+const AuthPage = lazyRoute(loadAuthPage);
+const ConfirmationPage = lazyRoute(loadConfirmationPage);
+const GuestCheckoutPage = lazyRoute(loadGuestCheckoutPage);
+const PrivacyPolicyPage = lazyRoute(loadPrivacyPolicyPage);
+const ScanPage = lazyRoute(loadScanPage);
+const TermsPage = lazyRoute(loadTermsPage);
+
+type RouteKey =
+  | 'home'
+  | 'event'
+  | 'about'
+  | 'myTickets'
+  | 'account'
+  | 'adminEvents'
+  | 'adminMessages'
+  | 'adminUsers'
+  | 'auth'
+  | 'createAccount'
+  | 'guestCheckout'
+  | 'privacyPolicy'
+  | 'terms'
+  | 'scan'
+  | 'sales'
+  | 'confirmation';
 type ConfirmationOrigin = 'home' | 'myTickets' | 'scan' | 'sales';
 type PublicRouteKey = Exclude<RouteKey, 'event' | 'guestCheckout' | 'confirmation'>;
 
@@ -118,6 +172,22 @@ const routesWithoutFooter = new Set<RouteKey>([
   'adminMessages',
   'adminUsers',
 ]);
+const routePreloaderByKey: Partial<Record<RouteKey, () => Promise<unknown>>> = {
+  about: loadAboutPage,
+  myTickets: loadMyTicketsPage,
+  account: loadAccountPage,
+  adminEvents: loadAdminEventsPage,
+  adminMessages: loadAdminMessagesPage,
+  adminUsers: loadAdminUsersPage,
+  auth: loadAuthPage,
+  createAccount: loadAuthPage,
+  guestCheckout: loadGuestCheckoutPage,
+  privacyPolicy: loadPrivacyPolicyPage,
+  terms: loadTermsPage,
+  scan: loadScanPage,
+  sales: loadSalesPage,
+  confirmation: loadConfirmationPage,
+};
 const routePathByKey: Record<PublicRouteKey, string> = {
   home: '/events',
   about: '/about',
@@ -164,6 +234,47 @@ const routeKeyByPath: Record<string, PublicRouteKey> = Object.fromEntries(
   Object.entries(routePathByKey).map(([key, path]) => [path, key]),
 ) as Record<string, PublicRouteKey>;
 
+function preloadRoute(route: RouteKey) {
+  void routePreloaderByKey[route]?.().catch(() => undefined);
+}
+
+function runRouteTransition(update: () => void) {
+  if (
+    !document.startViewTransition ||
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  ) {
+    update();
+    return;
+  }
+
+  document.startViewTransition(() => flushSync(update));
+}
+
+function getInternalRouteTarget(target: EventTarget | null) {
+  const anchor = target instanceof Element ? target.closest<HTMLAnchorElement>('a[href]') : null;
+
+  if (!anchor || anchor.target || anchor.hasAttribute('download')) return null;
+
+  const url = new URL(anchor.href, window.location.href);
+  if (url.origin !== window.location.origin) return null;
+
+  const path = url.pathname.replace(/\/+$/, '') || '/';
+  const eventCheckoutMatch = path.match(/^\/events\/([^/]+)\/guest-checkout$/);
+  const eventMatch = path.match(/^\/events\/([^/]+)$/);
+
+  if (eventCheckoutMatch)
+    return {
+      route: 'guestCheckout' as RouteKey,
+      eventSlug: decodePathSegment(eventCheckoutMatch[1]),
+    };
+  if (eventMatch)
+    return { route: 'event' as RouteKey, eventSlug: decodePathSegment(eventMatch[1]) };
+  if (path === '/' || path === '/events') return { route: 'home' as RouteKey, eventSlug: '' };
+
+  const route = routeKeyByPath[path];
+  return route ? { route, eventSlug: url.searchParams.get('event') ?? '' } : null;
+}
+
 function getConfirmationOrderIdFromLocation() {
   return new URLSearchParams(window.location.search).get('order') ?? '';
 }
@@ -179,7 +290,9 @@ function getConfirmationOriginFromLocation(): ConfirmationOrigin {
 }
 
 function syncConfirmationLocation(orderId: string, origin: ConfirmationOrigin) {
-  const url = orderId ? new URL('/confirmation', window.location.origin) : new URL(window.location.href);
+  const url = orderId
+    ? new URL('/confirmation', window.location.origin)
+    : new URL(window.location.href);
 
   if (orderId) {
     url.searchParams.set('order', orderId);
@@ -212,18 +325,23 @@ function getConfirmationBackLabel(origin: ConfirmationOrigin) {
 
 function getRouteFromLocation() {
   const hash = window.location.hash.replace(/^#/, '').toLowerCase();
-  if (hash) return { route: routeKeyByHash[hash] ?? 'home' as RouteKey, eventSlug: '' };
+  if (hash) return { route: routeKeyByHash[hash] ?? ('home' as RouteKey), eventSlug: '' };
 
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const eventCheckoutMatch = path.match(/^\/events\/([^/]+)\/guest-checkout$/);
   const eventMatch = path.match(/^\/events\/([^/]+)$/);
   const queryEventSlug = new URLSearchParams(window.location.search).get('event') ?? '';
 
-  if (eventCheckoutMatch) return { route: 'guestCheckout' as RouteKey, eventSlug: decodePathSegment(eventCheckoutMatch[1]) };
-  if (eventMatch) return { route: 'event' as RouteKey, eventSlug: decodePathSegment(eventMatch[1]) };
+  if (eventCheckoutMatch)
+    return {
+      route: 'guestCheckout' as RouteKey,
+      eventSlug: decodePathSegment(eventCheckoutMatch[1]),
+    };
+  if (eventMatch)
+    return { route: 'event' as RouteKey, eventSlug: decodePathSegment(eventMatch[1]) };
   if (path === '/' || path === '/events') return { route: 'home' as RouteKey, eventSlug: '' };
 
-  return { route: routeKeyByPath[path] ?? 'home' as RouteKey, eventSlug: queryEventSlug };
+  return { route: routeKeyByPath[path] ?? ('home' as RouteKey), eventSlug: queryEventSlug };
 }
 
 function decodePathSegment(value: string | undefined) {
@@ -234,17 +352,23 @@ function decodePathSegment(value: string | undefined) {
   }
 }
 
-function syncRouteLocation(route: RouteKey, eventSlug = '', historyMode: 'push' | 'replace' = 'replace') {
+function syncRouteLocation(
+  route: RouteKey,
+  eventSlug = '',
+  historyMode: 'push' | 'replace' = 'replace',
+) {
   if (route === 'confirmation') return;
 
-  const path = route === 'event'
-    ? `/events/${encodeURIComponent(eventSlug)}`
-    : route === 'guestCheckout' && eventSlug
-      ? `/events/${encodeURIComponent(eventSlug)}/guest-checkout`
-      : route === 'guestCheckout'
-        ? '/guest-checkout'
-        : routePathByKey[route];
-  const search = route === 'createAccount' && eventSlug ? `?event=${encodeURIComponent(eventSlug)}` : '';
+  const path =
+    route === 'event'
+      ? `/events/${encodeURIComponent(eventSlug)}`
+      : route === 'guestCheckout' && eventSlug
+        ? `/events/${encodeURIComponent(eventSlug)}/guest-checkout`
+        : route === 'guestCheckout'
+          ? '/guest-checkout'
+          : routePathByKey[route];
+  const search =
+    route === 'createAccount' && eventSlug ? `?event=${encodeURIComponent(eventSlug)}` : '';
 
   window.history[`${historyMode}State`]({}, '', `${path}${search}`);
 }
@@ -289,14 +413,23 @@ function DrawerItem({
   children,
   icon,
   onClick,
+  route,
 }: {
   active: boolean;
   children: ReactNode;
   icon: ReactNode;
   onClick: () => void;
+  route: RouteKey;
 }) {
   return (
-    <button className={`drawer-nav-item${active ? ' active' : ''}`} type="button" onClick={onClick}>
+    <button
+      className={`drawer-nav-item${active ? ' active' : ''}`}
+      type="button"
+      onClick={onClick}
+      onFocus={() => preloadRoute(route)}
+      onPointerDown={() => preloadRoute(route)}
+      onPointerEnter={() => preloadRoute(route)}
+    >
       <span aria-hidden="true" className="drawer-nav-icon">
         {icon}
       </span>
@@ -341,9 +474,20 @@ function SettingsIcon() {
 
 function NotificationIcon({ className }: { className?: string }) {
   return (
-    <svg className={className ?? 'account-menu-notification-icon'} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <svg
+      className={className ?? 'account-menu-notification-icon'}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
       <circle className="account-menu-notification-icon-circle" cx="12" cy="12" r="9" />
-      <text className="account-menu-notification-icon-number" x="12" y="12" textAnchor="middle" dominantBaseline="central">
+      <text
+        className="account-menu-notification-icon-number"
+        x="12"
+        y="12"
+        textAnchor="middle"
+        dominantBaseline="central"
+      >
         1
       </text>
     </svg>
@@ -453,7 +597,9 @@ export function App() {
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const sideDrawerRef = useRef<HTMLElement | null>(null);
   const accountShellRef = useRef<HTMLDivElement | null>(null);
-  const [route, setRoute] = useState<RouteKey>(initialConfirmationOrderId ? 'confirmation' : initialRoute.route);
+  const [route, setRoute] = useState<RouteKey>(
+    initialConfirmationOrderId ? 'confirmation' : initialRoute.route,
+  );
   const [eventSlug, setEventSlug] = useState(initialRoute.eventSlug);
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -462,7 +608,8 @@ export function App() {
   const [isCheckingSession, setIsCheckingSession] = useState(Boolean(initialToken));
   const [accountMessage, setAccountMessage] = useState('');
   const [confirmationOrderId, setConfirmationOrderId] = useState(initialConfirmationOrderId);
-  const [confirmationOrigin, setConfirmationOrigin] = useState<ConfirmationOrigin>(initialConfirmationOrigin);
+  const [confirmationOrigin, setConfirmationOrigin] =
+    useState<ConfirmationOrigin>(initialConfirmationOrigin);
   const isAdmin = user?.role === 'admin';
   const isScanner = user?.role === 'scanner' || isAdmin;
   const canViewTicketSales = isScanner;
@@ -503,8 +650,11 @@ export function App() {
       if (getConfirmationOrderIdFromLocation()) return;
 
       const nextRoute = getRouteFromLocation();
-      setRoute(nextRoute.route);
-      setEventSlug(nextRoute.eventSlug);
+      preloadRoute(nextRoute.route);
+      runRouteTransition(() => {
+        setRoute(nextRoute.route);
+        setEventSlug(nextRoute.eventSlug);
+      });
     }
 
     if (window.location.hash) syncRouteLocation(initialRoute.route, initialRoute.eventSlug);
@@ -554,16 +704,35 @@ export function App() {
     );
 
     if (route === 'auth') return <AuthPage onSession={handleSession} />;
-    if (route === 'createAccount') return <AuthPage initialMode="create" onSession={handleSession} />;
-    if (route === 'guestCheckout') return user ? homePage : <GuestCheckoutPage eventSlug={eventSlug} />;
+    if (route === 'createAccount')
+      return <AuthPage initialMode="create" onSession={handleSession} />;
+    if (route === 'guestCheckout')
+      return user ? homePage : <GuestCheckoutPage eventSlug={eventSlug} />;
     if (route === 'about') return <AboutPage />;
     if (route === 'privacyPolicy') return <PrivacyPolicyPage />;
     if (route === 'terms') return <TermsPage />;
     if (route === 'account') {
-      return token ? <AccountPage token={token} user={user} onUserChange={handleUserChange} onAccountDeleted={handleAccountDeleted} /> : <AuthPage onSession={handleSession} />;
+      return token ? (
+        <AccountPage
+          token={token}
+          user={user}
+          onUserChange={handleUserChange}
+          onAccountDeleted={handleAccountDeleted}
+        />
+      ) : (
+        <AuthPage onSession={handleSession} />
+      );
     }
     if (route === 'adminUsers') {
-      return token && isAdmin ? <AdminUsersPage token={token} currentUser={user} onCurrentUserUpdated={handleAdminUserUpdated} /> : homePage;
+      return token && isAdmin ? (
+        <AdminUsersPage
+          token={token}
+          currentUser={user}
+          onCurrentUserUpdated={handleAdminUserUpdated}
+        />
+      ) : (
+        homePage
+      );
     }
     if (route === 'adminMessages') {
       return token && isAdmin ? <AdminMessagesPage token={token} currentUser={user} /> : homePage;
@@ -571,8 +740,16 @@ export function App() {
     if (route === 'adminEvents') {
       return token && isAdmin ? <AdminEventsPage token={token} /> : homePage;
     }
-    if (route === 'myTickets') return token ? <MyTicketsPage token={token} /> : <AuthPage onSession={handleSession} />;
-    if (route === 'scan') return <ScanPage token={token} user={user} onViewOrder={(orderId: string) => openConfirmationOrder(orderId, 'scan')} />;
+    if (route === 'myTickets')
+      return token ? <MyTicketsPage token={token} /> : <AuthPage onSession={handleSession} />;
+    if (route === 'scan')
+      return (
+        <ScanPage
+          token={token}
+          user={user}
+          onViewOrder={(orderId: string) => openConfirmationOrder(orderId, 'scan')}
+        />
+      );
     if (route === 'sales') return <SalesPage token={token} />;
     if (route === 'confirmation') {
       return confirmationOrderId ? (
@@ -583,12 +760,31 @@ export function App() {
           backButtonLabel={getConfirmationBackLabel(confirmationOrigin)}
           onBack={() => setRouteAndSyncUrl(getConfirmationBackRoute(confirmationOrigin))}
         />
-      ) : homePage;
+      ) : (
+        homePage
+      );
     }
     return homePage;
-  }, [confirmationOrderId, confirmationOrigin, eventSlug, handleAccountDeleted, handleAdminUserUpdated, handleSession, handleUserChange, isAdmin, openConfirmationOrder, route, token, user]);
+  }, [
+    confirmationOrderId,
+    confirmationOrigin,
+    eventSlug,
+    handleAccountDeleted,
+    handleAdminUserUpdated,
+    handleSession,
+    handleUserChange,
+    isAdmin,
+    openConfirmationOrder,
+    route,
+    token,
+    user,
+  ]);
 
-  function setRouteAndSyncUrl(nextRoute: RouteKey, nextEventSlug = '', historyMode: 'push' | 'replace' = 'replace') {
+  function setRouteAndSyncUrl(
+    nextRoute: RouteKey,
+    nextEventSlug = '',
+    historyMode: 'push' | 'replace' = 'replace',
+  ) {
     setRoute(nextRoute);
     setEventSlug(nextEventSlug);
 
@@ -601,27 +797,56 @@ export function App() {
   }
 
   function openConfirmationOrder(orderId: string, origin: ConfirmationOrigin = 'home') {
-    setConfirmationOrderId(orderId);
-    setConfirmationOrigin(origin);
-    setRoute('confirmation');
+    preloadRoute('confirmation');
+    runRouteTransition(() => {
+      setConfirmationOrderId(orderId);
+      setConfirmationOrigin(origin);
+      setRoute('confirmation');
 
-    const url = new URL('/confirmation', window.location.origin);
-    url.searchParams.set('order', orderId);
-    if (origin === 'home') {
-      url.searchParams.delete('from');
-    } else {
-      url.searchParams.set('from', origin);
-    }
-    window.history.replaceState({}, '', `${url.pathname}${url.search}`);
+      const url = new URL('/confirmation', window.location.origin);
+      url.searchParams.set('order', orderId);
+      if (origin === 'home') {
+        url.searchParams.delete('from');
+      } else {
+        url.searchParams.set('from', origin);
+      }
+      window.history.replaceState({}, '', `${url.pathname}${url.search}`);
 
-    setMenuOpen(false);
-    setAccountOpen(false);
+      setMenuOpen(false);
+      setAccountOpen(false);
+    });
   }
 
   function navigate(nextRoute: RouteKey, nextEventSlug = '') {
-    setRouteAndSyncUrl(nextRoute, nextEventSlug, 'push');
-    closeMenu();
-    setAccountOpen(false);
+    preloadRoute(nextRoute);
+    runRouteTransition(() => {
+      setRouteAndSyncUrl(nextRoute, nextEventSlug, 'push');
+      closeMenu();
+      setAccountOpen(false);
+    });
+  }
+
+  function handleAppLinkClick(event: MouseEvent<HTMLDivElement>) {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return;
+
+    const target = getInternalRouteTarget(event.target);
+    if (!target) return;
+
+    event.preventDefault();
+    navigate(target.route, target.eventSlug);
+  }
+
+  function handleAppLinkIntent(event: PointerEvent<HTMLDivElement> | FocusEvent<HTMLDivElement>) {
+    const target = getInternalRouteTarget(event.target);
+    if (target) preloadRoute(target.route);
   }
 
   function closeMenu() {
@@ -633,7 +858,22 @@ export function App() {
   }
 
   function handleMenuButtonClick() {
+    preloadRoute('about');
+    preloadRoute(user ? 'myTickets' : 'auth');
+    if (isScanner) {
+      preloadRoute('scan');
+      preloadRoute('sales');
+    }
+    if (isAdmin) {
+      preloadRoute('adminMessages');
+      preloadRoute('adminEvents');
+      preloadRoute('adminUsers');
+    }
     setMenuOpen(true);
+  }
+
+  function preloadAccountDestination() {
+    preloadRoute(user ? 'account' : 'auth');
   }
 
   function handleAccountButtonClick() {
@@ -707,25 +947,51 @@ export function App() {
   }
 
   return (
-    <div className={`app-shell${route === 'scan' ? ' app-shell-scanner' : ''}`}>
+    <div
+      className={`app-shell${route === 'scan' ? ' app-shell-scanner' : ''}`}
+      onClick={handleAppLinkClick}
+      onFocusCapture={handleAppLinkIntent}
+      onPointerOver={handleAppLinkIntent}
+    >
       <header className="app-header">
         <div className="app-header-leading">
-          <button className="icon-button" type="button" aria-label="Open menu" onClick={handleMenuButtonClick} ref={menuButtonRef}>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="Open menu"
+            onClick={handleMenuButtonClick}
+            ref={menuButtonRef}
+          >
             <MenuIcon />
           </button>
         </div>
         <div className="app-brand">
-          <a className="app-brand-link" href="/events" aria-label="Wizard Make Potion: go to events" onClick={(event) => { event.preventDefault(); navigate('home'); }}>
+          <a
+            className="app-brand-link"
+            href="/events"
+            aria-label="Wizard Make Potion: go to events"
+          >
             <img className="app-brand-banner" src="/wmp-banner.svg" alt="" fetchPriority="high" />
           </a>
-          <span className="visually-hidden" aria-live="polite">{routeTitle}</span>
+          <span className="visually-hidden" aria-live="polite">
+            {routeTitle}
+          </span>
         </div>
         <div className="account-shell" ref={accountShellRef}>
           <button
             className="icon-button account-button"
             type="button"
-            aria-label={user ? (needsPhoneVerification ? 'Account, phone verification needed' : 'Account') : 'Sign in'}
+            aria-label={
+              user
+                ? needsPhoneVerification
+                  ? 'Account, phone verification needed'
+                  : 'Account'
+                : 'Sign in'
+            }
             onClick={handleAccountButtonClick}
+            onFocus={preloadAccountDestination}
+            onPointerDown={preloadAccountDestination}
+            onPointerEnter={preloadAccountDestination}
           >
             <AccountIcon />
             {needsPhoneVerification ? <NotificationIcon className="account-button-badge" /> : null}
@@ -739,7 +1005,11 @@ export function App() {
                   {user.role !== 'customer' ? <span>{user.role}</span> : null}
                 </div>
                 <div className="account-menu-actions">
-                  <button className="account-menu-button" type="button" onClick={() => navigate('account')}>
+                  <button
+                    className="account-menu-button"
+                    type="button"
+                    onClick={() => navigate('account')}
+                  >
                     {needsPhoneVerification ? <NotificationIcon /> : <SettingsIcon />}
                     <span>Account Settings</span>
                   </button>
@@ -754,53 +1024,122 @@ export function App() {
           ) : null}
         </div>
       </header>
-      {user && accountOpen ? <button className="drawer-backdrop" type="button" aria-label="Close account menu" onClick={() => setAccountOpen(false)} /> : null}
-      {menuOpen ? <button className="drawer-backdrop" type="button" aria-label="Close menu" onClick={closeMenu} /> : null}
-      <aside className={`side-drawer${menuOpen ? ' is-open' : ''}`} aria-label="Primary menu" aria-hidden={!menuOpen} ref={sideDrawerRef}>
+      {user && accountOpen ? (
+        <button
+          className="drawer-backdrop"
+          type="button"
+          aria-label="Close account menu"
+          onClick={() => setAccountOpen(false)}
+        />
+      ) : null}
+      {menuOpen ? (
+        <button
+          className="drawer-backdrop"
+          type="button"
+          aria-label="Close menu"
+          onClick={closeMenu}
+        />
+      ) : null}
+      <aside
+        className={`side-drawer${menuOpen ? ' is-open' : ''}`}
+        aria-label="Primary menu"
+        aria-hidden={!menuOpen}
+        ref={sideDrawerRef}
+      >
         <div className="drawer-header">
           <strong>Menu</strong>
-          <button className="drawer-close-button" type="button" aria-label="Close menu" onClick={closeMenu}>
+          <button
+            className="drawer-close-button"
+            type="button"
+            aria-label="Close menu"
+            onClick={closeMenu}
+          >
             <CloseIcon />
           </button>
         </div>
         <nav className="drawer-nav">
-          <DrawerItem active={route === 'home' || route === 'event'} icon={<HomeIcon />} onClick={() => navigate('home')}>
+          <DrawerItem
+            active={route === 'home' || route === 'event'}
+            icon={<HomeIcon />}
+            route="home"
+            onClick={() => navigate('home')}
+          >
             Events
           </DrawerItem>
-          <DrawerItem active={route === 'about'} icon={<AboutIcon />} onClick={() => navigate('about')}>
+          <DrawerItem
+            active={route === 'about'}
+            icon={<AboutIcon />}
+            route="about"
+            onClick={() => navigate('about')}
+          >
             About
           </DrawerItem>
           {user ? (
-            <DrawerItem active={route === 'myTickets'} icon={<TicketIcon />} onClick={() => navigate('myTickets')}>
+            <DrawerItem
+              active={route === 'myTickets'}
+              icon={<TicketIcon />}
+              route="myTickets"
+              onClick={() => navigate('myTickets')}
+            >
               My Tickets
             </DrawerItem>
           ) : (
-            <DrawerItem active={route === 'auth' || route === 'createAccount'} icon={<SignInIcon />} onClick={() => navigate('auth')}>
+            <DrawerItem
+              active={route === 'auth' || route === 'createAccount'}
+              icon={<SignInIcon />}
+              route="auth"
+              onClick={() => navigate('auth')}
+            >
               Sign In
             </DrawerItem>
           )}
           {isScanner ? (
-            <DrawerItem active={route === 'scan'} icon={<ScanIcon />} onClick={() => navigate('scan')}>
+            <DrawerItem
+              active={route === 'scan'}
+              icon={<ScanIcon />}
+              route="scan"
+              onClick={() => navigate('scan')}
+            >
               Scan
             </DrawerItem>
           ) : null}
           {canViewTicketSales ? (
-            <DrawerItem active={route === 'sales'} icon={<SalesIcon />} onClick={() => navigate('sales')}>
+            <DrawerItem
+              active={route === 'sales'}
+              icon={<SalesIcon />}
+              route="sales"
+              onClick={() => navigate('sales')}
+            >
               Sales
             </DrawerItem>
           ) : null}
           {isAdmin ? (
-            <DrawerItem active={route === 'adminMessages'} icon={<MessageIcon />} onClick={() => navigate('adminMessages')}>
+            <DrawerItem
+              active={route === 'adminMessages'}
+              icon={<MessageIcon />}
+              route="adminMessages"
+              onClick={() => navigate('adminMessages')}
+            >
               Messages
             </DrawerItem>
           ) : null}
           {isAdmin ? (
-            <DrawerItem active={route === 'adminEvents'} icon={<CalendarIcon />} onClick={() => navigate('adminEvents')}>
+            <DrawerItem
+              active={route === 'adminEvents'}
+              icon={<CalendarIcon />}
+              route="adminEvents"
+              onClick={() => navigate('adminEvents')}
+            >
               Events
             </DrawerItem>
           ) : null}
           {isAdmin ? (
-            <DrawerItem active={route === 'adminUsers'} icon={<UsersIcon />} onClick={() => navigate('adminUsers')}>
+            <DrawerItem
+              active={route === 'adminUsers'}
+              icon={<UsersIcon />}
+              route="adminUsers"
+              onClick={() => navigate('adminUsers')}
+            >
               User Access
             </DrawerItem>
           ) : null}
@@ -808,20 +1147,35 @@ export function App() {
       </aside>
       <main>
         <RouteErrorBoundary key={route} fallbackVariant={getRouteLoadingVariant(route)}>
-          <Suspense fallback={<LoadingOverlay label="Loading page" detail="Bringing in the next screen." variant={getRouteLoadingVariant(route)} />}>{currentView}</Suspense>
+          <Suspense
+            fallback={
+              <LoadingOverlay
+                label="Loading page"
+                detail="Bringing in the next screen."
+                variant={getRouteLoadingVariant(route)}
+              />
+            }
+          >
+            {currentView}
+          </Suspense>
         </RouteErrorBoundary>
       </main>
       {!routesWithoutFooter.has(route) ? (
         <footer className="legal-footer app-footer" aria-label="Legal links">
-          <a href="/about" onClick={(event) => { event.preventDefault(); navigate('about'); }}>About</a>
+          <a href="/about">About</a>
           <span aria-hidden="true">|</span>
-          <a href="/privacy-policy" onClick={(event) => { event.preventDefault(); navigate('privacyPolicy'); }}>Privacy Policy</a>
+          <a href="/privacy-policy">Privacy Policy</a>
           <span aria-hidden="true">|</span>
-          <a href="/terms-and-conditions" onClick={(event) => { event.preventDefault(); navigate('terms'); }}>Terms and Conditions</a>
+          <a href="/terms-and-conditions">Terms and Conditions</a>
         </footer>
       ) : null}
-      {isCheckingSession ? <LoadingOverlay label="Restoring session" detail="Checking your saved sign-in." variant={getRouteLoadingVariant(route)} /> : null}
+      {isCheckingSession ? (
+        <LoadingOverlay
+          label="Restoring session"
+          detail="Checking your saved sign-in."
+          variant={getRouteLoadingVariant(route)}
+        />
+      ) : null}
     </div>
   );
 }
-
