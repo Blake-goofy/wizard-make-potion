@@ -108,6 +108,16 @@ type ConfirmationOrigin = 'home' | 'myTickets' | 'scan' | 'sales';
 type PublicRouteKey = Exclude<RouteKey, 'event' | 'guestCheckout' | 'confirmation'>;
 
 const sessionTokenKey = 'sessionToken';
+const routesWithoutFooter = new Set<RouteKey>([
+  'about',
+  'createAccount',
+  'privacyPolicy',
+  'terms',
+  'scan',
+  'adminEvents',
+  'adminMessages',
+  'adminUsers',
+]);
 const routePathByKey: Record<PublicRouteKey, string> = {
   home: '/events',
   about: '/about',
@@ -705,7 +715,9 @@ export function App() {
           </button>
         </div>
         <div className="app-brand">
-          <img className="app-brand-banner" src="/wmp-banner.svg" alt="Wizard Make Potion" />
+          <a className="app-brand-link" href="/events" aria-label="Wizard Make Potion: go to events" onClick={(event) => { event.preventDefault(); navigate('home'); }}>
+            <img className="app-brand-banner" src="/wmp-banner.svg" alt="" fetchPriority="high" />
+          </a>
           <span className="visually-hidden" aria-live="polite">{routeTitle}</span>
         </div>
         <div className="account-shell" ref={accountShellRef}>
@@ -799,7 +811,7 @@ export function App() {
           <Suspense fallback={<LoadingOverlay label="Loading page" detail="Bringing in the next screen." variant={getRouteLoadingVariant(route)} />}>{currentView}</Suspense>
         </RouteErrorBoundary>
       </main>
-      {route !== 'scan' ? (
+      {!routesWithoutFooter.has(route) ? (
         <footer className="legal-footer app-footer" aria-label="Legal links">
           <a href="/about" onClick={(event) => { event.preventDefault(); navigate('about'); }}>About</a>
           <span aria-hidden="true">|</span>

@@ -28,6 +28,20 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section>
+          <h2>Browser Storage and Payments</h2>
+          <p>
+            We do not use advertising or analytics cookies on this website. We use browser local storage to keep signed-in
+            users authenticated and session storage to help the website recover from an interrupted page update. You can
+            clear this data by signing out or clearing this website&apos;s data in your browser.
+          </p>
+          <p>
+            Payments are processed through Stripe Checkout. Stripe may collect personal data, including through cookies and
+            similar technologies, to process payments, prevent fraud, authenticate users, and operate its services. Read
+            Stripe&apos;s <a href="https://stripe.com/privacy">Privacy Policy</a> for more information.
+          </p>
+        </section>
+
+        <section>
           <h2>SMS Privacy</h2>
           <p>
             Your mobile information will not be sold or shared with third parties for promotional or marketing purposes.

@@ -199,10 +199,17 @@ label {
   min-width: 0;
 }
 
-.app-brand-banner {
+.app-brand-link {
   display: block;
   width: min(100%, 25rem);
+  background: var(--color-background);
+}
+
+.app-brand-banner {
+  display: block;
+  width: 100%;
   height: auto;
+  background: var(--color-background);
 }
 
 .account-shell {
