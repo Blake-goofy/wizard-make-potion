@@ -327,7 +327,7 @@ label {
 }
 
 .account-menu-notification-icon-number {
-  fill: var(--color-action-hover);
+  fill: var(--color-text-inverse);
   stroke: none;
   font-family: var(--font-body);
   font-size: 11px;
