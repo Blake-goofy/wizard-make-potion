@@ -2,7 +2,6 @@ import { Component, lazy, Suspense, useEffect, useMemo, useRef, useState, type C
 import type { AdminManagedUser, SessionUser } from '@potion/shared';
 import LoadingOverlay, { type LoadingSkeletonVariant } from './components/LoadingOverlay';
 import { HomePage } from './routes/HomePage';
-import { WizardHatMark } from './components/WizardHatMark';
 import { getCurrentUser } from './lib/api';
 
 const routeImportReloadStorageKey = 'wizard-route-import-reload';
@@ -454,7 +453,6 @@ export function App() {
   const [accountMessage, setAccountMessage] = useState('');
   const [confirmationOrderId, setConfirmationOrderId] = useState(initialConfirmationOrderId);
   const [confirmationOrigin, setConfirmationOrigin] = useState<ConfirmationOrigin>(initialConfirmationOrigin);
-  const [isHatAnimating, setIsHatAnimating] = useState(false);
   const isAdmin = user?.role === 'admin';
   const isScanner = user?.role === 'scanner' || isAdmin;
   const canViewTicketSales = isScanner;
@@ -698,16 +696,6 @@ export function App() {
     clearSession('Signed out.');
   }
 
-  function handleHatClick() {
-    if (isHatAnimating) {
-      setIsHatAnimating(false);
-      requestAnimationFrame(() => setIsHatAnimating(true));
-      return;
-    }
-
-    setIsHatAnimating(true);
-  }
-
   return (
     <div className={`app-shell${route === 'scan' ? ' app-shell-scanner' : ''}`}>
       <header className="app-header">
@@ -715,18 +703,10 @@ export function App() {
           <button className="icon-button" type="button" aria-label="Open menu" onClick={handleMenuButtonClick} ref={menuButtonRef}>
             <MenuIcon />
           </button>
-          <button
-            aria-label="Animate logo"
-            className={`brand-mark-button${isHatAnimating ? ' is-animating' : ''}`}
-            type="button"
-            onAnimationEnd={() => setIsHatAnimating(false)}
-            onClick={handleHatClick}
-          >
-            <WizardHatMark />
-          </button>
         </div>
-        <div className="app-title" aria-live="polite">
-          <span>{routeTitle}</span>
+        <div className="app-brand">
+          <img className="app-brand-banner" src="/wmp-banner.svg" alt="Wizard Make Potion" />
+          <span className="visually-hidden" aria-live="polite">{routeTitle}</span>
         </div>
         <div className="account-shell" ref={accountShellRef}>
           <button

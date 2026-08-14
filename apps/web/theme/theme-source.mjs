@@ -2,45 +2,45 @@ export const themeSections = [
   {
     title: 'Surfaces',
     tokens: {
-      '--color-background': '#17131c',
-      '--color-surface': '#231b2d',
-      '--color-surface-strong': '#2b2137',
-      '--color-surface-inverse': '#f8f4ff',
-      '--color-overlay': '#0a070fb8',
+      '--color-background': '#312a53',
+      '--color-surface': '#3a3263',
+      '--color-surface-strong': '#463b73',
+      '--color-surface-inverse': '#fff7ed',
+      '--color-overlay': '#181426c7',
     },
   },
   {
     title: 'Text',
     tokens: {
-      '--color-text': '#f5efff',
-      '--color-muted-text': '#ddd4f0',
-      '--color-control-text': '#ebe1fb',
-      '--color-icon': '#b09ccf',
-      '--color-text-inverse': '#1a1520',
+      '--color-text': '#fff8f0',
+      '--color-muted-text': '#ddd5e8',
+      '--color-control-text': '#f7efe4',
+      '--color-icon': '#f39442',
+      '--color-text-inverse': '#312a53',
     },
   },
   {
     title: 'Structure',
     tokens: {
-      '--color-border': '#312547',
+      '--color-border': '#5a4d83',
     },
   },
   {
     title: 'Primary actions',
     tokens: {
-      '--color-action': '#f8f4ff',
-      '--color-action-strong': '#ffffff',
-      '--color-action-hover': '#ffffff',
-      '--color-on-action': '#1a1520',
+      '--color-action': '#f39442',
+      '--color-action-strong': '#ffa85c',
+      '--color-action-hover': '#ffa85c',
+      '--color-on-action': '#312a53',
     },
   },
   {
     title: 'Accents',
     tokens: {
-      '--color-accent': '#bfa7df',
-      '--color-accent-strong': '#9270c2',
-      '--color-brand-mark': '#5d457e',
-      '--color-scanner-frame': '#bfa7df',
+      '--color-accent': '#f39442',
+      '--color-accent-strong': '#ffa85c',
+      '--color-brand-mark': '#f39442',
+      '--color-scanner-frame': '#f39442',
     },
   },
   {
@@ -50,15 +50,15 @@ export const themeSections = [
       '--color-danger-strong': '#ff7e88',
       '--color-on-danger': '#2a0c12',
       '--color-success': '#7fd4a5',
-      '--color-warning': '#f1c979',
+      '--color-warning': '#f3c36b',
     },
   },
   {
     title: 'Scale',
     tokens: {
       '--shadow-panel': 'none',
-      '--radius-sm': '6px',
-      '--radius-md': '8px',
+      '--radius-sm': '8px 5px 7px 4px',
+      '--radius-md': '12px 8px 11px 7px',
       '--space-1': '0.25rem',
       '--space-2': '0.5rem',
       '--space-3': '0.75rem',
@@ -66,21 +66,7 @@ export const themeSections = [
       '--space-5': '1.5rem',
       '--space-6': '2rem',
       '--font-body': 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      '--focus-ring': '0 0 0 3px rgb(191 167 223 / 30%)',
+      '--focus-ring': '0 0 0 3px rgb(243 148 66 / 38%)',
     },
   },
 ];
-
-const themeTokenMap = new Map(
-  themeSections.flatMap((section) => Object.entries(section.tokens)),
-);
-
-export function getThemeToken(tokenName) {
-  const tokenValue = themeTokenMap.get(tokenName);
-
-  if (!tokenValue) {
-    throw new Error(`Unknown theme token: ${tokenName}`);
-  }
-
-  return tokenValue;
-}

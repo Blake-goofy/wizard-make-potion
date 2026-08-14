@@ -192,78 +192,22 @@ label {
   justify-self: start;
 }
 
-.app-title {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(100%, calc(100% - 12rem));
-  min-width: 0;
-  color: var(--color-text);
-  font-weight: 800;
-  text-align: center;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-}
-
-.app-title span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.brand-mark-button {
-  display: inline-grid;
+.app-brand {
+  grid-column: 2;
+  display: grid;
   place-items: center;
-  width: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0;
-  color: inherit;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
+  min-width: 0;
 }
 
-.brand-mark-button:hover:not(:disabled),
-.brand-mark-button:focus-visible {
-  background: transparent;
+.app-brand-banner {
+  display: block;
+  width: min(100%, 25rem);
+  height: auto;
 }
 
 .account-shell {
   grid-column: 3;
   justify-self: end;
-}
-
-.wizard-hat-mark {
-  width: 44px;
-  height: 44px;
-  flex: 0 0 auto;
-}
-
-.wizard-hat-stars {
-  transform-origin: 50% 50%;
-}
-
-.brand-mark-button.is-animating .wizard-hat-mark {
-  animation: wizard-hat-bob 420ms ease;
-}
-
-.brand-mark-button.is-animating .wizard-hat-stars {
-  animation: wizard-hat-stars-spin 420ms ease;
-}
-
-@keyframes wizard-hat-bob {
-  0% { transform: rotate(0deg) translateY(0); }
-  35% { transform: rotate(-5deg) translateY(-1px); }
-  70% { transform: rotate(4deg) translateY(0); }
-  100% { transform: rotate(0deg) translateY(0); }
-}
-
-@keyframes wizard-hat-stars-spin {
-  0% { transform: rotate(0deg) scale(1); }
-  45% { transform: rotate(18deg) scale(1.04); }
-  100% { transform: rotate(0deg) scale(1); }
 }
 
 .nav-tabs {
@@ -520,7 +464,7 @@ label {
 .drawer-nav-item.active .drawer-nav-icon,
 .drawer-nav-item:hover .drawer-nav-icon,
 .drawer-nav-item:focus-visible .drawer-nav-icon {
-  color: var(--color-text);
+  color: var(--color-icon);
 }
 
 .drawer-nav-icon svg {
