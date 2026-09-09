@@ -1,6 +1,5 @@
 import {
   Component,
-  lazy,
   Suspense,
   useEffect,
   useMemo,
@@ -17,7 +16,7 @@ import type { AdminManagedUser, SessionUser } from '@potion/shared';
 import LoadingOverlay, { type LoadingSkeletonVariant } from './components/LoadingOverlay';
 import { HomePage } from './routes/HomePage';
 import { getCurrentUser } from './lib/api';
-import { createRoutePreloader } from './lib/routePreload';
+import { createRoutePreloader, type RoutePreloader } from './lib/routePreload';
 
 const routeImportReloadStorageKey = 'wizard-route-import-reload';
 
@@ -49,12 +48,14 @@ function getDynamicImportErrorFingerprint(error: unknown) {
   );
 }
 
-function lazyRoute<TModule extends { default: ComponentType<any> }>(load: () => Promise<TModule>) {
-  return lazy(async () => {
-    const module = await load();
+function lazyRoute<TProps extends object>(
+  load: RoutePreloader<{ default: ComponentType<TProps> }>,
+) {
+  return function PreloadedRoute(props: TProps) {
+    const Route = load.read().default;
     sessionStorage.removeItem(routeImportReloadStorageKey);
-    return module;
-  });
+    return <Route {...props} />;
+  };
 }
 
 class RouteErrorBoundary extends Component<
@@ -971,7 +972,14 @@ export function App() {
             href="/events"
             aria-label="Wizard Make Potion: go to events"
           >
-            <img className="app-brand-banner" src="/wmp-banner.svg" alt="" fetchPriority="high" />
+            <img
+              className="app-brand-banner"
+              src="/wmp-banner.png"
+              alt=""
+              width="1000"
+              height="220"
+              fetchPriority="high"
+            />
           </a>
           <span className="visually-hidden" aria-live="polite">
             {routeTitle}

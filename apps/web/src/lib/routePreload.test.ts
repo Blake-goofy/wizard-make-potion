@@ -23,7 +23,24 @@ describe('createRoutePreloader', () => {
     const preload = createRoutePreloader(load);
 
     await expect(preload()).rejects.toThrow('network error');
+    expect(() => preload.read()).toThrow('network error');
     await expect(preload()).resolves.toEqual({ default: 'route' });
     expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads a route synchronously after it has been preloaded', async () => {
+    const module = { default: 'route' };
+    const preload = createRoutePreloader(async () => module);
+
+    let suspendedOn: unknown;
+    try {
+      preload.read();
+    } catch (error) {
+      suspendedOn = error;
+    }
+
+    expect(suspendedOn).toBeInstanceOf(Promise);
+    await suspendedOn;
+    expect(preload.read()).toBe(module);
   });
 });

@@ -2829,6 +2829,15 @@ label {
   place-items: center;
   padding: var(--space-4);
   background: var(--color-background);
+  /* ponytail: Hide sub-180ms waits; use contextual skeletons if longer waits become common. */
+  opacity: 0;
+  animation: loading-overlay-reveal 120ms ease-out 180ms forwards;
+}
+
+@keyframes loading-overlay-reveal {
+  to {
+    opacity: 1;
+  }
 }
 
 .loading-spinner {
@@ -2847,6 +2856,10 @@ label {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .loading-overlay {
+    animation-duration: 1ms;
+  }
+
   .loading-spinner {
     animation-duration: 2.4s;
   }

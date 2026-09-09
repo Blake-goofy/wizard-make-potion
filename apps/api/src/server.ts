@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
@@ -151,10 +151,22 @@ export async function buildServer(config: AppConfig) {
   await registerAdminRoutes(server, { auth, db, emailQueue, scanner, smsMessages });
 
   if (webDistDir) {
+    const webAssetsDir = `${join(webDistDir, 'assets')}${sep}`;
+
     await server.register(fastifyStatic, {
       root: webDistDir,
       index: false,
       wildcard: false,
+      cacheControl: false,
+      setHeaders(response, filePath) {
+        if (filePath.startsWith(webAssetsDir)) {
+          response.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        } else if (filePath.endsWith('index.html')) {
+          response.setHeader('Cache-Control', 'no-cache');
+        } else {
+          response.setHeader('Cache-Control', 'public, max-age=86400');
+        }
+      },
     });
 
     server.get('/', async (_request, reply) => reply.sendFile('index.html'));
