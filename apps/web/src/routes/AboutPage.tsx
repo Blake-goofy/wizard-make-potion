@@ -5,8 +5,8 @@ export default function AboutPage() {
         <p className="eyebrow">About</p>
         <h1>Wizard Make Potion</h1>
         <p className="status-text">
-          Wizard Make Potion is an informal group of friends who organize and host local events in Edmond, Oklahoma.
-          We are not an incorporated or registered company.
+          Wizard Make Potion is a local event series organized and operated by Blake Becker. It is not a separate
+          corporation or LLC.
         </p>
       </div>
 
@@ -14,7 +14,8 @@ export default function AboutPage() {
         <section>
           <h2>What We Do</h2>
           <p>
-            We create and host small themed events for our community. This website publishes event details, sells admission
+            We rent venues in the Edmond and Oklahoma City area and host ticketed social events featuring DJ music. Some
+            events have a theme, and costumes may be encouraged. This website publishes event details, sells admission
             tickets, emails purchase confirmations, and provides digital tickets for entry.
           </p>
         </section>
@@ -23,6 +24,7 @@ export default function AboutPage() {
           <h2>Contact and Location</h2>
           <address className="about-contact-list">
             <span>Wizard Make Potion</span>
+            <span>Operated by Blake Becker</span>
             <span>328 E 14th St, Edmond, OK 73034</span>
             <a href="tel:+14058338435">+1 (405) 833-8435</a>
             <a href="mailto:info@wizardmakepotion.com">info@wizardmakepotion.com</a>

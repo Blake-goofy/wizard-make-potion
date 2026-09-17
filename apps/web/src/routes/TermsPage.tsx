@@ -11,9 +11,19 @@ export default function TermsPage() {
 
       <div className="legal-copy">
         <section>
+          <h2>Event Operator</h2>
+          <p>
+            Wizard Make Potion is a local event series organized and operated by Blake Becker. It is not a separate
+            corporation or LLC.
+          </p>
+        </section>
+
+        <section>
           <h2>Ticketing Services</h2>
           <p>
-            Our website lets customers browse events, create accounts, purchase tickets, and manage order information.
+            We rent venues in the Edmond and Oklahoma City area and host ticketed social events featuring DJ music. Some
+            events have a theme, and costumes may be encouraged. Our website lets customers browse these events, create
+            accounts, purchase admission tickets, and manage order information.
           </p>
         </section>
 

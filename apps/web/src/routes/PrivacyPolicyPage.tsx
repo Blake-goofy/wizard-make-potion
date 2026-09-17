@@ -5,7 +5,8 @@ export default function PrivacyPolicyPage() {
         <p className="eyebrow">Legal</p>
         <h1>Privacy Policy</h1>
         <p className="status-text">
-          This policy explains how Wizard Make Potion handles website, order, account, and SMS messaging information.
+          This policy explains how Blake Becker, the operator of Wizard Make Potion, handles website, order, account, and
+          SMS messaging information.
         </p>
       </div>
 
@@ -65,6 +66,14 @@ export default function PrivacyPolicyPage() {
           <h2>Policy Updates</h2>
           <p>
             We may update this policy from time to time. When we do, the updated version will be posted on this page.
+          </p>
+        </section>
+
+        <section>
+          <h2>Contact</h2>
+          <p>
+            Questions about this policy can be sent to <a href="mailto:info@wizardmakepotion.com">info@wizardmakepotion.com</a>
+            {' '}or mailed to Wizard Make Potion, 328 E 14th St, Edmond, OK 73034.
           </p>
         </section>
       </div>
