@@ -1006,14 +1006,7 @@ export function App() {
             href="/events"
             aria-label="Wizard Make Potion: go to events"
           >
-            <img
-              className="app-brand-banner"
-              src="/wmp-banner.png"
-              alt=""
-              width="1000"
-              height="220"
-              fetchPriority="high"
-            />
+            <span className="app-brand-banner" aria-hidden="true" />
           </a>
           <span className="visually-hidden" aria-live="polite">
             {routeTitle}

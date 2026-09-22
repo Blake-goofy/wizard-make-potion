@@ -246,8 +246,10 @@ label {
 .app-brand-banner {
   display: block;
   width: 100%;
-  height: auto;
-  background: var(--color-background);
+  aspect-ratio: 50 / 11;
+  background: var(--color-accent);
+  mask: url("/wmp-banner.png") center / contain no-repeat;
+  -webkit-mask: url("/wmp-banner.png") center / contain no-repeat;
 }
 
 .account-shell {
