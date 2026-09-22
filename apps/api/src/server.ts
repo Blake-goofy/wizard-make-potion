@@ -153,7 +153,7 @@ export async function buildServer(config: AppConfig) {
   await registerTelnyxRoutes(server, { config, sms });
   await registerOrderRoutes(server, { auth, orders });
   await registerScannerRoutes(server, { scanner, auth, appSettings });
-  await registerAdminRoutes(server, { auth, db, emailQueue, scanner, smsMessages });
+  await registerAdminRoutes(server, { auth, db, emailQueue, scanner, smsMessages, appSettings });
 
   if (webDistDir) {
     const webAssetsDir = `${join(webDistDir, 'assets')}${sep}`;

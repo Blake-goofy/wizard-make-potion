@@ -28,7 +28,7 @@ button {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 0 var(--space-4);
-  color: var(--color-control-text);
+  color: var(--color-text);
   background: var(--color-surface-strong);
   font-weight: 700;
   -webkit-tap-highlight-color: transparent;
@@ -42,7 +42,7 @@ button:focus:not(:focus-visible) {
   button:hover:not(:disabled) {
     background: color-mix(
       in srgb,
-      var(--color-surface-inverse) 10%,
+      var(--color-text) 10%,
       var(--color-surface-strong) 90%
     );
   }
@@ -263,14 +263,14 @@ label {
 
 .nav-tabs button {
   padding: 0 var(--space-2);
-  color: var(--color-control-text);
+  color: var(--color-text);
   background: var(--color-surface-strong);
   border: 1px solid var(--color-border);
 }
 
 .nav-tabs button.active {
   color: var(--color-text);
-  background: color-mix(in srgb, var(--color-surface-inverse) 12%, var(--color-surface-strong) 88%);
+  background: color-mix(in srgb, var(--color-text) 12%, var(--color-surface-strong) 88%);
   border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border) 50%);
 }
 
@@ -280,7 +280,7 @@ label {
   width: 44px;
   min-width: 44px;
   padding: 0;
-  color: var(--color-icon);
+  color: var(--color-accent);
   background: var(--color-surface-strong);
   border: 1px solid var(--color-border);
 }
@@ -365,7 +365,7 @@ label {
 }
 
 .account-menu-notification-icon-number {
-  fill: var(--color-text-inverse);
+  fill: var(--color-background);
   stroke: none;
   font-family: var(--font-body);
   font-size: 11px;
@@ -442,7 +442,7 @@ label {
   min-width: 2.5rem;
   min-height: 2.5rem;
   padding: 0;
-  color: var(--color-icon);
+  color: var(--color-accent);
   background: transparent;
   border: 0;
 }
@@ -478,7 +478,7 @@ label {
   width: 100%;
   min-height: 3.25rem;
   padding: 0 var(--space-3);
-  color: var(--color-control-text);
+  color: var(--color-text);
   background: transparent;
   border: 0;
   border-radius: var(--radius-sm);
@@ -503,13 +503,13 @@ label {
   place-items: center;
   width: 1.25rem;
   height: 1.25rem;
-  color: var(--color-icon);
+  color: var(--color-accent);
 }
 
 .drawer-nav-item.active .drawer-nav-icon,
 .drawer-nav-item:hover .drawer-nav-icon,
 .drawer-nav-item:focus-visible .drawer-nav-icon {
-  color: var(--color-icon);
+  color: var(--color-accent);
 }
 
 .drawer-nav-icon svg {
@@ -647,7 +647,7 @@ label {
 
 .toast-stack {
   position: fixed;
-  bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  top: calc(var(--space-4) + env(safe-area-inset-top, 0px));
   left: 50%;
   z-index: 100;
   width: min(calc(100vw - var(--space-4) * 2), 32rem);
@@ -687,7 +687,7 @@ label {
 @keyframes toast-message-enter {
   from {
     opacity: 0;
-    transform: translateY(1rem);
+    transform: translateY(-1rem);
   }
 
   to {
@@ -704,7 +704,7 @@ label {
 
   to {
     opacity: 0;
-    transform: translateY(0.85rem);
+    transform: translateY(-0.85rem);
   }
 }
 
@@ -896,7 +896,7 @@ label {
 .legal-footer a:focus-visible,
 .legal-page-links a:hover,
 .legal-page-links a:focus-visible {
-  color: var(--color-action-hover);
+  color: var(--color-accent-strong);
 }
 
 .legal-page {
@@ -979,7 +979,7 @@ label {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2);
-  color: var(--color-control-text);
+  color: var(--color-text);
   font-weight: 700;
   line-height: 1.3;
 }
@@ -1036,6 +1036,71 @@ label {
   width: min(100%, 44rem);
   margin: 0 auto;
   gap: var(--space-4);
+}
+
+.admin-theme-panel {
+  width: min(100%, 44rem);
+  margin: 0 auto;
+}
+
+.admin-theme-header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.admin-theme-header h1,
+.admin-theme-header p {
+  margin: 0;
+}
+
+.admin-theme-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.admin-theme-color-field {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  background: var(--color-surface);
+}
+
+.admin-theme-color-field > span:first-child {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.admin-theme-color-field small {
+  color: var(--color-muted-text);
+  font-weight: 400;
+}
+
+.admin-theme-color-control {
+  display: grid;
+  grid-template-columns: 3rem auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.admin-theme-color-control input[type='color'] {
+  width: 3rem;
+  min-height: 3rem;
+  padding: 0.2rem;
+  cursor: pointer;
+}
+
+.admin-theme-color-control code {
+  color: var(--color-text);
+  font-size: 0.8rem;
+  text-transform: lowercase;
+}
+
+.admin-theme-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
 }
 
 .admin-events-header {
@@ -1260,7 +1325,7 @@ label {
 }
 
 .danger-button {
-  color: var(--color-on-danger);
+  color: var(--color-background);
   background: var(--color-danger);
 }
 
@@ -1278,7 +1343,7 @@ label {
 }
 
 .text-button:hover:not(:disabled) {
-  color: var(--color-action-hover);
+  color: var(--color-accent-strong);
   background: transparent;
 }
 
@@ -1291,7 +1356,7 @@ label {
 .segmented-control button {
   justify-content: flex-start;
   padding: 0 var(--space-3);
-  color: var(--color-control-text);
+  color: var(--color-text);
   background: transparent;
   border: 0;
 }
@@ -1329,9 +1394,9 @@ label {
 .stack-form > button[type='submit'],
 .purchase-form > .stripe-checkout-button,
 .confirmation-panel .panel-header-row > button {
-  color: var(--color-on-action);
-  background: var(--color-action);
-  border-color: var(--color-action);
+  color: var(--color-background);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1339,8 +1404,8 @@ label {
   .stack-form > button[type='submit']:hover:not(:disabled),
   .purchase-form > .stripe-checkout-button:hover:not(:disabled),
   .confirmation-panel .panel-header-row > button:hover:not(:disabled) {
-    background: var(--color-action-strong);
-    border-color: var(--color-action-strong);
+    background: var(--color-accent-strong);
+    border-color: var(--color-accent-strong);
   }
 }
 
@@ -1409,7 +1474,7 @@ label {
   overflow-wrap: anywhere;
   border-radius: var(--radius-sm);
   padding: var(--space-2);
-  background: color-mix(in srgb, var(--color-scanner-frame) 14%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
 .account-ticket-card {
@@ -1475,7 +1540,7 @@ label {
   width: min(100%, 42dvh, 22rem);
   aspect-ratio: 1;
   overflow: hidden;
-  border: 2px solid var(--color-scanner-frame);
+  border: 2px solid var(--color-accent);
   border-radius: var(--radius-sm);
   background: var(--color-surface-strong);
 }
@@ -1539,7 +1604,7 @@ label {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   color: var(--color-background);
-  background: var(--color-surface-inverse);
+  background: var(--color-text);
   box-shadow: 0 20px 60px rgb(9 11 13 / 18%);
   transform: translate(-50%, -50%);
   pointer-events: none;
@@ -1574,20 +1639,20 @@ label {
 }
 
 .scan-notice-copy span {
-  color: color-mix(in srgb, var(--color-text-inverse) 82%, transparent);
+  color: color-mix(in srgb, var(--color-background) 82%, transparent);
   font-size: 1.05rem;
   line-height: 1.3;
 }
 
 .scan-notice-scanning .scan-notice-icon {
-  background: color-mix(in srgb, var(--color-scanner-frame) 22%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
   color: var(--color-accent-strong);
 }
 
 .scan-notice-spinner {
   width: 1.75rem;
   height: 1.75rem;
-  border: 0.2rem solid color-mix(in srgb, var(--color-text-inverse) 18%, transparent);
+  border: 0.2rem solid color-mix(in srgb, var(--color-background) 18%, transparent);
   border-top-color: currentcolor;
   border-radius: 999px;
   animation: scan-notice-spin 0.75s linear infinite;
@@ -1658,8 +1723,8 @@ label {
   border-radius: var(--radius-sm);
   min-height: 44px;
   padding: 0.55rem 0.95rem;
-  background: var(--color-action);
-  color: var(--color-on-action);
+  background: var(--color-accent);
+  color: var(--color-background);
   font-size: 0.84rem;
   font-weight: 700;
   line-height: 1.1;
@@ -1670,21 +1735,21 @@ label {
 
 @media (hover: hover) and (pointer: fine) {
   .scan-status-action-button:hover:not(:disabled) {
-    background: var(--color-action-hover);
+    background: var(--color-accent-strong);
   }
 }
 
 .scan-status-action-button-secondary {
   background: var(--color-surface-strong);
   border-color: var(--color-border);
-  color: var(--color-control-text);
+  color: var(--color-text);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .scan-status-action-button-secondary:hover:not(:disabled) {
     background: color-mix(
       in srgb,
-      var(--color-surface-inverse) 10%,
+      var(--color-text) 10%,
       var(--color-surface-strong) 90%
     );
   }
@@ -2132,8 +2197,8 @@ label {
 }
 
 .ticket-sales-status-dot.is-partial {
-  border-color: var(--color-scanner-frame);
-  background: var(--color-scanner-frame);
+  border-color: var(--color-accent);
+  background: var(--color-accent);
 }
 
 .ticket-sales-filter {
@@ -2234,11 +2299,11 @@ label {
   top: 50%;
   right: var(--space-2);
   min-height: 1.8rem;
-  border: 1px solid color-mix(in srgb, var(--color-surface-inverse) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-text) 55%, transparent);
   border-radius: 999px;
   padding: 0 0.55rem;
-  color: var(--color-text-inverse);
-  background: var(--color-surface-inverse);
+  color: var(--color-background);
+  background: var(--color-text);
   font: inherit;
   font-size: 0.78rem;
   font-weight: 700;
@@ -2248,8 +2313,8 @@ label {
 
 .table-filter-input-action:hover:not(:disabled),
 .table-filter-input-action:focus-visible {
-  color: var(--color-text-inverse);
-  background: var(--color-action-hover);
+  color: var(--color-background);
+  background: var(--color-accent-strong);
   outline: none;
 }
 
@@ -2325,7 +2390,7 @@ label {
 }
 
 .table-filter-checkbox input[type='checkbox'].is-partial {
-  accent-color: var(--color-scanner-frame);
+  accent-color: var(--color-accent);
 }
 
 .table-filter-checkbox input[type='checkbox'].is-used {
@@ -2342,7 +2407,7 @@ label {
 }
 
 .ticket-sales-filter-key.is-partial {
-  color: color-mix(in srgb, var(--color-scanner-frame) 72%, var(--color-text));
+  color: color-mix(in srgb, var(--color-accent) 72%, var(--color-text));
 }
 
 .ticket-sales-filter-key.is-used {
@@ -2466,8 +2531,8 @@ label {
 }
 
 .ticket-status-pill.is-partial {
-  border-color: var(--color-scanner-frame);
-  background: color-mix(in srgb, var(--color-scanner-frame) 14%, transparent);
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
 }
 
 .ticket-status-pill.is-void {
@@ -2561,7 +2626,7 @@ label {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 0;
-  color: var(--color-icon);
+  color: var(--color-accent);
   background: var(--color-surface-strong);
 }
 
@@ -2691,7 +2756,7 @@ label {
   width: 1.28rem;
   height: 1.28rem;
   border-radius: 999px;
-  background: var(--color-surface-inverse);
+  background: var(--color-text);
   box-shadow: 0 1px 4px color-mix(in srgb, var(--color-background) 35%, transparent);
   z-index: 1;
   transition:
@@ -2781,8 +2846,8 @@ label {
   aspect-ratio: 1;
   border-radius: var(--radius-sm);
   padding: var(--space-3);
-  color: var(--color-text-inverse);
-  background: var(--color-surface-inverse);
+  color: var(--color-background);
+  background: var(--color-text);
   font-weight: 800;
 }
 
@@ -2893,8 +2958,8 @@ label {
   width: 2.75rem;
   height: 2.75rem;
   border-radius: 50%;
-  border: 3px solid color-mix(in srgb, var(--color-scanner-frame) 28%, transparent);
-  border-top-color: var(--color-scanner-frame);
+  border: 3px solid color-mix(in srgb, var(--color-accent) 28%, transparent);
+  border-top-color: var(--color-accent);
   animation: loading-spinner-rotate 0.9s linear infinite;
 }
 

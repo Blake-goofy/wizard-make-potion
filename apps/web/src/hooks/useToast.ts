@@ -68,7 +68,7 @@ export function useToast() {
       return;
     }
 
-    if (endY - startY >= 36) {
+    if (startY - endY >= 36) {
       dismissToast();
     }
   }

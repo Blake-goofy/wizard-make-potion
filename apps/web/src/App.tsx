@@ -15,8 +15,9 @@ import { flushSync } from 'react-dom';
 import type { AdminManagedUser, SessionUser } from '@potion/shared';
 import LoadingOverlay, { type LoadingSkeletonVariant } from './components/LoadingOverlay';
 import { HomePage } from './routes/HomePage';
-import { getCurrentUser } from './lib/api';
+import { getCurrentUser, getThemeSettings } from './lib/api';
 import { createRoutePreloader, type RoutePreloader } from './lib/routePreload';
+import { applyThemeSettings } from './lib/theme';
 
 const routeImportReloadStorageKey = 'wizard-route-import-reload';
 
@@ -118,6 +119,7 @@ const loadAccountPage = createRoutePreloader(() => import('./routes/AccountPage'
 const loadAboutPage = createRoutePreloader(() => import('./routes/AboutPage'));
 const loadAdminEventsPage = createRoutePreloader(() => import('./routes/AdminEventsPage'));
 const loadAdminMessagesPage = createRoutePreloader(() => import('./routes/AdminMessagesPage'));
+const loadAdminThemePage = createRoutePreloader(() => import('./routes/AdminThemePage'));
 const loadAdminUsersPage = createRoutePreloader(() => import('./routes/AdminUsersPage'));
 const loadSalesPage = createRoutePreloader(() => import('./routes/SalesPage'));
 const loadMyTicketsPage = createRoutePreloader(() => import('./routes/MyTicketsPage'));
@@ -132,6 +134,7 @@ const AccountPage = lazyRoute(loadAccountPage);
 const AboutPage = lazyRoute(loadAboutPage);
 const AdminEventsPage = lazyRoute(loadAdminEventsPage);
 const AdminMessagesPage = lazyRoute(loadAdminMessagesPage);
+const AdminThemePage = lazyRoute(loadAdminThemePage);
 const AdminUsersPage = lazyRoute(loadAdminUsersPage);
 const SalesPage = lazyRoute(loadSalesPage);
 const MyTicketsPage = lazyRoute(loadMyTicketsPage);
@@ -150,6 +153,7 @@ type RouteKey =
   | 'account'
   | 'adminEvents'
   | 'adminMessages'
+  | 'adminTheme'
   | 'adminUsers'
   | 'auth'
   | 'createAccount'
@@ -171,6 +175,7 @@ const routesWithoutFooter = new Set<RouteKey>([
   'scan',
   'adminEvents',
   'adminMessages',
+  'adminTheme',
   'adminUsers',
 ]);
 const routePreloaderByKey: Partial<Record<RouteKey, () => Promise<unknown>>> = {
@@ -179,6 +184,7 @@ const routePreloaderByKey: Partial<Record<RouteKey, () => Promise<unknown>>> = {
   account: loadAccountPage,
   adminEvents: loadAdminEventsPage,
   adminMessages: loadAdminMessagesPage,
+  adminTheme: loadAdminThemePage,
   adminUsers: loadAdminUsersPage,
   auth: loadAuthPage,
   createAccount: loadAuthPage,
@@ -196,6 +202,7 @@ const routePathByKey: Record<PublicRouteKey, string> = {
   account: '/account',
   adminEvents: '/admin/events',
   adminMessages: '/admin/messages',
+  adminTheme: '/admin/theme',
   adminUsers: '/admin/users',
   auth: '/sign-in',
   createAccount: '/create-account',
@@ -215,6 +222,8 @@ const routeKeyByHash: Record<string, Exclude<RouteKey, 'confirmation'>> = {
   events: 'home',
   'admin-messages': 'adminMessages',
   messages: 'adminMessages',
+  'admin-theme': 'adminTheme',
+  theme: 'adminTheme',
   'admin-users': 'adminUsers',
   users: 'adminUsers',
   'sign-in': 'auth',
@@ -381,6 +390,7 @@ function getRouteLoadingVariant(route: RouteKey): LoadingSkeletonVariant {
   if (route === 'scan') return 'scanner';
   if (route === 'adminEvents') return 'account';
   if (route === 'adminMessages') return 'account';
+  if (route === 'adminTheme') return 'account';
   if (route === 'adminUsers') return 'account';
   if (route === 'createAccount') return 'auth';
   if (route === 'guestCheckout') return 'purchase';
@@ -397,6 +407,7 @@ function getRouteTitle(route: RouteKey) {
   if (route === 'account') return 'Account';
   if (route === 'adminEvents') return 'Events';
   if (route === 'adminMessages') return 'Messages';
+  if (route === 'adminTheme') return 'Theme';
   if (route === 'adminUsers') return 'User Access';
   if (route === 'auth') return 'Sign In';
   if (route === 'createAccount') return 'Create Account';
@@ -558,6 +569,17 @@ function CalendarIcon() {
   );
 }
 
+function PaletteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 4a8 8 0 1 0 0 16h1.2a1.8 1.8 0 0 0 0-3.6h-.7a1.5 1.5 0 0 1 0-3H16a4 4 0 0 0 4-4C20 6.4 16.4 4 12 4Z" />
+      <circle cx="8" cy="9" r=".8" />
+      <circle cx="11" cy="7" r=".8" />
+      <circle cx="15" cy="8" r=".8" />
+    </svg>
+  );
+}
+
 function MessageIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -618,6 +640,12 @@ export function App() {
   const routeTitle = getRouteTitle(route);
 
   useEffect(() => {
+    void getThemeSettings()
+      .then((result) => applyThemeSettings(result.theme))
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     if (!token) {
       setUser(null);
       setIsCheckingSession(false);
@@ -674,6 +702,8 @@ export function App() {
     } else if (route === 'adminEvents' && !isAdmin) {
       setRouteAndSyncUrl('home');
     } else if (route === 'adminMessages' && !isAdmin) {
+      setRouteAndSyncUrl('home');
+    } else if (route === 'adminTheme' && !isAdmin) {
       setRouteAndSyncUrl('home');
     } else if (route === 'adminUsers' && !isAdmin) {
       setRouteAndSyncUrl('home');
@@ -737,6 +767,9 @@ export function App() {
     }
     if (route === 'adminMessages') {
       return token && isAdmin ? <AdminMessagesPage token={token} currentUser={user} /> : homePage;
+    }
+    if (route === 'adminTheme') {
+      return token && isAdmin ? <AdminThemePage token={token} /> : homePage;
     }
     if (route === 'adminEvents') {
       return token && isAdmin ? <AdminEventsPage token={token} /> : homePage;
@@ -868,6 +901,7 @@ export function App() {
     if (isAdmin) {
       preloadRoute('adminMessages');
       preloadRoute('adminEvents');
+      preloadRoute('adminTheme');
       preloadRoute('adminUsers');
     }
     setMenuOpen(true);
@@ -1149,6 +1183,16 @@ export function App() {
               onClick={() => navigate('adminUsers')}
             >
               User Access
+            </DrawerItem>
+          ) : null}
+          {isAdmin ? (
+            <DrawerItem
+              active={route === 'adminTheme'}
+              icon={<PaletteIcon />}
+              route="adminTheme"
+              onClick={() => navigate('adminTheme')}
+            >
+              Theme
             </DrawerItem>
           ) : null}
         </nav>

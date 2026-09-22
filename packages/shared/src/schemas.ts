@@ -125,6 +125,62 @@ export const scannerSettingsSchema = z.object({
   scanDebounceMs: z.number().int().positive(),
 });
 
+const hexColorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
+
+function readRelativeLuminance(hexColor: string) {
+  function linearizeChannel(offset: number) {
+    const channel = Number.parseInt(hexColor.slice(offset, offset + 2), 16) / 255;
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  }
+
+  return 0.2126 * linearizeChannel(1) + 0.7152 * linearizeChannel(3) + 0.0722 * linearizeChannel(5);
+}
+
+function readContrastRatio(firstColor: string, secondColor: string) {
+  const firstLuminance = readRelativeLuminance(firstColor);
+  const secondLuminance = readRelativeLuminance(secondColor);
+  const lighter = Math.max(firstLuminance, secondLuminance);
+  const darker = Math.min(firstLuminance, secondLuminance);
+
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+export const defaultThemeSettings = {
+  backgroundColor: '#312a53',
+  textColor: '#fff8f0',
+  accentColor: '#f39442',
+  dangerColor: '#ff8f97',
+  successColor: '#7fd4a5',
+  warningColor: '#f3c36b',
+} as const;
+
+export const themeSettingsShape = {
+  backgroundColor: hexColorSchema,
+  textColor: hexColorSchema,
+  accentColor: hexColorSchema,
+  dangerColor: hexColorSchema,
+  successColor: hexColorSchema,
+  warningColor: hexColorSchema,
+};
+
+export const themeSettingsSchema = z.object(themeSettingsShape).superRefine((theme, ctx) => {
+  for (const key of [
+    'textColor',
+    'accentColor',
+    'dangerColor',
+    'successColor',
+    'warningColor',
+  ] as const) {
+    if (readContrastRatio(theme.backgroundColor, theme[key]) >= 4.5) continue;
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: [key],
+      message: 'Theme colors must have at least 4.5:1 contrast against the background.',
+    });
+  }
+});
+
 export const scanTicketResultSchema = z.object({
   status: z.enum(['valid', 'already_used', 'not_found']),
   message: z.string().min(1),
@@ -231,6 +287,7 @@ export type ScanTicketInput = z.infer<typeof scanTicketInputSchema>;
 export type ScanTicketDetail = z.infer<typeof scanTicketDetailSchema>;
 export type ScanEventAttendance = z.infer<typeof scanEventAttendanceSchema>;
 export type ScannerSettings = z.infer<typeof scannerSettingsSchema>;
+export type ThemeSettings = z.infer<typeof themeSettingsSchema>;
 export type ScanTicketResult = z.infer<typeof scanTicketResultSchema>;
 export type UpdateTicketUsageInput = z.infer<typeof updateTicketUsageInputSchema>;
 export type LoginInput = z.infer<typeof loginInputSchema>;

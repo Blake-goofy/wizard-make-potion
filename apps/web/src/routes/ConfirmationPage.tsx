@@ -70,7 +70,7 @@ function TicketQrCode({ scanToken }: { scanToken: string }) {
   useEffect(() => {
     let isCurrent = true;
     const qrDark = getThemeColor('--color-background', '#312a53');
-    const qrLight = getThemeColor('--color-surface-inverse', '#fff7ed');
+    const qrLight = getThemeColor('--color-text', '#fff8f0');
 
     void QRCode.toDataURL(scanToken, {
       errorCorrectionLevel: 'M',

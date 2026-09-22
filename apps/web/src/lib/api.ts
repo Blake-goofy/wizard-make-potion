@@ -17,6 +17,7 @@ import type {
   ScanTicketInput,
   ScanTicketResult,
   SessionUser,
+  ThemeSettings,
   UpdateAccountInput,
   UpdateTicketUsageInput,
   VerifyAccountInput,
@@ -79,6 +80,7 @@ export type AdminTicketView = {
 };
 
 export type ScannerSettingsView = ScannerSettings;
+export type ThemeSettingsView = ThemeSettings;
 
 export type AccountTicketView = {
   id: string;
@@ -225,6 +227,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getActiveEvent() {
   return request<{ event: EventView | null }>('/api/events/active');
+}
+
+export function getThemeSettings() {
+  return request<{ theme: ThemeSettingsView }>('/api/theme');
 }
 
 export function getEvents() {
@@ -404,6 +410,20 @@ export function updateAdminEvent(eventId: string, input: AdminEventUpdateInput, 
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(input),
+  });
+}
+
+export function getAdminThemeSettings(token: string) {
+  return request<{ theme: ThemeSettingsView }>('/api/admin/theme', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export function updateAdminThemeSettings(theme: ThemeSettingsView, token: string) {
+  return request<{ theme: ThemeSettingsView }>('/api/admin/theme', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(theme),
   });
 }
 

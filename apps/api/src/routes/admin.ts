@@ -9,6 +9,7 @@ import {
   loginInputSchema,
   requestPasswordResetInputSchema,
   resetPasswordInputSchema,
+  themeSettingsSchema,
   updateTicketUsageInputSchema,
   verifyAccountInputSchema,
 } from '@potion/shared';
@@ -18,6 +19,7 @@ import type { AuthService } from '../services/auth.js';
 import type { EmailQueueService } from '../services/emailQueue.js';
 import type { ScannerService } from '../services/scanner.js';
 import type { SmsMessageService } from '../services/smsMessages.js';
+import type { AppSettingsService } from '../services/appSettings.js';
 import { parseEventRecord } from '../services/eventRecords.js';
 import { detectEventImageContentType, MAX_EVENT_IMAGE_BYTES } from '../services/eventImages.js';
 
@@ -110,8 +112,21 @@ async function createUniqueEventSlug(
 
 export async function registerAdminRoutes(
   server: FastifyInstance,
-  deps: { auth: AuthService; db: Database; emailQueue: EmailQueueService; scanner: ScannerService; smsMessages: SmsMessageService },
+  deps: {
+    auth: AuthService;
+    db: Database;
+    emailQueue: EmailQueueService;
+    scanner: ScannerService;
+    smsMessages: SmsMessageService;
+    appSettings: AppSettingsService;
+  },
 ) {
+  server.get('/api/theme', async (_request, reply) =>
+    reply
+      .header('Cache-Control', 'no-store')
+      .send({ theme: await deps.appSettings.getThemeSettings() }),
+  );
+
   server.post('/api/auth/login', async (request, reply) => {
     const input = loginInputSchema.parse(request.body);
     limitLoginAttempts(request, [input.email]);
@@ -162,6 +177,27 @@ export async function registerAdminRoutes(
     const users = await deps.auth.listAdminUsers(request);
 
     return { users };
+  });
+
+  server.get('/api/admin/theme', async (request, reply) => {
+    await deps.auth.requireAdmin(request);
+    return reply
+      .header('Cache-Control', 'no-store')
+      .send({ theme: await deps.appSettings.getThemeSettings() });
+  });
+
+  server.put('/api/admin/theme', async (request) => {
+    await deps.auth.requireAdmin(request);
+    const parsedTheme = themeSettingsSchema.safeParse(request.body);
+    if (!parsedTheme.success) {
+      throw createHttpError(
+        parsedTheme.error.issues[0]?.message ?? 'Please check the theme colors and try again.',
+        400,
+      );
+    }
+
+    const theme = await deps.appSettings.updateThemeSettings(parsedTheme.data);
+    return { theme };
   });
 
   server.get('/api/admin/events', async (request) => {
