@@ -3,9 +3,9 @@
   color-scheme: dark;
 
   /* Base colors */
-  --color-background: #312a53;
-  --color-text: #fff8f0;
-  --color-accent: #f39442;
+  --color-background: #000000;
+  --color-text: #FEFEFE;
+  --color-accent: #FC0101;
   --color-danger: #ff8f97;
   --color-success: #7fd4a5;
   --color-warning: #f3c36b;
