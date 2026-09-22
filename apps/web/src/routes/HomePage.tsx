@@ -4,7 +4,7 @@ import ButtonArrowIcon from '../components/ButtonArrowIcon';
 import LoadingOverlay from '../components/LoadingOverlay';
 import ToastRegion from '../components/ToastRegion';
 import { useToast } from '../hooks/useToast';
-import { createStripeCheckout, type EventView, getEvent, getEvents } from '../lib/api';
+import { createStripeCheckout, type EventView, getEvent, getEventImageUrl, getEvents } from '../lib/api';
 
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -141,24 +141,39 @@ export function HomePage({ token, user, eventSlug, onSelectEvent, onCreateAccoun
           </div>
           {events.length > 0 ? (
             <div className="event-list">
-              {events.map((eventOption) => (
-                <a
-                  className="event-list-card"
-                  href={`/events/${encodeURIComponent(eventOption.slug)}`}
-                  key={eventOption.id}
-                  onClick={(clickEvent) => {
-                    clickEvent.preventDefault();
-                    onSelectEvent(eventOption.slug);
-                  }}
-                >
-                  <span className="event-list-card-copy">
-                    <strong>{eventOption.name}</strong>
-                    <span>{new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(eventOption.startsAt))}</span>
-                    <span>{eventOption.address}</span>
-                  </span>
-                  <span className="event-list-card-action">View event <ButtonArrowIcon /></span>
-                </a>
-              ))}
+              {events.map((eventOption) => {
+                const imageUrl = getEventImageUrl(eventOption);
+
+                return (
+                  <a
+                    className={`event-list-card${imageUrl ? ' event-list-card-with-image' : ''}`}
+                    href={`/events/${encodeURIComponent(eventOption.slug)}`}
+                    key={eventOption.id}
+                    onClick={(clickEvent) => {
+                      clickEvent.preventDefault();
+                      onSelectEvent(eventOption.slug);
+                    }}
+                  >
+                    {imageUrl ? (
+                      <img
+                        className="event-list-card-image"
+                        src={imageUrl}
+                        alt={`${eventOption.name} event poster`}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : null}
+                    <span className="event-list-card-content">
+                      <span className="event-list-card-copy">
+                        <strong>{eventOption.name}</strong>
+                        <span>{new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(eventOption.startsAt))}</span>
+                        <span>{eventOption.address}</span>
+                      </span>
+                      <span className="event-list-card-action">View event <ButtonArrowIcon /></span>
+                    </span>
+                  </a>
+                );
+              })}
             </div>
           ) : !isLoadingEvent ? <p className="status-text">{status || 'No upcoming events are available yet.'}</p> : null}
         </section>
@@ -192,6 +207,7 @@ export function HomePage({ token, user, eventSlug, onSelectEvent, onCreateAccoun
     { length: event.maxTicketsPerOrder - event.minTicketsPerOrder + 1 },
     (_, index) => event.minTicketsPerOrder + index,
   );
+  const eventImageUrl = getEventImageUrl(event);
 
   return (
     <>
@@ -208,6 +224,9 @@ export function HomePage({ token, user, eventSlug, onSelectEvent, onCreateAccoun
     <section className="purchase-layout">
       <div className="event-summary">
         <h1>{event.name}</h1>
+        {eventImageUrl ? (
+          <img className="event-hero-image" src={eventImageUrl} alt={`${event.name} event poster`} />
+        ) : null}
         <div className="event-logistics">
           <p className="event-date">{new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(event.startsAt))}</p>
           <p className="event-address">{event.address}</p>

@@ -35,6 +35,7 @@ export type EventView = {
   minTicketsPerOrder: number;
   maxTicketsPerOrder: number;
   isActive: boolean;
+  imageUpdatedAt: string | null;
 };
 
 export type TicketView = {
@@ -158,6 +159,13 @@ function resolveApiBaseUrl() {
 
 function buildApiUrl(path: string) {
   return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
+}
+
+export function getEventImageUrl(event: EventView) {
+  if (!event.imageUpdatedAt) return null;
+
+  const version = encodeURIComponent(event.imageUpdatedAt);
+  return buildApiUrl(`/api/events/${event.id}/image?v=${version}`);
 }
 
 async function getRequestErrorMessage(response: Response) {
@@ -396,6 +404,24 @@ export function updateAdminEvent(eventId: string, input: AdminEventUpdateInput, 
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify(input),
+  });
+}
+
+export function uploadAdminEventImage(eventId: string, image: File, token: string) {
+  return request<{ imageUpdatedAt: string }>(`/api/admin/events/${eventId}/image`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': image.type,
+    },
+    body: image,
+  });
+}
+
+export function removeAdminEventImage(eventId: string, token: string) {
+  return request<{ removed: true }>(`/api/admin/events/${eventId}/image`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
   });
 }
 

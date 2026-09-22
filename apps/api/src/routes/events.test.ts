@@ -110,4 +110,26 @@ describe('event routes', () => {
       await server.close();
     }
   });
+
+  it('serves an event image with immutable caching', async () => {
+    const imageData = Buffer.from([0xff, 0xd8, 0xff, 0x00]);
+    const db = createDb([{ contentType: 'image/jpeg', imageData }]);
+    const server = Fastify();
+
+    await registerEventRoutes(server, { db: db as never, appSettings: createAppSettings() as never });
+
+    try {
+      const response = await server.inject({
+        method: 'GET',
+        url: '/api/events/00000000-0000-4000-8000-000000000001/image',
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['content-type']).toBe('image/jpeg');
+      expect(response.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+      expect(response.rawPayload).toEqual(imageData);
+    } finally {
+      await server.close();
+    }
+  });
 });

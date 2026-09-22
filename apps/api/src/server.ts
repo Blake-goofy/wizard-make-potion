@@ -24,6 +24,7 @@ import { createSmsService } from './services/sms.js';
 import { createSmsMessageService } from './services/smsMessages.js';
 import { createScannerService } from './services/scanner.js';
 import { createTelnyxSmsProvider } from './services/telnyxSmsProvider.js';
+import { EVENT_IMAGE_CONTENT_TYPES } from './services/eventImages.js';
 
 function summarizeUnknownError(error: unknown) {
   if (error instanceof Error) {
@@ -110,6 +111,10 @@ export async function buildServer(config: AppConfig) {
     } catch (error) {
       done(error as Error, undefined);
     }
+  });
+
+  server.addContentTypeParser([...EVENT_IMAGE_CONTENT_TYPES], { parseAs: 'buffer' }, (_request, body, done) => {
+    done(null, body);
   });
 
   const db = createDatabase({ connectionString: config.databaseUrl });

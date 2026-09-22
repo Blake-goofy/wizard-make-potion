@@ -19,6 +19,7 @@ import type { EmailQueueService } from '../services/emailQueue.js';
 import type { ScannerService } from '../services/scanner.js';
 import type { SmsMessageService } from '../services/smsMessages.js';
 import { parseEventRecord } from '../services/eventRecords.js';
+import { detectEventImageContentType, MAX_EVENT_IMAGE_BYTES } from '../services/eventImages.js';
 
 const authRateLimitMessage = 'Too many attempts. Please wait a moment and try again.';
 const smsMessagePhoneNumberSchema = z.string().trim().regex(/^\(\d{3}\) \d{3}-\d{4}$/);
@@ -169,7 +170,8 @@ export async function registerAdminRoutes(
       `select id, slug, name, starts_at as "startsAt", address, description,
               ticket_price_cents as "ticketPriceCents", tax_rate_bps as "taxRateBps",
               min_tickets_per_order as "minTicketsPerOrder",
-              max_tickets_per_order as "maxTicketsPerOrder", is_active as "isActive"
+              max_tickets_per_order as "maxTicketsPerOrder", is_active as "isActive",
+              (select updated_at from event_images where event_id = events.id) as "imageUpdatedAt"
        from events
        order by is_active desc, starts_at desc`,
     );
@@ -192,7 +194,7 @@ export async function registerAdminRoutes(
         [slug, input.name, input.startsAt, input.address, input.description, input.ticketPriceCents],
       );
 
-      return eventSchema.parse(result.rows[0]);
+      return eventSchema.parse({ ...result.rows[0], imageUpdatedAt: null });
     });
 
     return reply.code(201).send({ event });
@@ -227,10 +229,58 @@ export async function registerAdminRoutes(
       const updatedEvent = result.rows[0];
       if (!updatedEvent) throw createHttpError('Event was not found.', 404);
 
-      return eventSchema.parse(updatedEvent);
+      const imageResult = await client.query(
+        `select updated_at as "imageUpdatedAt" from event_images where event_id = $1`,
+        [eventId],
+      );
+
+      return eventSchema.parse({ ...updatedEvent, imageUpdatedAt: imageResult.rows[0]?.imageUpdatedAt ?? null });
     });
 
     return { event };
+  });
+
+  server.put(
+    '/api/admin/events/:eventId/image',
+    { bodyLimit: MAX_EVENT_IMAGE_BYTES },
+    async (request) => {
+      await deps.auth.requireAdmin(request);
+      const eventId = z.string().uuid().parse((request.params as { eventId?: string }).eventId);
+      const imageData = request.body;
+      const declaredContentType = request.headers['content-type']?.split(';', 1)[0];
+
+      if (!Buffer.isBuffer(imageData) || imageData.length === 0) {
+        throw createHttpError('Choose a non-empty JPEG, PNG, or WebP image.', 400);
+      }
+
+      const detectedContentType = detectEventImageContentType(imageData);
+      if (!detectedContentType || detectedContentType !== declaredContentType) {
+        throw createHttpError('The uploaded file must be a valid JPEG, PNG, or WebP image.', 400);
+      }
+
+      const result = await deps.db.query<{ imageUpdatedAt: string }>(
+        `insert into event_images (event_id, content_type, image_data)
+         select id, $2, $3 from events where id = $1
+         on conflict (event_id) do update
+         set content_type = excluded.content_type,
+             image_data = excluded.image_data,
+             updated_at = now()
+         returning updated_at as "imageUpdatedAt"`,
+        [eventId, detectedContentType, imageData],
+      );
+      const image = result.rows[0];
+      if (!image) throw createHttpError('Event was not found.', 404);
+
+      return { imageUpdatedAt: image.imageUpdatedAt };
+    },
+  );
+
+  server.delete('/api/admin/events/:eventId/image', async (request) => {
+    await deps.auth.requireAdmin(request);
+    const eventId = z.string().uuid().parse((request.params as { eventId?: string }).eventId);
+
+    await deps.db.query('delete from event_images where event_id = $1', [eventId]);
+    return { removed: true };
   });
 
   server.get('/api/admin/sms-messages', async (request) => {

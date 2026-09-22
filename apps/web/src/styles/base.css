@@ -562,6 +562,26 @@ label {
   text-decoration: none;
 }
 
+.event-list-card-with-image {
+  grid-template-columns: minmax(6rem, 8rem) minmax(0, 1fr);
+  align-items: start;
+}
+
+.event-list-card-image {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+}
+
+.event-list-card-content {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
 .event-list-card:hover,
 .event-list-card:focus-visible {
   background: var(--color-surface-strong);
@@ -770,6 +790,16 @@ label {
 .event-summary {
   display: grid;
   gap: var(--space-5);
+}
+
+.event-hero-image {
+  width: min(100%, 36rem);
+  aspect-ratio: 1;
+  justify-self: center;
+  object-fit: contain;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
 }
 
 .event-summary h1 {
@@ -1125,7 +1155,26 @@ label {
   min-height: 7rem;
 }
 
+.admin-event-image-preview {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
+
+.admin-event-image-preview img {
+  width: min(100%, 24rem);
+  aspect-ratio: 1;
+  object-fit: contain;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+}
+
 @media (min-width: 640px) {
+  .event-list-card-with-image {
+    grid-template-columns: 11rem minmax(0, 1fr);
+  }
+
   .admin-events-mode-row,
   .admin-events-field-row {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

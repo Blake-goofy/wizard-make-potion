@@ -16,6 +16,7 @@ export const eventSchema = z.object({
   minTicketsPerOrder: z.number().int().positive(),
   maxTicketsPerOrder: z.number().int().positive(),
   isActive: z.boolean(),
+  imageUpdatedAt: isoDatetimeSchema.nullable().optional(),
 });
 
 const adminEventBaseInputSchema = z.object({
