@@ -146,9 +146,9 @@ function readContrastRatio(firstColor: string, secondColor: string) {
 }
 
 export const defaultThemeSettings = {
-  backgroundColor: '#312a53',
-  textColor: '#fff8f0',
-  accentColor: '#f39442',
+  backgroundColor: '#000000',
+  textColor: '#FEFEFE',
+  accentColor: '#FC0101',
   dangerColor: '#ff8f97',
   successColor: '#7fd4a5',
   warningColor: '#f3c36b',
