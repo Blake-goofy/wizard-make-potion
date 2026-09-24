@@ -10,6 +10,9 @@ type AuthMode = 'sign-in' | 'create' | 'verify' | 'forgot' | 'reset';
 type AuthPageProps = {
   onSession: (token: string, user: SessionUser) => void;
   initialMode?: Extract<AuthMode, 'sign-in' | 'create'>;
+  initialEmail?: string;
+  initialDisplayName?: string;
+  initialPhoneNumber?: string;
 };
 
 function getFormValue(form: HTMLFormElement, fieldName: string) {
@@ -24,14 +27,20 @@ function isExistingAccountError(message: string) {
   return normalizedMessage.includes('account already exists') && normalizedMessage.includes('email');
 }
 
-export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPageProps) {
+export default function AuthPage({
+  onSession,
+  initialMode = 'sign-in',
+  initialEmail = '',
+  initialDisplayName = '',
+  initialPhoneNumber = '',
+}: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [email, setEmail] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState(initialEmail);
+  const [displayName, setDisplayName] = useState(initialDisplayName);
   const [password, setPassword] = useState('');
   const [resetPassword, setResetPassword] = useState('');
   const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(''));
+  const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(initialPhoneNumber));
   const [textOptIn, setTextOptIn] = useState(false);
   const [verificationDestination, setVerificationDestination] = useState('');
   const [code, setCode] = useState('');
@@ -100,6 +109,9 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
 
   useEffect(() => {
     setMode(initialMode);
+    setEmail(initialEmail);
+    setDisplayName(initialDisplayName);
+    setPhoneNumber(createPhoneMask(initialPhoneNumber));
     setMessage('');
     clearToastTimers();
     setToastMessage('');
@@ -110,7 +122,7 @@ export default function AuthPage({ onSession, initialMode = 'sign-in' }: AuthPag
     if (initialMode !== 'create') {
       setHasEmailConflict(false);
     }
-  }, [initialMode]);
+  }, [initialDisplayName, initialEmail, initialMode, initialPhoneNumber]);
 
   function showError(nextMessage: string, options?: { highlightEmail?: boolean }) {
     setMessage('');

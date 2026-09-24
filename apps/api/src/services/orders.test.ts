@@ -127,4 +127,25 @@ describe('order service', () => {
       expect.any(String),
     ]);
   });
+
+  it('returns the checkout name with an order confirmation', async () => {
+    const db = {
+      query: vi.fn()
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ customerName: 'Guest Buyer' }] }),
+    };
+    const orders = createOrderService({
+      db: db as never,
+      emailQueue: { enqueueTicketEmail: vi.fn(), processPending: vi.fn() } as never,
+      config: createConfig(),
+      appSettings: { getEventSettings: vi.fn() } as never,
+    });
+
+    const result = await orders.getOrderConfirmation('00000000-0000-4000-8000-000000000099');
+
+    expect(result).toEqual({ customerName: 'Guest Buyer' });
+    expect(db.query).toHaveBeenLastCalledWith(expect.stringContaining('o.customer_name as "customerName"'), [
+      '00000000-0000-4000-8000-000000000099',
+    ]);
+  });
 });

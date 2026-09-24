@@ -6,6 +6,7 @@ import LoadingOverlay from '../components/LoadingOverlay';
 import ToastRegion from '../components/ToastRegion';
 import { useToast } from '../hooks/useToast';
 import { getOrderConfirmation, updateTicketUsage, type ConfirmationOrderView } from '../lib/api';
+import { getGuestCheckoutPhoneNumber } from '../lib/guestCheckoutContact';
 
 type ConfirmationPageProps = {
   orderId: string;
@@ -13,6 +14,7 @@ type ConfirmationPageProps = {
   user: SessionUser | null;
   backButtonLabel: string;
   onBack: () => void;
+  onCreateAccount: (email: string, displayName: string, phoneNumber: string) => void;
 };
 
 function formatCurrency(cents: number) {
@@ -96,7 +98,14 @@ function TicketQrCode({ scanToken }: { scanToken: string }) {
   );
 }
 
-export default function ConfirmationPage({ orderId, token, user, backButtonLabel, onBack }: ConfirmationPageProps) {
+export default function ConfirmationPage({
+  orderId,
+  token,
+  user,
+  backButtonLabel,
+  onBack,
+  onCreateAccount,
+}: ConfirmationPageProps) {
   const [order, setOrder] = useState<ConfirmationOrderView | null>(null);
   const [message, setMessage] = useState('Loading purchased tickets.');
   const [isLoadingOrder, setIsLoadingOrder] = useState(true);
@@ -264,6 +273,28 @@ export default function ConfirmationPage({ orderId, token, user, backButtonLabel
                   ))}
                 </div>
               </div>
+            ) : null}
+            {!user && order.status === 'completed' ? (
+              <section className="confirmation-account-prompt" aria-labelledby="confirmation-account-title">
+                <div>
+                  <h2 id="confirmation-account-title">Want easier access next time?</h2>
+                  <p>
+                    Create an account with {order.customerEmail} to view these tickets and check out faster next time.
+                  </p>
+                </div>
+                <button
+                  className="button-with-arrow"
+                  type="button"
+                  onClick={() => onCreateAccount(
+                    order.customerEmail,
+                    order.customerName ?? '',
+                    getGuestCheckoutPhoneNumber(order.id),
+                  )}
+                >
+                  <span>Create an account</span>
+                  <ButtonArrowIcon />
+                </button>
+              </section>
             ) : null}
             <button className="primary-button button-with-arrow confirmation-back-button" type="button" onClick={onBack}>
               <ButtonArrowIcon />

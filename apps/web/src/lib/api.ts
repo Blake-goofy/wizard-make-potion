@@ -111,6 +111,7 @@ export type ConfirmationTicketView = {
 export type ConfirmationOrderView = {
   id: string;
   customerEmail: string;
+  customerName: string | null;
   quantity: number;
   subtotalCents: number;
   taxCents: number;

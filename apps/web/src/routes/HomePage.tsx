@@ -15,8 +15,7 @@ type HomePageProps = {
   user: SessionUser | null;
   eventSlug?: string;
   onSelectEvent: (slug: string) => void;
-  onCreateAccount: (slug: string) => void;
-  onContinueAsGuest: (slug: string) => void;
+  onCheckout: (slug: string) => void;
 };
 
 function OrderSummary({ event, quantity }: { event: EventView; quantity: number }) {
@@ -46,7 +45,7 @@ function OrderSummary({ event, quantity }: { event: EventView; quantity: number 
   );
 }
 
-export function HomePage({ token, user, eventSlug, onSelectEvent, onCreateAccount, onContinueAsGuest }: HomePageProps) {
+export function HomePage({ token, user, eventSlug, onSelectEvent, onCheckout }: HomePageProps) {
   const [events, setEvents] = useState<EventView[]>([]);
   const [event, setEvent] = useState<EventView | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -256,12 +255,9 @@ export function HomePage({ token, user, eventSlug, onSelectEvent, onCreateAccoun
         </form>
       ) : (
         <div className="purchase-form guest-choice-panel">
-          <button className="primary-button button-with-arrow" type="button" onClick={() => onCreateAccount(event.slug)}>
-            <span>Create account to buy tickets</span>
+          <button className="primary-button button-with-arrow" type="button" onClick={() => onCheckout(event.slug)}>
+            <span>Buy tickets</span>
             <ButtonArrowIcon />
-          </button>
-          <button className="text-button" type="button" onClick={() => onContinueAsGuest(event.slug)}>
-            Continue as guest
           </button>
         </div>
       )}

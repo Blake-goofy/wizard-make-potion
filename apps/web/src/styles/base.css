@@ -2652,6 +2652,38 @@ label {
   gap: var(--space-3);
 }
 
+.confirmation-account-prompt {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  background: var(--color-surface-strong);
+}
+
+.confirmation-account-prompt div {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.confirmation-account-prompt h2,
+.confirmation-account-prompt p {
+  margin: 0;
+}
+
+.confirmation-account-prompt h2 {
+  font-size: 1.2rem;
+}
+
+.confirmation-account-prompt p {
+  color: var(--color-muted-text);
+  line-height: 1.5;
+}
+
+.confirmation-account-prompt button {
+  justify-self: start;
+}
+
 .confirmation-summary h2 {
   margin: 0;
   font-size: 1.25rem;

@@ -39,7 +39,7 @@ export default function AboutPage() {
           </p>
           <p>
             To use the account opt-in form, open Create Account, enter an optional phone number, check the SMS consent box,
-            and submit the form. For guest checkout, open Events, choose an event, select Continue as guest, and use the SMS
+            and submit the form. For guest checkout, open Events, choose an event, select Buy tickets, and use the SMS
             consent field on the checkout form. Both consent boxes are unchecked by default.
           </p>
         </section>

@@ -5,6 +5,7 @@ import { PhoneNumberInput, createPhoneMask, getPhoneDigits, getStoredPhoneNumber
 import ToastRegion from '../components/ToastRegion';
 import { useToast } from '../hooks/useToast';
 import { createStripeCheckout, type EventView, getEvent } from '../lib/api';
+import { saveGuestCheckoutContact } from '../lib/guestCheckoutContact';
 
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
@@ -128,6 +129,7 @@ export default function GuestCheckoutPage({ eventSlug }: { eventSlug: string }) 
         smsOptIn: textOptIn,
         quantity,
       }, checkoutAttemptId);
+      saveGuestCheckoutContact({ orderId: result.orderId, phoneNumber: customerPhoneNumber });
       window.location.assign(result.checkoutUrl);
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Could not open Stripe checkout.', 'error');

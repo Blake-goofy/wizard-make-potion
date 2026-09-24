@@ -630,6 +630,7 @@ export function App() {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [isCheckingSession, setIsCheckingSession] = useState(Boolean(initialToken));
   const [accountMessage, setAccountMessage] = useState('');
+  const [accountDefaults, setAccountDefaults] = useState({ email: '', displayName: '', phoneNumber: '' });
   const [confirmationOrderId, setConfirmationOrderId] = useState(initialConfirmationOrderId);
   const [confirmationOrigin, setConfirmationOrigin] =
     useState<ConfirmationOrigin>(initialConfirmationOrigin);
@@ -729,14 +730,21 @@ export function App() {
         user={user}
         eventSlug={route === 'event' ? eventSlug : undefined}
         onSelectEvent={(slug) => navigate('event', slug)}
-        onCreateAccount={(slug) => navigate('createAccount', slug)}
-        onContinueAsGuest={(slug) => navigate('guestCheckout', slug)}
+        onCheckout={(slug) => navigate('guestCheckout', slug)}
       />
     );
 
     if (route === 'auth') return <AuthPage onSession={handleSession} />;
     if (route === 'createAccount')
-      return <AuthPage initialMode="create" onSession={handleSession} />;
+      return (
+        <AuthPage
+          initialMode="create"
+          initialEmail={accountDefaults.email}
+          initialDisplayName={accountDefaults.displayName}
+          initialPhoneNumber={accountDefaults.phoneNumber}
+          onSession={handleSession}
+        />
+      );
     if (route === 'guestCheckout')
       return user ? homePage : <GuestCheckoutPage eventSlug={eventSlug} />;
     if (route === 'about') return <AboutPage />;
@@ -793,6 +801,10 @@ export function App() {
           user={user}
           backButtonLabel={getConfirmationBackLabel(confirmationOrigin)}
           onBack={() => setRouteAndSyncUrl(getConfirmationBackRoute(confirmationOrigin))}
+          onCreateAccount={(email, displayName, phoneNumber) => {
+            setAccountDefaults({ email, displayName, phoneNumber });
+            navigate('createAccount');
+          }}
         />
       ) : (
         homePage
@@ -802,6 +814,7 @@ export function App() {
   }, [
     confirmationOrderId,
     confirmationOrigin,
+    accountDefaults,
     eventSlug,
     handleAccountDeleted,
     handleAdminUserUpdated,
