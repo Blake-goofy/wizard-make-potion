@@ -405,7 +405,7 @@ function getRouteTitle(route: RouteKey) {
   if (route === 'about') return 'About';
   if (route === 'myTickets') return 'My Tickets';
   if (route === 'account') return 'Account';
-  if (route === 'adminEvents') return 'Events';
+  if (route === 'adminEvents') return 'Manage Events';
   if (route === 'adminMessages') return 'Messages';
   if (route === 'adminTheme') return 'Theme';
   if (route === 'adminUsers') return 'User Access';
@@ -1178,7 +1178,7 @@ export function App() {
               route="adminEvents"
               onClick={() => navigate('adminEvents')}
             >
-              Events
+              Manage Events
             </DrawerItem>
           ) : null}
           {isAdmin ? (
