@@ -57,6 +57,54 @@ function readMessageText(payload: Record<string, unknown>) {
   return typeof candidate === 'string' ? candidate : undefined;
 }
 
+function readString(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function readDeliveryStatus(payload: Record<string, unknown>) {
+  const recipients = Array.isArray(payload.to) ? payload.to : [];
+  const statuses = recipients
+    .map((recipient) => {
+      if (!recipient || typeof recipient !== 'object') return undefined;
+      return readString((recipient as { status?: unknown }).status);
+    })
+    .filter((status): status is string => Boolean(status));
+
+  return statuses.length > 0 && statuses.every((status) => status === 'delivered')
+    ? 'delivered' as const
+    : 'failed' as const;
+}
+
+function readDeliveryError(payload: Record<string, unknown>) {
+  const errors = Array.isArray(payload.errors) ? payload.errors : [];
+  const messages = errors
+    .map((error) => {
+      if (!error || typeof error !== 'object') return undefined;
+
+      const errorRecord = error as Record<string, unknown>;
+      const code = readString(errorRecord.code) ?? (typeof errorRecord.code === 'number' ? String(errorRecord.code) : undefined);
+      const detail = readString(errorRecord.detail) ?? readString(errorRecord.title);
+
+      if (code && detail) return `${code}: ${detail}`;
+      return detail ?? code;
+    })
+    .filter((message): message is string => Boolean(message));
+
+  if (messages.length > 0) return messages.join('; ');
+
+  const recipients = Array.isArray(payload.to) ? payload.to : [];
+  const statuses = recipients
+    .map((recipient) => {
+      if (!recipient || typeof recipient !== 'object') return undefined;
+      return readString((recipient as { status?: unknown }).status);
+    })
+    .filter((status): status is string => Boolean(status));
+
+  return statuses.length > 0
+    ? `Telnyx finalized the message with status: ${statuses.join(', ')}.`
+    : 'Telnyx reported that the message could not be delivered.';
+}
+
 export async function registerTelnyxRoutes(server: FastifyInstance, deps: { config: AppConfig; sms: SmsService }) {
   server.post('/api/telnyx/webhook', async (request, reply) => {
     const rawBody = request.body;
@@ -90,11 +138,33 @@ export async function registerTelnyxRoutes(server: FastifyInstance, deps: { conf
     }
 
     const eventType = payload.data?.event_type;
+    const messagePayload = payload.data?.payload;
+
+    if (eventType === 'message.finalized') {
+      if (!messagePayload) {
+        throw createHttpError('Telnyx delivery webhook payload was incomplete.', 400);
+      }
+
+      const providerMessageId = readString(messagePayload.id);
+      if (!providerMessageId) {
+        throw createHttpError('Telnyx delivery webhook is missing the message id.', 400);
+      }
+
+      const status = readDeliveryStatus(messagePayload);
+      const result = await deps.sms.recordDeliveryStatus({
+        providerMessageId,
+        status,
+        occurredAt: payload.data?.occurred_at,
+        errorMessage: status === 'failed' ? readDeliveryError(messagePayload) : null,
+      });
+
+      return reply.code(200).send({ received: true, status, updated: result.updated });
+    }
+
     if (eventType !== 'message.received') {
       return reply.code(202).send({ received: true, ignored: true });
     }
 
-    const messagePayload = payload.data?.payload;
     if (!messagePayload) {
       throw createHttpError('Telnyx webhook payload was incomplete.', 400);
     }
