@@ -30,6 +30,7 @@ function createConfig(overrides: Partial<AppConfig> = {}): AppConfig {
 
 function createSms(): SmsService {
   return {
+    recordDeliveryStatus: vi.fn().mockResolvedValue({ updated: true }),
     handleInboundMessage: vi.fn().mockResolvedValue({
       duplicate: false,
       keyword: 'STOP',
@@ -147,13 +148,17 @@ describe('telnyx webhook route', () => {
     }
   });
 
-  it('acknowledges non-inbound message events without processing them', async () => {
+  it('records finalized message delivery status', async () => {
     const { server, sms } = await createServer();
     const payload = JSON.stringify({
       data: {
         id: '4ef8c3a6-4195-4389-b3a6-38e3cb9eb4ae',
         event_type: 'message.finalized',
-        payload: {},
+        occurred_at: '2026-05-23T15:01:00.000Z',
+        payload: {
+          id: 'msg-123',
+          to: [{ phone_number: '+15551234567', status: 'delivered' }],
+        },
       },
     });
     const timestamp = '1716476400';
@@ -170,8 +175,14 @@ describe('telnyx webhook route', () => {
         payload,
       });
 
-      expect(response.statusCode).toBe(202);
-      expect(response.json()).toEqual({ received: true, ignored: true });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ received: true, status: 'delivered', updated: true });
+      expect(sms.recordDeliveryStatus).toHaveBeenCalledWith({
+        providerMessageId: 'msg-123',
+        status: 'delivered',
+        occurredAt: '2026-05-23T15:01:00.000Z',
+        errorMessage: null,
+      });
       expect(sms.handleInboundMessage).not.toHaveBeenCalled();
     } finally {
       await server.close();

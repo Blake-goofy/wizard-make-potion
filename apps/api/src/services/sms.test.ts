@@ -48,7 +48,27 @@ describe('sms service', () => {
     );
   });
 
-  it('sends pending SMS jobs through the configured provider and marks them sent', async () => {
+  it('records finalized delivery status by provider message id', async () => {
+    const db = {
+      query: vi.fn().mockResolvedValue({ rows: [], rowCount: 1 }),
+      transaction: vi.fn(),
+    };
+    const sms = createSmsService({ db: db as never, smsProvider: null });
+
+    const result = await sms.recordDeliveryStatus({
+      providerMessageId: 'msg-123',
+      status: 'delivered',
+      occurredAt: '2026-05-23T15:00:00.000Z',
+    });
+
+    expect(db.query).toHaveBeenCalledWith(
+      expect.stringContaining('where provider_message_id = $1'),
+      ['msg-123', 'delivered', '2026-05-23T15:00:00.000Z', null],
+    );
+    expect(result).toEqual({ updated: true });
+  });
+
+  it('sends pending SMS jobs through the configured provider and marks them accepted', async () => {
     const provider = {
       send: vi.fn().mockResolvedValue({ providerMessageId: 'msg-123' }),
     };
@@ -68,7 +88,7 @@ describe('sms service', () => {
       messageBody: 'Reply body',
     });
     expect(db.query).toHaveBeenNthCalledWith(2,
-      expect.stringContaining("set status = 'sent'"),
+      expect.stringContaining("set status = 'accepted'"),
       ['sms-1', 'msg-123'],
     );
     expect(result).toEqual({ processed: 1, pending: 1 });

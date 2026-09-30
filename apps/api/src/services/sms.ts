@@ -190,6 +190,29 @@ export function createSmsService(deps: { db: Database; smsProvider?: SmsProvider
       });
     },
 
+    async recordDeliveryStatus(event: {
+      providerMessageId: string;
+      status: 'delivered' | 'failed';
+      occurredAt?: string;
+      errorMessage?: string | null;
+    }) {
+      const result = await deps.db.query(
+        `update sms_outbox
+         set status = $2,
+             delivered_at = case when $2 = 'delivered' then $3::timestamptz else null end,
+             last_error = $4
+         where provider_message_id = $1`,
+        [
+          event.providerMessageId,
+          event.status,
+          event.occurredAt ?? new Date().toISOString(),
+          event.errorMessage ?? null,
+        ],
+      );
+
+      return { updated: (result.rowCount ?? 0) > 0 };
+    },
+
     async processPending() {
       const result = await deps.db.query(
         `select id,
@@ -215,7 +238,7 @@ export function createSmsService(deps: { db: Database; smsProvider?: SmsProvider
           });
           await deps.db.query(
             `update sms_outbox
-             set status = 'sent', provider_message_id = $2, sent_at = now(), last_error = null
+             set status = 'accepted', provider_message_id = $2, accepted_at = now(), last_error = null
              where id = $1`,
             [sms.id, sent.providerMessageId],
           );
