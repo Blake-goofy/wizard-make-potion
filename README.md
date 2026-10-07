@@ -22,6 +22,8 @@ The `wizard-make-potion-archive` folder is intentionally ignored by git and kept
    npm install
    ```
 
+   <!-- ponytail: concurrently pins vulnerable shell-quote; the scoped override uses patched >=1.12.0. Remove it when concurrently accepts >=1.11.0. -->
+
 2. Copy local environment values:
 
    ```powershell

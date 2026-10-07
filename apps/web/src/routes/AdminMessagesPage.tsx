@@ -40,13 +40,6 @@ function createEmptySmsMessageForm(phoneNumber?: string | null): SmsMessageFormS
   };
 }
 
-function formatMessageTypeLabel(messageType: SmsMessageFormState['messageType']) {
-  if (messageType === 'upcoming_event') return 'Upcoming Alert';
-  if (messageType === 'admin') return 'Admins';
-  if (messageType === 'test') return 'Test';
-  return 'Reminder';
-}
-
 export default function AdminMessagesPage({ token, currentUser }: AdminMessagesPageProps) {
   const [events, setEvents] = useState<EventView[]>([]);
   const [messages, setMessages] = useState<SmsMessageView[]>([]);

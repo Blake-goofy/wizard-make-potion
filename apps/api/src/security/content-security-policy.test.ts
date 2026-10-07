@@ -1,35 +1,51 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
 import webConfig from '../../../web/vite.config.js';
 import { loadConfig } from '../config.js';
 import { buildServer } from '../server.js';
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
 
-it('sets an enforced CSP on API HTML, errors, and missing routes', async () => {
+it('serves static pages and assets with cache headers and enforces CSP on all responses', async () => {
   vi.stubEnv('NODE_ENV', 'test');
   vi.stubEnv('APP_ENV', 'development');
-  const server = await buildServer({
+  const config = {
     ...loadConfig(),
     databaseUrl: 'postgresql://postgres:postgres@127.0.0.1:1/postgres',
     resendApiKey: 're_test',
     stripeSecretKey: undefined,
     telnyxApiKey: undefined,
-  });
-  server.get('/api/csp-test', (_request, reply) =>
-    reply.type('text/html').send('<!doctype html><h1>Test</h1>'),
-  );
-  server.get('/api/csp-error', () => {
-    throw new Error('Test error');
-  });
+  };
+  const webRoot = mkdtempSync(join(tmpdir(), 'potion-csp-'));
+  const dist = join(webRoot, 'apps', 'web', 'dist');
+  mkdirSync(join(dist, 'assets'), { recursive: true });
+  writeFileSync(join(dist, 'index.html'), '<!doctype html><h1>Test</h1>');
+  writeFileSync(join(dist, 'assets', 'check.js'), 'export const check = true;');
+  writeFileSync(join(dist, 'check.txt'), 'Public file');
+  vi.spyOn(process, 'cwd').mockReturnValue(webRoot);
+  let server: Awaited<ReturnType<typeof buildServer>> | undefined;
 
   try {
-    for (const [url, statusCode] of [
-      ['/api/csp-test', 200],
-      ['/api/csp-error', 500],
-      ['/api/csp-missing', 404],
+    server = await buildServer(config);
+    server.get('/api/csp-error', () => {
+      throw new Error('Test error');
+    });
+    for (const [url, statusCode, cacheControl] of [
+      ['/', 200, 'no-cache'],
+      ['/sign-in', 200, 'no-cache'],
+      ['/assets/check.js', 200, 'public, max-age=31536000, immutable'],
+      ['/check.txt', 200, 'public, max-age=86400'],
+      ['/api/csp-error', 500, undefined],
+      ['/api/csp-missing', 404, undefined],
     ] as const) {
       const response = await server.inject({ url });
       expect(response.statusCode).toBe(statusCode);
+      expect(response.headers['cache-control']).toBe(cacheControl);
       const policy = response.headers['content-security-policy'];
       expect(policy).toContain("script-src 'self'");
       expect(policy).toContain("object-src 'none'");
@@ -38,7 +54,10 @@ it('sets an enforced CSP on API HTML, errors, and missing routes', async () => {
       expect(policy).not.toMatch(/unsafe-inline|unsafe-eval/);
     }
   } finally {
-    await server.close();
+    await server?.close();
+    vi.restoreAllMocks();
+    expect(dirname(resolve(webRoot))).toBe(resolve(tmpdir()));
+    rmSync(webRoot, { recursive: true, force: true });
   }
 });
 

@@ -170,13 +170,13 @@ export async function buildServer(config: AppConfig) {
       index: false,
       wildcard: false,
       cacheControl: false,
-      setHeaders(response, filePath) {
+      setHeaders(reply, filePath) {
         if (filePath.startsWith(webAssetsDir)) {
-          response.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+          reply.header('Cache-Control', 'public, max-age=31536000, immutable');
         } else if (filePath.endsWith('index.html')) {
-          response.setHeader('Cache-Control', 'no-cache');
+          reply.header('Cache-Control', 'no-cache');
         } else {
-          response.setHeader('Cache-Control', 'public, max-age=86400');
+          reply.header('Cache-Control', 'public, max-age=86400');
         }
       },
     });

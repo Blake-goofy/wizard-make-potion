@@ -23,18 +23,23 @@
     "test:e2e": "playwright test",
     "format": "prettier --write ."
   },
+  "overrides": {
+    "concurrently": {
+      "shell-quote": "^1.12.0"
+    }
+  },
   "devDependencies": {
     "@eslint/js": "latest",
     "@playwright/test": "latest",
     "@types/node": "latest",
-    "concurrently": "latest",
+    "concurrently": "^9.2.4",
     "cross-env": "^10.1.0",
     "eslint": "latest",
     "prettier": "latest",
     "supabase": "^2.100.1",
-    "tsx": "latest",
+    "tsx": "^4.23.15",
     "typescript": "latest",
     "typescript-eslint": "latest",
-    "vitest": "latest"
+    "vitest": "^4.1.11"
   }
 }
