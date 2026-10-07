@@ -71,6 +71,13 @@ export async function buildServer(config: AppConfig) {
   const server = Fastify({ logger: true });
   const webDistDir = findWebDistDir();
 
+  server.addHook('onRequest', async (_request, reply) => {
+    reply.header(
+      'Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+    );
+  });
+
   server.setErrorHandler((error, request, reply) => {
     if (error instanceof ZodError) {
       const hasEmailIssue = error.issues.some((issue) => issue.path.includes('email'));

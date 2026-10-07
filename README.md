@@ -106,6 +106,7 @@ npx --yes localtunnel --port 5173
    - `STRIPE_SECRET_KEY_PROD`, `STRIPE_PUBLISHABLE_KEY_PROD`, `STRIPE_WEBHOOK_SECRET_PROD`
 5. Set these environment variables on the Railway web service:
    - `VITE_API_BASE_URL=https://your-api-service-domain`
+   - Keep this value the same at build time and runtime: the web Content-Security-Policy allows API connections and event images only from this origin and the web origin. Both Vite preview and the API set the header using their native response hooks; local Vite development keeps its normal hot reload behavior.
 6. After linking the repo to your Supabase project, apply the checked-in SQL migrations to production:
 
    ```powershell
