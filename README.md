@@ -109,6 +109,7 @@ npx --yes localtunnel --port 5173
 5. Set these environment variables on the Railway web service:
    - `VITE_API_BASE_URL=https://your-api-service-domain`
    - Keep this value the same at build time and runtime: the web Content-Security-Policy allows API connections and event images only from this origin and the web origin. Both Vite preview and the API set the header using their native response hooks; local Vite development keeps its normal hot reload behavior.
+   - The production API and Vite production preview send `Strict-Transport-Security: max-age=31536000` for a one-year HSTS policy per host. Railway terminates public HTTPS before forwarding to the services. Development mode omits HSTS; subdomain enforcement and preloading are not enabled.
 6. After linking the repo to your Supabase project, apply the checked-in SQL migrations to production:
 
    ```powershell

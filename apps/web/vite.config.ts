@@ -30,6 +30,7 @@ export default defineConfig(({ mode }) => {
         'www.wizardmakepotion.com',
       ],
       headers: {
+        ...(mode === 'production' ? { 'Strict-Transport-Security': 'max-age=31536000' } : {}),
         'Content-Security-Policy': `default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'${apiSource}; img-src 'self' data: blob:${apiSource}; media-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`,
       },
     },

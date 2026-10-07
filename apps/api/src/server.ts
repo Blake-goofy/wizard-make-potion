@@ -72,6 +72,10 @@ export async function buildServer(config: AppConfig) {
   const webDistDir = findWebDistDir();
 
   server.addHook('onRequest', async (_request, reply) => {
+    // ponytail: Railway terminates HTTPS; if hosting changes, set HSTS at the TLS terminator.
+    if (config.appEnv === 'production') {
+      reply.header('Strict-Transport-Security', 'max-age=31536000');
+    }
     reply.header(
       'Content-Security-Policy',
       "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
