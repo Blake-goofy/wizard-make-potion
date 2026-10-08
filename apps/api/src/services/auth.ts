@@ -1,5 +1,6 @@
 import { createHmac, pbkdf2Sync, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import type { FastifyRequest } from 'fastify';
+import type { PoolClient } from 'pg';
 import {
   accountProfileSchema,
   adminManagedUserSchema,
@@ -19,12 +20,15 @@ import {
 import { renderAccountVerificationEmail, renderPasswordResetEmail } from '@potion/email';
 import type { Database } from '@potion/db';
 import type { AppConfig } from '../config.js';
-import type { EmailQueueService } from './emailQueue.js';
+import { encryptAuthEmail, type EmailQueueService } from './emailQueue.js';
+import { createRateLimitGuard } from '../security/rateLimit.js';
 import type { SmsService } from './sms.js';
+import { normalizeSmsPhone } from './phoneNumbers.js';
 
 type SessionPayload = {
   sub: string;
   iat: number;
+  ver: number;
 };
 
 export type AuthService = ReturnType<typeof createAuthService>;
@@ -72,12 +76,8 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-function readPhoneDigits(phoneNumber: string) {
-  return phoneNumber.replace(/\D/g, '').slice(-10);
-}
-
 function formatPhoneNumber(phoneNumber: string) {
-  const digits = readPhoneDigits(phoneNumber);
+  const digits = normalizeSmsPhone(phoneNumber).slice(2);
 
   if (digits.length !== 10) {
     throw createHttpError('Enter a 10-digit phone number to verify by text.', 400);
@@ -100,12 +100,15 @@ export function createAuthService(
   emailQueue: EmailQueueService,
   options: { sms: SmsService; canSendSms: boolean },
 ) {
+  const limitPhoneRequests = createRateLimitGuard({ db, scope: 'phone-request', maxAttempts: 3, windowMs: 15 * 60 * 1000 });
+  const limitPhoneConfirmations = createRateLimitGuard({ db, scope: 'phone-confirm', maxAttempts: 8, windowMs: 15 * 60 * 1000 });
+
   function sign(value: string) {
     return createHmac('sha256', config.authSessionSecret).update(value).digest('hex');
   }
 
-  function createToken(userId: string) {
-    const payload: SessionPayload = { sub: userId, iat: Date.now() };
+  function createToken(userId: string, sessionVersion: number) {
+    const payload: SessionPayload = { sub: userId, iat: Date.now(), ver: sessionVersion };
     const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
     return `${encodedPayload}.${sign(encodedPayload)}`;
   }
@@ -121,7 +124,8 @@ export function createAuthService(
 
   function verifyToken(token: string | undefined) {
     if (!token) return null;
-    const [payload, signature] = token.split('.');
+    const [payload, signature, extra] = token.split('.');
+    if (extra !== undefined) return null;
     if (!payload || !signature) return null;
 
     const expected = Buffer.from(sign(payload));
@@ -130,14 +134,15 @@ export function createAuthService(
 
     try {
       const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as SessionPayload;
-      if (!decoded.sub || Date.now() - decoded.iat > 1000 * 60 * 60 * 24 * 7) return null;
+      if (typeof decoded.sub !== 'string' || !/^[0-9a-f-]{36}$/i.test(decoded.sub) ||
+          !Number.isSafeInteger(decoded.ver) || decoded.ver < 0 || !Number.isSafeInteger(decoded.iat) || decoded.iat > Date.now() || Date.now() - decoded.iat > 1000 * 60 * 60 * 24 * 7) return null;
       return decoded;
     } catch {
       return null;
     }
   }
 
-  async function findSessionUser(userId: string) {
+  async function findSessionUser(userId: string, sessionVersion: number) {
     const result = await db.query(
       `select id,
               email,
@@ -147,8 +152,9 @@ export function createAuthService(
               phone_verified_at as "phoneVerifiedAt",
               sms_opt_in as "smsOptIn"
        from users
-       where id = $1 and is_active = true`,
-      [userId],
+       where id = $1 and is_active = true
+         and session_version = $2`,
+      [userId, sessionVersion],
     );
 
     const user = result.rows[0];
@@ -159,7 +165,7 @@ export function createAuthService(
     const payload = verifyToken(readBearerToken(request));
     if (!payload) throw createHttpError('Sign-in required.', 401);
 
-    const user = await findSessionUser(payload.sub);
+    const user = await findSessionUser(payload.sub, payload.ver);
     if (!user) throw createHttpError('Sign-in required.', 401);
 
     return user;
@@ -179,24 +185,25 @@ export function createAuthService(
     return user;
   }
 
+  async function protectLastAdmin(client: PoolClient, userId: string, role: string, isActive: boolean) {
+    // ponytail: lock the small admin set in ID order; all demotion/deletion paths use this transaction guard.
+    const admins = await client.query<{ id: string }>(`select id from users where role = 'admin' and is_active = true order by id for update`);
+    if ((!isActive || role !== 'admin') && admins.rows.length === 1 && admins.rows[0]?.id === userId) {
+      throw createHttpError('The last active administrator cannot be removed.', 409);
+    }
+  }
+
   return {
     async createAccount(input: CreateAccountInput) {
       const email = normalizeEmail(input.email);
-      const existing = await db.query(`select id from users where lower(email) = $1 and is_active = true`, [email]);
-
-      if (existing.rowCount) {
-        throw createHttpError('An account already exists for that email.', 409);
-      }
 
       const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
       const passwordHash = hashPassword(input.password);
       const codeHash = hashVerificationCode(email, code);
       const phoneNumber = input.phoneNumber?.trim() || null;
       const smsOptIn = input.smsOptIn;
-      const verificationEmail = renderAccountVerificationEmail({ code });
-
       await db.transaction(async (client) => {
-        await client.query(
+        const pending = await client.query(
           `insert into account_verification_codes (
              email,
              display_name,
@@ -207,7 +214,8 @@ export function createAuthService(
              sms_consent_at,
              expires_at
            )
-           values ($1, $2, $3, $4, $5, $6, $7, now() + interval '15 minutes')`,
+           select $1, $2, $3, $4, $5, $6, $7, now() + interval '15 minutes'
+           where not exists (select 1 from users where lower(email) = $1 and (is_active = true or role <> 'customer'))`,
           [
             email,
             input.displayName.trim(),
@@ -219,14 +227,14 @@ export function createAuthService(
           ],
         );
 
+        const verificationEmail = renderAccountVerificationEmail({ code, existingAccount: pending.rowCount === 0 });
         await client.query(
-          `insert into email_outbox (to_email, subject, html_body, text_body, status)
-           values ($1, $2, $3, $4, 'pending')`,
+          `insert into email_outbox (to_email, subject, html_body, text_body, encrypted_body, status)
+           values ($1, $2, '', '', $3, 'pending')`,
           [
             email,
             verificationEmail.subject,
-            verificationEmail.htmlBody,
-            verificationEmail.textBody,
+            encryptAuthEmail(verificationEmail, config.authSessionSecret),
           ],
         );
       });
@@ -263,7 +271,8 @@ export function createAuthService(
       }
 
       const userResult = await db.transaction(async (client) => {
-        await client.query(`update account_verification_codes set consumed_at = now() where id = $1`, [pendingAccount.id]);
+        const consumed = await client.query(`update account_verification_codes set consumed_at = now() where id = $1 and consumed_at is null and expires_at > now() returning id`, [pendingAccount.id]);
+        if (consumed.rowCount !== 1) throw createHttpError('Invalid or expired verification code.', 401);
         const verified = await client.query(
           `insert into users (
              email,
@@ -293,14 +302,16 @@ export function createAuthService(
                  else users.sms_opted_out_at
                end,
                is_active = true,
+               session_version = users.session_version + 1,
                updated_at = now()
+           where users.is_active = false and users.role = 'customer'
            returning id,
                      email,
                      display_name as "displayName",
                      role,
                      phone_number as "phoneNumber",
                      phone_verified_at as "phoneVerifiedAt",
-                     sms_opt_in as "smsOptIn"`,
+                     sms_opt_in as "smsOptIn", session_version as "sessionVersion"`,
           [
             email,
             pendingAccount.displayName,
@@ -310,11 +321,12 @@ export function createAuthService(
             pendingAccount.smsConsentAt,
           ],
         );
+        if (!verified.rows[0]) throw createHttpError('Invalid or expired verification code.', 401);
         return verified.rows[0];
       });
 
       const user = sessionUserSchema.parse(userResult);
-      return { token: createToken(user.id), user };
+      return { token: createToken(user.id, userResult.sessionVersion), user };
     },
 
     async login(input: LoginInput) {
@@ -327,7 +339,7 @@ export function createAuthService(
                 phone_number as "phoneNumber",
                 phone_verified_at as "phoneVerifiedAt",
                 sms_opt_in as "smsOptIn",
-                password_hash as "passwordHash"
+                password_hash as "passwordHash", session_version as "sessionVersion"
          from users
          where lower(email) = lower($1) and is_active = true`,
         [email],
@@ -339,7 +351,7 @@ export function createAuthService(
       }
 
       const sessionUser = sessionUserSchema.parse(user);
-      return { token: createToken(sessionUser.id), user: sessionUser };
+      return { token: createToken(sessionUser.id, user.sessionVersion), user: sessionUser };
     },
 
     async requestPasswordReset(input: RequestPasswordResetInput) {
@@ -360,9 +372,9 @@ export function createAuthService(
           );
 
           await client.query(
-            `insert into email_outbox (to_email, subject, html_body, text_body, status)
-             values ($1, $2, $3, $4, 'pending')`,
-            [email, resetEmail.subject, resetEmail.htmlBody, resetEmail.textBody],
+            `insert into email_outbox (to_email, subject, html_body, text_body, encrypted_body, status)
+             values ($1, $2, '', '', $3, 'pending')`,
+            [email, resetEmail.subject, encryptAuthEmail(resetEmail, config.authSessionSecret)],
           );
         });
 
@@ -396,10 +408,12 @@ export function createAuthService(
       const passwordHash = hashPassword(input.newPassword);
 
       await db.transaction(async (client) => {
-        await client.query(`update password_reset_codes set consumed_at = now() where id = $1`, [resetCode.id]);
+        const consumed = await client.query(`update password_reset_codes set consumed_at = now() where id = $1 and consumed_at is null and expires_at > now() returning id`, [resetCode.id]);
+        if (consumed.rowCount !== 1) throw createHttpError('Invalid or expired verification code.', 401);
         await client.query(
           `update users
            set password_hash = $2,
+             session_version = users.session_version + 1,
                updated_at = now()
            where id = $1 and is_active = true`,
           [resetCode.userId, passwordHash],
@@ -442,19 +456,23 @@ export function createAuthService(
 
     async updateAdminUser(request: FastifyRequest, userId: string, input: AdminUserUpdateInput): Promise<AdminManagedUser> {
       await requireAdmin(request);
-      const result = await db.query(
-        `update users
-         set role = $2,
-             is_active = $3,
-             updated_at = now()
-         where id = $1
-         returning id,
-                   email,
-                   display_name as "displayName",
-                   role,
-                   is_active as "isActive"`,
-        [userId, input.role, input.isActive],
-      );
+      const result = await db.transaction(async (client) => {
+        await protectLastAdmin(client, userId, input.role, input.isActive);
+        return client.query(
+          `update users
+           set role = $2,
+               is_active = $3,
+               session_version = case when role is distinct from $2 or is_active is distinct from $3 then users.session_version + 1 else users.session_version end,
+               updated_at = now()
+           where id = $1
+           returning id,
+                     email,
+                     display_name as "displayName",
+                     role,
+                     is_active as "isActive"`,
+          [userId, input.role, input.isActive],
+        );
+      });
 
       const updatedUser = result.rows[0];
       if (!updatedUser) throw createHttpError('User was not found.', 404);
@@ -469,6 +487,7 @@ export function createAuthService(
 
     async requestPhoneVerification(request: FastifyRequest) {
       const user = await requireUser(request);
+      await limitPhoneRequests(request, [user.id]);
 
       if (!user.phoneNumber) {
         throw createHttpError('Add a phone number before requesting a verification code.', 400);
@@ -503,6 +522,7 @@ export function createAuthService(
 
     async verifyPhoneNumber(request: FastifyRequest, input: VerifyPhoneNumberInput) {
       const user = await requireUser(request);
+      await limitPhoneConfirmations(request, [user.id]);
 
       if (!user.phoneNumber) {
         throw createHttpError('Add a phone number before verifying it.', 400);
@@ -531,13 +551,14 @@ export function createAuthService(
       }
 
       const updatedResult = await db.transaction(async (client) => {
-        await client.query(`update phone_verification_codes set consumed_at = now() where id = $1`, [pendingVerification.id]);
+        const consumed = await client.query(`update phone_verification_codes set consumed_at = now() where id = $1 and consumed_at is null and expires_at > now() returning id`, [pendingVerification.id]);
+        if (consumed.rowCount !== 1) throw createHttpError('Invalid or expired verification code.', 401);
 
         return client.query(
           `update users
            set phone_verified_at = now(),
                updated_at = now()
-           where id = $1 and is_active = true
+           where id = $1 and is_active = true and phone_number = $2
            returning id,
                      email,
                      display_name as "displayName",
@@ -545,7 +566,7 @@ export function createAuthService(
                      phone_number as "phoneNumber",
                      phone_verified_at as "phoneVerifiedAt",
                      sms_opt_in as "smsOptIn"`,
-          [user.id],
+          [user.id, user.phoneNumber],
         );
       });
 
@@ -595,6 +616,9 @@ export function createAuthService(
       const updatedUser = result.rows[0];
       if (!updatedUser) throw createHttpError('Account was not found.', 404);
 
+      if (!smsOptIn) {
+        await db.query(`update orders set sms_opt_in = false, sms_consent_at = null where lower(customer_email) = lower($1)`, [user.email]);
+      }
       return accountProfileSchema.parse(updatedUser);
     },
 
@@ -616,6 +640,7 @@ export function createAuthService(
       await db.query(
         `update users
          set password_hash = $2,
+             session_version = users.session_version + 1,
              updated_at = now()
          where id = $1 and is_active = true`,
         [user.id, hashPassword(input.newPassword)],
@@ -626,19 +651,22 @@ export function createAuthService(
 
     async deleteAccount(request: FastifyRequest) {
       const user = await requireUser(request);
-      await db.query(
-        `update users
-         set is_active = false,
-             phone_number = null,
-             phone_verified_at = null,
-             sms_opt_in = false,
-             sms_consent_at = null,
-             sms_opted_out_at = now(),
-             updated_at = now()
-         where id = $1 and is_active = true`,
-        [user.id],
-      );
-
+      await db.transaction(async (client) => {
+        await protectLastAdmin(client, user.id, user.role, false);
+        await client.query(
+          `update users
+           set is_active = false,
+               session_version = users.session_version + 1,
+               phone_number = null,
+               phone_verified_at = null,
+               sms_opt_in = false,
+               sms_consent_at = null,
+               sms_opted_out_at = now(),
+               updated_at = now()
+           where id = $1 and is_active = true`,
+          [user.id],
+        );
+      });
       return { deleted: true as const };
     },
   };

@@ -26,12 +26,6 @@ import { detectEventImageContentType, MAX_EVENT_IMAGE_BYTES } from '../services/
 const authRateLimitMessage = 'Too many attempts. Please wait a moment and try again.';
 const smsMessagePhoneNumberSchema = z.string().trim().regex(/^\(\d{3}\) \d{3}-\d{4}$/);
 
-const limitLoginAttempts = createRateLimitGuard({ maxAttempts: 10, windowMs: 10 * 60 * 1000, message: authRateLimitMessage });
-const limitAccountCreationAttempts = createRateLimitGuard({ maxAttempts: 3, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
-const limitVerificationAttempts = createRateLimitGuard({ maxAttempts: 8, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
-const limitPasswordResetRequests = createRateLimitGuard({ maxAttempts: 3, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
-const limitPasswordResetConfirmations = createRateLimitGuard({ maxAttempts: 8, windowMs: 15 * 60 * 1000, message: authRateLimitMessage });
-
 const smsMessageTypeSchema = z.enum(['reminder', 'upcoming_event', 'admin', 'test']);
 const smsMessageStatusSchema = z.enum(['draft', 'sent']);
 const smsMessageInputSchema = z.object({
@@ -121,6 +115,12 @@ export async function registerAdminRoutes(
     appSettings: AppSettingsService;
   },
 ) {
+  const limitLoginAttempts = createRateLimitGuard({ scope: 'LoginAttempts', maxAttempts: 10, windowMs: 10 * 60 * 1000, message: authRateLimitMessage, db: deps.db });
+  const limitAccountCreationAttempts = createRateLimitGuard({ scope: 'AccountCreationAttempts', maxAttempts: 3, windowMs: 15 * 60 * 1000, message: authRateLimitMessage, db: deps.db });
+  const limitVerificationAttempts = createRateLimitGuard({ scope: 'VerificationAttempts', maxAttempts: 8, windowMs: 15 * 60 * 1000, message: authRateLimitMessage, db: deps.db });
+  const limitPasswordResetRequests = createRateLimitGuard({ scope: 'PasswordResetRequests', maxAttempts: 3, windowMs: 15 * 60 * 1000, message: authRateLimitMessage, db: deps.db });
+  const limitPasswordResetConfirmations = createRateLimitGuard({ scope: 'PasswordResetConfirmations', maxAttempts: 8, windowMs: 15 * 60 * 1000, message: authRateLimitMessage, db: deps.db });
+
   server.get('/api/theme', async (_request, reply) =>
     reply
       .header('Cache-Control', 'no-store')
@@ -129,7 +129,7 @@ export async function registerAdminRoutes(
 
   server.post('/api/auth/login', async (request, reply) => {
     const input = loginInputSchema.parse(request.body);
-    limitLoginAttempts(request, [input.email]);
+    await limitLoginAttempts(request, [input.email]);
     const session = await deps.auth.login(input);
 
     return reply.send(session);
@@ -137,7 +137,7 @@ export async function registerAdminRoutes(
 
   server.post('/api/auth/register', async (request, reply) => {
     const input = createAccountInputSchema.parse(request.body);
-    limitAccountCreationAttempts(request, [input.email]);
+    await limitAccountCreationAttempts(request, [input.email]);
     const result = await deps.auth.createAccount(input);
 
     return reply.code(201).send(result);
@@ -145,7 +145,7 @@ export async function registerAdminRoutes(
 
   server.post('/api/auth/verify', async (request, reply) => {
     const input = verifyAccountInputSchema.parse(request.body);
-    limitVerificationAttempts(request, [input.email]);
+    await limitVerificationAttempts(request, [input.email]);
     const session = await deps.auth.verifyAccount(input);
 
     return reply.send(session);
@@ -153,7 +153,7 @@ export async function registerAdminRoutes(
 
   server.post('/api/auth/password-reset/request', async (request, reply) => {
     const input = requestPasswordResetInputSchema.parse(request.body);
-    limitPasswordResetRequests(request, [input.email]);
+    await limitPasswordResetRequests(request, [input.email]);
     const result = await deps.auth.requestPasswordReset(input);
 
     return reply.send(result);
@@ -161,7 +161,7 @@ export async function registerAdminRoutes(
 
   server.post('/api/auth/password-reset/confirm', async (request, reply) => {
     const input = resetPasswordInputSchema.parse(request.body);
-    limitPasswordResetConfirmations(request, [input.email]);
+    await limitPasswordResetConfirmations(request, [input.email]);
     const result = await deps.auth.resetPassword(input);
 
     return reply.send(result);
@@ -278,7 +278,7 @@ export async function registerAdminRoutes(
 
   server.put(
     '/api/admin/events/:eventId/image',
-    { bodyLimit: MAX_EVENT_IMAGE_BYTES },
+    { bodyLimit: MAX_EVENT_IMAGE_BYTES, onRequest: async (request) => { await deps.auth.requireAdmin(request); } },
     async (request) => {
       await deps.auth.requireAdmin(request);
       const eventId = z.string().uuid().parse((request.params as { eventId?: string }).eventId);
@@ -374,7 +374,6 @@ export async function registerAdminRoutes(
               o.id as "orderId",
               row_number() over (partition by o.id order by t.created_at asc, t.id asc)::int as "ticketNumber",
               t.used_at as "usedAt",
-              t.scan_token as "scanToken",
             coalesce(o.customer_name, u.display_name) as "customerDisplayName",
               o.customer_email as "customerEmail",
               o.total_cents as "totalCents",

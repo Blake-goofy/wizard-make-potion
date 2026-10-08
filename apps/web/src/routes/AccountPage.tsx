@@ -11,6 +11,7 @@ type AccountPageProps = {
   user: SessionUser | null;
   onUserChange: (user: SessionUser) => void;
   onAccountDeleted: () => void;
+  onPasswordChanged: () => void;
 };
 
 function handleFieldKeyDown(event: KeyboardEvent<HTMLInputElement>, options: { isDirty: boolean; onCancel: () => void; onConfirm: () => void }) {
@@ -35,7 +36,7 @@ function NotificationIcon() {
   );
 }
 
-export default function AccountPage({ token, user, onUserChange, onAccountDeleted }: AccountPageProps) {
+export default function AccountPage({ token, user, onUserChange, onAccountDeleted, onPasswordChanged }: AccountPageProps) {
   const [profile, setProfile] = useState<AccountProfile | null>(user);
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(user?.phoneNumber));
@@ -320,7 +321,7 @@ export default function AccountPage({ token, user, onUserChange, onAccountDelete
       await changePassword({ currentPassword, newPassword }, token);
       resetPasswordForm();
       setIsPasswordDialogOpen(false);
-      showToast('Password changed.', 'success');
+      onPasswordChanged();
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Could not change password.', 'error');
     } finally {

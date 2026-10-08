@@ -6,6 +6,7 @@ import type { AppConfig } from '../config.js';
 import type { AuthService } from '../services/auth.js';
 import type { OrderService } from '../services/orders.js';
 import { resolveCheckoutInput } from './checkoutInput.js';
+import { createRateLimitGuard } from '../security/rateLimit.js';
 
 const stripeCheckoutUnavailableMessage = 'Could not open Stripe checkout. Please try again.';
 const idempotencyKeyPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -85,12 +86,16 @@ export async function registerPaymentRoutes(
   server: FastifyInstance,
   deps: { config: AppConfig; auth: AuthService; orders: OrderService },
 ) {
+  const limitCheckout = createRateLimitGuard({ maxAttempts: 20, windowMs: 15 * 60 * 1000 });
   server.post('/api/payments/stripe-checkout', async (request, reply) => {
+    await limitCheckout(request, []);
     const requestedInput = createOrderRequestSchema.parse(request.body);
     const input = createOrderInputSchema.parse(await resolveCheckoutInput(request, deps.auth, requestedInput));
     const checkoutIdempotencyKey = readCheckoutIdempotencyKey(request);
     const stripe = getStripe(deps.config);
     const { event, quote } = await deps.orders.quoteOrder(input);
+    const existingCheckout = await deps.orders.getExistingStripeCheckout(input, checkoutIdempotencyKey, quote);
+    if (existingCheckout) return reply.code(201).send(existingCheckout);
     const orderId = createCheckoutOrderId(deps.config, checkoutIdempotencyKey);
     const metadata = {
       orderId,
@@ -189,12 +194,12 @@ export async function registerPaymentRoutes(
     const stripe = getStripe(deps.config);
     const event = stripe.webhooks.constructEvent(request.body, signature, deps.config.stripeWebhookSecret);
 
-    if (event.type === 'checkout.session.completed') {
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
       const session = event.data.object;
       const orderId = session.metadata?.orderId;
 
-      if (orderId) {
-        await deps.orders.completeStripeOrder(orderId, session.id);
+      if (orderId && (session.payment_status === 'paid' || (session.payment_status === 'no_payment_required' && session.amount_total === 0))) {
+        await deps.orders.completeStripeOrder(orderId, session);
       }
     }
 

@@ -85,8 +85,11 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
     },
 
     async createDevCompletedOrder(input: CreateOrderInput) {
+      if (deps.config.appEnv !== 'development' || deps.config.nodeEnv === 'production') {
+        throw Object.assign(new Error('Development checkout is unavailable.'), { statusCode: 404 });
+      }
+      const { event, quote } = await this.quoteOrder(input);
       const result = await deps.db.transaction(async (client) => {
-        const { event, quote } = await this.quoteOrder(input);
         const orderId = randomUUID();
         const providerReference = `dev_${orderId}`;
         const smsOptIn = input.smsOptIn ?? false;
@@ -130,6 +133,30 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
       return result;
     },
 
+    async getExistingStripeCheckout(input: CreateOrderInput, checkoutIdempotencyKey: string, quote: PricingQuote) {
+      const result = await deps.db.query(
+        `select id, event_id, customer_email, customer_name, customer_phone_number, sms_opt_in,
+                quantity, total_cents, status, payment_provider_reference
+         from orders where checkout_idempotency_key = $1`, [checkoutIdempotencyKey],
+      );
+      const order = result.rows[0];
+      if (!order) return null;
+      if (order.event_id !== input.eventId || order.customer_email !== input.customerEmail ||
+          order.customer_name !== (input.customerName ?? null) || order.customer_phone_number !== (input.customerPhoneNumber ?? null) ||
+          order.sms_opt_in !== (input.smsOptIn ?? false) || order.quantity !== input.quantity || order.total_cents !== quote.totalCents) {
+        throw Object.assign(new Error('This checkout key was already used for another order.'), { statusCode: 409 });
+      }
+      const stripe = getStripe(deps.config);
+      if (!stripe || order.status !== 'pending') {
+        throw Object.assign(new Error('This checkout is no longer available. Start a new checkout.'), { statusCode: 409 });
+      }
+      const session = await stripe.checkout.sessions.retrieve(order.payment_provider_reference);
+      if (!session.url || session.status !== 'open') {
+        throw Object.assign(new Error('This checkout has expired or completed. Start a new checkout.'), { statusCode: 409 });
+      }
+      return { orderId: order.id as string, checkoutUrl: session.url };
+    },
+
     async createPendingStripeOrder(options: {
       orderId: string;
       input: CreateOrderInput;
@@ -163,11 +190,12 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
       );
     },
 
-    async completeStripeOrder(orderId: string, providerReference: string) {
+    async completeStripeOrder(orderId: string, session: Pick<Stripe.Checkout.Session, 'id' | 'payment_status' | 'amount_total' | 'currency'>) {
       const result = await deps.db.transaction(async (client) => {
         const orderResult = await client.query(
           `select o.id, o.event_id as "eventId", o.customer_email as "customerEmail", o.quantity,
                   o.subtotal_cents as "subtotalCents", o.tax_cents as "taxCents", o.total_cents as "totalCents",
+                  o.payment_provider as "paymentProvider", o.payment_provider_reference as "providerReference",
                   o.status, e.slug, e.name, e.starts_at as "startsAt", e.address, e.description,
                   e.ticket_price_cents as "ticketPriceCents", e.tax_rate_bps as "taxRateBps",
                   e.min_tickets_per_order as "minTicketsPerOrder",
@@ -187,6 +215,8 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
               subtotalCents: number;
               taxCents: number;
               totalCents: number;
+              paymentProvider: string;
+              providerReference: string;
               status: string;
               slug: string;
               name: string;
@@ -203,6 +233,14 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
 
         if (!order) {
           throw new Error('Stripe order was not found.');
+        }
+
+        const settled = session.payment_status === 'paid' ||
+          (session.payment_status === 'no_payment_required' && session.amount_total === 0 && order.totalCents === 0);
+        if (!settled || session.currency !== 'usd' ||
+            session.amount_total !== order.totalCents || order.paymentProvider !== 'stripe' ||
+            order.providerReference !== session.id || !['pending', 'completed'].includes(order.status)) {
+          throw Object.assign(new Error('Stripe payment does not match the order.'), { statusCode: 409 });
         }
 
         const event = parseEventRecord({
@@ -231,7 +269,7 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
             `update orders
              set status = 'completed', completed_at = now(), payment_provider_reference = $2
              where id = $1`,
-            [orderId, providerReference],
+            [orderId, session.id],
           );
 
           tickets = await createOrderTickets(client, orderId, order.quantity);
@@ -280,11 +318,11 @@ export function createOrderService(deps: { db: Database; emailQueue: EmailQueueS
       try {
         const session = await stripe.checkout.sessions.retrieve(order.providerReference);
 
-        if (session.payment_status !== 'paid') {
+        if (session.payment_status !== 'paid' && !(session.payment_status === 'no_payment_required' && session.amount_total === 0)) {
           return false;
         }
 
-        await this.completeStripeOrder(orderId, session.id);
+        await this.completeStripeOrder(orderId, session);
         return true;
       } catch {
         return false;

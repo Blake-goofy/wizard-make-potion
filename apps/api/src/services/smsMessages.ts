@@ -1,5 +1,6 @@
 import type { Database } from '@potion/db';
 import type { SmsService } from './sms.js';
+import { normalizeSmsPhone } from './phoneNumbers.js';
 
 type SmsMessageStatus = 'draft' | 'sent' | 'cancelled';
 type SmsMessageType = 'reminder' | 'upcoming_event' | 'admin' | 'test';
@@ -22,13 +23,8 @@ type SmsMessageRow = {
 
 export type SmsMessageService = ReturnType<typeof createSmsMessageService>;
 
-function normalizeComparableDigits(phoneNumber: string) {
-  return phoneNumber.replace(/\D/g, '').slice(-10);
-}
-
 function formatE164(phoneNumber: string) {
-  const comparableDigits = normalizeComparableDigits(phoneNumber);
-  return comparableDigits ? `+1${comparableDigits}` : '';
+  return normalizeSmsPhone(phoneNumber);
 }
 
 function parseMessageRow(row: SmsMessageRow) {
@@ -54,18 +50,17 @@ export function createSmsMessageService(deps: { db: Database; sms: SmsService })
 
       if (message.messageType === 'reminder') {
         const recipientsResult = await deps.db.query<{ phoneNumber: string }>(
-          `select distinct on (regexp_replace(customer_phone_number, '\\D', '', 'g')) customer_phone_number as "phoneNumber"
-           from orders
-           where orders.event_id = $1
-             and orders.status = 'completed'
-             and orders.sms_opt_in = true
-             and orders.customer_phone_number is not null
-             and not exists (
-               select 1
-               from sms_stop_list sl
-               where regexp_replace(sl.phone_number, '\\D', '', 'g') = regexp_replace(orders.customer_phone_number, '\\D', '', 'g')
+          `select distinct on (sms_phone(u.phone_number)) u.phone_number as "phoneNumber"
+           from users u
+           where u.is_active = true and u.sms_opt_in = true and u.phone_verified_at is not null
+             and sms_phone(u.phone_number) is not null
+             and exists (
+               select 1 from orders o where o.event_id = $1 and o.status = 'completed' and o.sms_opt_in = true
+                 and lower(o.customer_email) = lower(u.email)
+                 and sms_phone(o.customer_phone_number) = sms_phone(u.phone_number)
              )
-           order by regexp_replace(customer_phone_number, '\\D', '', 'g'), created_at asc`,
+             and not exists (select 1 from sms_stop_list sl where sms_phone(sl.phone_number) = sms_phone(u.phone_number))
+           order by sms_phone(u.phone_number), u.phone_number`,
           [message.eventId],
         );
 
@@ -75,27 +70,12 @@ export function createSmsMessageService(deps: { db: Database; sms: SmsService })
           .map((phoneNumber) => ({ toPhone: phoneNumber, messageBody: message.messageBody }));
       } else if (message.messageType === 'upcoming_event') {
         const recipientsResult = await deps.db.query<{ phoneNumber: string }>(
-          `select distinct on (digits) phone_number as "phoneNumber"
-           from (
-             select phone_number, regexp_replace(phone_number, '\\D', '', 'g') as digits
-             from users
-             where is_active = true
-               and sms_opt_in = true
-               and phone_number is not null
-               and phone_verified_at is not null
-             union
-             select orders.customer_phone_number as phone_number, regexp_replace(orders.customer_phone_number, '\\D', '', 'g') as digits
-             from orders
-             where orders.status = 'completed'
-               and orders.sms_opt_in = true
-               and orders.customer_phone_number is not null
-           ) recipients
-           where not exists (
-             select 1
-             from sms_stop_list sl
-             where regexp_replace(sl.phone_number, '\\D', '', 'g') = recipients.digits
-           )
-           order by digits, phone_number asc`,
+          `select distinct on (sms_phone(phone_number)) phone_number as "phoneNumber"
+           from users
+           where is_active = true and sms_opt_in = true and phone_verified_at is not null
+             and sms_phone(phone_number) is not null
+             and not exists (select 1 from sms_stop_list sl where sms_phone(sl.phone_number) = sms_phone(users.phone_number))
+           order by sms_phone(phone_number), phone_number`,
         );
 
         recipients = recipientsResult.rows
@@ -104,22 +84,12 @@ export function createSmsMessageService(deps: { db: Database; sms: SmsService })
           .map((phoneNumber) => ({ toPhone: phoneNumber, messageBody: message.messageBody }));
       } else if (message.messageType === 'admin') {
         const recipientsResult = await deps.db.query<{ phoneNumber: string }>(
-          `select distinct on (digits) phone_number as "phoneNumber"
-           from (
-             select phone_number, regexp_replace(phone_number, '\\D', '', 'g') as digits
-             from users
-             where is_active = true
-               and role = 'admin'
-               and phone_number is not null
-               and phone_verified_at is not null
-           ) admins
-           where digits <> ''
-             and not exists (
-               select 1
-               from sms_stop_list sl
-               where regexp_replace(sl.phone_number, '\\D', '', 'g') = admins.digits
-             )
-           order by digits, phone_number asc`,
+          `select distinct on (sms_phone(phone_number)) phone_number as "phoneNumber"
+           from users
+           where is_active = true and role = 'admin' and sms_opt_in = true and phone_verified_at is not null
+             and sms_phone(phone_number) is not null
+             and not exists (select 1 from sms_stop_list sl where sms_phone(sl.phone_number) = sms_phone(users.phone_number))
+           order by sms_phone(phone_number), phone_number`,
         );
 
         recipients = recipientsResult.rows

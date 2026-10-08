@@ -22,10 +22,9 @@ describe('sms service', () => {
   });
 
   it('queues HELP replies with the inbound Telnyx destination as the sender number', async () => {
-    const query = vi.fn()
-      .mockResolvedValueOnce({ rowCount: 1 })
-      .mockResolvedValueOnce({ rowCount: 0 })
-      .mockResolvedValueOnce({ rowCount: 1 });
+    const query = vi.fn().mockImplementation(async (sql: string) => ({
+      rowCount: 1, rows: sql.includes('as count') ? [{ count: 1, total: 0 }] : [],
+    }));
     const db = {
       transaction: vi.fn(async (callback: (client: { query: typeof query }) => Promise<unknown>) => callback({ query })),
       query: vi.fn(),
@@ -42,9 +41,9 @@ describe('sms service', () => {
     });
 
     expect(result.keyword).toBe('HELP');
-    expect(query).toHaveBeenNthCalledWith(2,
+    expect(query).toHaveBeenCalledWith(
       expect.stringContaining('insert into sms_outbox'),
-      ['+15551234567', '+15550000000', expect.stringContaining('Wizard Make Potion alerts:')],
+      ['+15551234567', '+15550000000', expect.stringContaining('Wizard Make Potion alerts:'), 'event-1'],
     );
   });
 
@@ -72,11 +71,10 @@ describe('sms service', () => {
     const provider = {
       send: vi.fn().mockResolvedValue({ providerMessageId: 'msg-123' }),
     };
+    const clientQuery = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 });
     const db = {
-      query: vi.fn()
-        .mockResolvedValueOnce({ rows: [{ id: 'sms-1', toPhone: '+15551234567', fromPhoneNumber: '+15550000000', messageBody: 'Reply body' }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
-      transaction: vi.fn(),
+      query: vi.fn().mockResolvedValue({ rows: [{ id: 'sms-1', toPhone: '+15551234567', fromPhoneNumber: '+15550000000', messageBody: 'Reply body', messageType: 'reply' }], rowCount: 1 }),
+      transaction: vi.fn(async (callback) => callback({ query: clientQuery })),
     };
     const sms = createSmsService({ db: db as never, smsProvider: provider as never });
 
@@ -87,7 +85,7 @@ describe('sms service', () => {
       fromPhoneNumber: '+15550000000',
       messageBody: 'Reply body',
     });
-    expect(db.query).toHaveBeenNthCalledWith(2,
+    expect(clientQuery).toHaveBeenCalledWith(
       expect.stringContaining("set status = 'accepted'"),
       ['sms-1', 'msg-123'],
     );

@@ -50,7 +50,7 @@ async function createServer(auth = createAuth()) {
 
   await registerAdminRoutes(server, {
     auth,
-    db: {} as AdminRouteDeps['db'],
+    db: { query: vi.fn().mockResolvedValue({ rows: [{ count: 1 }] }) } as unknown as AdminRouteDeps['db'],
     emailQueue,
     scanner: {} as ScannerService,
   });

@@ -72,6 +72,20 @@ afterEach(() => {
 });
 
 describe('telnyx webhook route', () => {
+  it('rejects stale signed webhooks before side effects', async () => {
+    const { server, sms } = await createServer();
+    const payload = JSON.stringify({ data: { id: 'stale-event', event_type: 'message.received' } });
+    const timestamp = `${Math.floor(Date.now() / 1000) - 301}`;
+    try {
+      const response = await server.inject({ method: 'POST', url: '/api/telnyx/webhook', headers: { 'Content-Type': 'application/json', 'telnyx-timestamp': timestamp, 'telnyx-signature-ed25519': signPayload(payload, timestamp) }, payload });
+      expect(response.statusCode).toBe(401);
+      expect(sms.handleInboundMessage).not.toHaveBeenCalled();
+      expect(sms.processPending).not.toHaveBeenCalled();
+    } finally {
+      await server.close();
+    }
+  });
+
   it('verifies the signature and forwards inbound STOP messages to the SMS service', async () => {
     const { server, sms } = await createServer();
     const payload = JSON.stringify({
@@ -108,7 +122,7 @@ describe('telnyx webhook route', () => {
         toPhoneNumber: '+1 (555) 000-0000',
         messageText: 'STOP',
       }));
-      expect(sms.processPending).toHaveBeenCalledTimes(1);
+      expect(sms.processPending).toHaveBeenCalledWith('4ef8c3a6-4195-4389-b3a6-38e3cb9eb4ae');
     } finally {
       await server.close();
     }
@@ -134,7 +148,7 @@ describe('telnyx webhook route', () => {
         url: '/api/telnyx/webhook',
         headers: {
           'Content-Type': 'application/json',
-          'telnyx-timestamp': '1716476400',
+          'telnyx-timestamp': `${Math.floor(Date.now() / 1000)}`,
           'telnyx-signature-ed25519': 'invalid-signature',
         },
         payload,
@@ -161,7 +175,7 @@ describe('telnyx webhook route', () => {
         },
       },
     });
-    const timestamp = '1716476400';
+    const timestamp = `${Math.floor(Date.now() / 1000)}`;
 
     try {
       const response = await server.inject({

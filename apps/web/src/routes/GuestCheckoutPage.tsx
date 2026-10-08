@@ -201,6 +201,7 @@ export default function GuestCheckoutPage({ eventSlug }: { eventSlug: string }) 
             <span>I agree to receive SMS event reminders, upcoming event announcements, and marketing messages from Wizard Make Potion.</span>
           </label>
           <p className="sms-consent-disclosure">
+            Text updates require a verified phone number in your account.{' '}
             By checking this box and providing your phone number, you agree to receive SMS event reminders, upcoming event
             announcements, and marketing messages from Wizard Make Potion. Message frequency may vary. Standard Message and
             Data Rates may apply. Reply STOP to opt out. Reply HELP for help. We will not share mobile information with third parties for promotional

@@ -76,7 +76,6 @@ export type AdminTicketView = {
   createdAt: string;
   eventName: string;
   eventStartsAt: string;
-  scanToken: string;
 };
 
 export type ScannerSettingsView = ScannerSettings;

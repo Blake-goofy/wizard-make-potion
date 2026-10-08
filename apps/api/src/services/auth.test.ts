@@ -24,7 +24,7 @@ function createConfig(): AppConfig {
 }
 
 function createBearerToken(config: AppConfig, userId: string) {
-  const payload = Buffer.from(JSON.stringify({ sub: userId, iat: Date.now() }), 'utf8').toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ sub: userId, iat: Date.now(), ver: 0 }), 'utf8').toString('base64url');
   const signature = createHmac('sha256', config.authSessionSecret).update(payload).digest('hex');
   return `Bearer ${payload}.${signature}`;
 }
@@ -119,6 +119,10 @@ describe('auth service', () => {
         }),
       transaction: vi.fn(async (callback: (client: { query: typeof clientQuery }) => Promise<unknown>) => callback({ query: clientQuery })),
     };
+    const domainQuery = db.query;
+    db.query = vi.fn((sql, values) => sql.includes('security_rate_limits')
+      ? Promise.resolve({ rows: [{ count: 1 }], rowCount: 1 })
+      : domainQuery(sql, values)) as typeof db.query;
     const emailQueue = { processPending: vi.fn() };
     const sms = { queueMessage: vi.fn(), processPending: vi.fn() };
     const auth = createAuthService(config, db as never, emailQueue as never, {
@@ -144,11 +148,11 @@ describe('auth service', () => {
     expect(verifiedAccount.phoneNumber).toBe(activePhoneNumber);
     expect(clientQuery).toHaveBeenNthCalledWith(2,
       expect.stringContaining('set phone_verified_at = now()'),
-      [userId],
+      [userId, activePhoneNumber],
     );
     expect(emailQueue.processPending).not.toHaveBeenCalled();
     expect(sms.processPending).toHaveBeenCalledTimes(1);
-    expect(db.query).toHaveBeenNthCalledWith(4,
+    expect(db.query).toHaveBeenCalledWith(
       expect.stringContaining('from phone_verification_codes'),
       [userId, activePhoneNumber],
     );

@@ -70,6 +70,7 @@ function createOrders(): OrderService {
       },
     }),
     createDevCompletedOrder: vi.fn(),
+    getExistingStripeCheckout: vi.fn().mockResolvedValue(null),
     createPendingStripeOrder: vi.fn(),
     completeStripeOrder: vi.fn(),
     getOrderForConfirmation: vi.fn(),
@@ -113,6 +114,11 @@ async function createServer(config = createConfig(), orders = createOrders(), au
     return reply.code(statusCode).send({ message });
   });
 
+  server.removeContentTypeParser('application/json');
+  server.addContentTypeParser('application/json', { parseAs: 'buffer' }, (request, body, done) => {
+    done(null, request.url === '/api/stripe/webhook' ? body : JSON.parse(body.toString('utf8')));
+  });
+
   await registerPaymentRoutes(server, { config, auth, orders });
   return { server, orders, auth };
 }
@@ -122,6 +128,51 @@ afterEach(() => {
 });
 
 describe('payment routes', () => {
+  it.each([
+    ['checkout.session.completed', 'unpaid', false],
+    ['checkout.session.completed', 'paid', true],
+    ['checkout.session.async_payment_succeeded', 'paid', true],
+  ])('fulfills %s only after settlement (%s)', async (type, payment_status, fulfills) => {
+    const session = { id: 'cs_test', metadata: { orderId: eventId }, payment_status, currency: 'usd', amount_total: 2500 };
+    stripeMocks.constructEvent.mockReturnValue({ type, data: { object: session } });
+    const { server, orders } = await createServer();
+    try {
+      const response = await server.inject({ method: 'POST', url: '/api/stripe/webhook', headers: { 'stripe-signature': 'test' }, payload: {} });
+      expect(response.statusCode).toBe(200);
+      if (fulfills) expect(orders.completeStripeOrder).toHaveBeenCalledWith(eventId, session);
+      else expect(orders.completeStripeOrder).not.toHaveBeenCalled();
+    } finally {
+      await server.close();
+    }
+  });
+
+  it.each([0, 2500])('fulfills no-payment-required checkout only for a zero total (%s)', async (amount_total) => {
+    const session = { id: 'cs_free', metadata: { orderId: eventId }, payment_status: 'no_payment_required', amount_total, currency: 'usd' };
+    stripeMocks.constructEvent.mockReturnValue({ type: 'checkout.session.completed', data: { object: session } });
+    const { server, orders } = await createServer();
+    try {
+      const response = await server.inject({ method: 'POST', url: '/api/stripe/webhook', headers: { 'stripe-signature': 'test' }, payload: {} });
+      expect(response.statusCode).toBe(200);
+      expect(orders.completeStripeOrder).toHaveBeenCalledTimes(amount_total === 0 ? 1 : 0);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('reuses a stored checkout session without asking Stripe to create another', async () => {
+    const orders = createOrders();
+    vi.mocked(orders.getExistingStripeCheckout).mockResolvedValue({ orderId: eventId, checkoutUrl: 'https://checkout.stripe.test/existing' });
+    const { server } = await createServer(createConfig(), orders);
+    try {
+      const response = await server.inject({ method: 'POST', url: '/api/payments/stripe-checkout', headers: { 'Idempotency-Key': checkoutIdempotencyKey }, payload: { eventId, customerEmail: 'guest@example.com', quantity: 1 } });
+      expect(response.statusCode).toBe(201);
+      expect(response.json().checkoutUrl).toBe('https://checkout.stripe.test/existing');
+      expect(stripeMocks.createCheckoutSession).not.toHaveBeenCalled();
+    } finally {
+      await server.close();
+    }
+  });
+
   it('does not expose Stripe API key errors in checkout responses', async () => {
     stripeMocks.createCheckoutSession.mockRejectedValue(
       Object.assign(new Error('Expired API Key provided: sk_live_secret'), { statusCode: 401 }),

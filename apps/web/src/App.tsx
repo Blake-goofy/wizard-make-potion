@@ -757,6 +757,7 @@ export function App() {
           user={user}
           onUserChange={handleUserChange}
           onAccountDeleted={handleAccountDeleted}
+          onPasswordChanged={() => clearSession('Password changed. Sign in with your new password.')}
         />
       ) : (
         <AuthPage onSession={handleSession} />
@@ -973,7 +974,8 @@ export function App() {
       return;
     }
 
-    setAccountMessage('Your access level was updated.');
+    if (updatedUser.role !== user.role) clearSession('Your access level was updated. Sign in again.');
+    else setAccountMessage('Your access level was updated.');
   }
 
   function clearSession(message: string) {

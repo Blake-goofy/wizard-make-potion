@@ -134,7 +134,7 @@ export async function buildServer(config: AppConfig) {
     resendApiKey: config.resendApiKey,
   });
 
-  const emailQueue = createEmailQueueService({ db, appSettings, emailProvider, webOrigin: config.webOrigin });
+  const emailQueue = createEmailQueueService({ db, appSettings, emailProvider, webOrigin: config.webOrigin, authSessionSecret: config.authSessionSecret });
   const smsProvider = config.telnyxApiKey
     ? createTelnyxSmsProvider({
       telnyxApiKey: config.telnyxApiKey,
@@ -162,7 +162,7 @@ export async function buildServer(config: AppConfig) {
   await registerEventRoutes(server, { db, appSettings });
   await registerPaymentRoutes(server, { config, auth, orders });
   await registerTelnyxRoutes(server, { config, sms });
-  await registerOrderRoutes(server, { auth, orders });
+  await registerOrderRoutes(server, { auth, orders, config });
   await registerScannerRoutes(server, { scanner, auth, appSettings });
   await registerAdminRoutes(server, { auth, db, emailQueue, scanner, smsMessages, appSettings });
 

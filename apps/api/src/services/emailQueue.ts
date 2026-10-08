@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import type { Database } from '@potion/db';
 import { type EmailAttachment, type EmailProvider, renderTicketEmail } from '@potion/email';
 import type { EventRecord, PricingQuote } from '@potion/shared';
@@ -13,6 +14,23 @@ type TicketEmailJob = {
 };
 
 export type EmailQueueService = ReturnType<typeof createEmailQueueService>;
+
+export function encryptAuthEmail(email: { htmlBody: string; textBody: string }, secret: string) {
+  const iv = randomBytes(12);
+  const key = createHash('sha256').update(`auth-email:${secret}`).digest();
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const ciphertext = Buffer.concat([cipher.update(JSON.stringify(email), 'utf8'), cipher.final()]);
+  return [iv, cipher.getAuthTag(), ciphertext].map((part) => part.toString('base64url')).join('.');
+}
+
+export function decryptAuthEmail(value: string, secret: string): { htmlBody: string; textBody: string } {
+  const [iv, tag, ciphertext] = value.split('.').map((part) => Buffer.from(part, 'base64url'));
+  if (!iv || iv.length !== 12 || !tag || tag.length !== 16 || !ciphertext) throw new Error('Invalid encrypted email.');
+  const key = createHash('sha256').update(`auth-email:${secret}`).digest();
+  const decipher = createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(tag);
+  return JSON.parse(Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8'));
+}
 
 type StoredEmailAttachment = {
   filename: string;
@@ -62,7 +80,7 @@ function deserializeAttachments(value: unknown): EmailAttachment[] {
   });
 }
 
-export function createEmailQueueService(deps: { db: Database; appSettings: AppSettingsService; emailProvider: EmailProvider; webOrigin: string }) {
+export function createEmailQueueService(deps: { db: Database; appSettings: AppSettingsService; emailProvider: EmailProvider; webOrigin: string; authSessionSecret: string }) {
   return {
     async enqueueTicketEmail(client: PoolClient, job: TicketEmailJob) {
       const email = await renderTicketEmail({
@@ -78,7 +96,7 @@ export function createEmailQueueService(deps: { db: Database; appSettings: AppSe
 
     async processPending() {
       const result = await deps.db.query(
-        `select id, to_email as "toEmail", subject, html_body as "htmlBody", text_body as "textBody", attachments
+        `select id, to_email as "toEmail", subject, html_body as "htmlBody", text_body as "textBody", attachments, encrypted_body as "encryptedBody"
          from email_outbox
          where status = 'pending'
          order by created_at asc
@@ -91,15 +109,14 @@ export function createEmailQueueService(deps: { db: Database; appSettings: AppSe
           const sent = await deps.emailProvider.send({
             to: email.toEmail,
             subject: email.subject,
-            htmlBody: email.htmlBody,
-            textBody: email.textBody,
+            ...(email.encryptedBody ? decryptAuthEmail(email.encryptedBody, deps.authSessionSecret) : { htmlBody: email.htmlBody, textBody: email.textBody }),
             fromAddress: emailSettings.emailFromAddress,
             fromName: emailSettings.emailFromName,
             attachments: deserializeAttachments(email.attachments),
           });
           await deps.db.query(
             `update email_outbox
-             set status = 'sent', provider_message_id = $2, sent_at = now(), last_error = null
+             set status = 'sent', provider_message_id = $2, sent_at = now(), last_error = null, encrypted_body = null
              where id = $1`,
             [email.id, sent.providerMessageId],
           );

@@ -1,0 +1,347 @@
+TL;DR
+
+Controls restricting actions or data are missing, incomplete, or inconsistently enforced across endpoints and methods. Attackers exploit gaps to escalate privileges, read sensitive fields, or call admin workflows. Microservice boundaries and caching often mask inconsistent policy application.
+
+How do I fix it?
+
+Define clear authorization policies, enforce them uniformly at gateways and services, and default to deny. Use centralized policy engines, propagate identity and context securely, and validate on read and write. Continuously test coverage and align caches with identity and scope.
+
+Subissue
+AI Code Analysis
+Public verification reactivates deactivated users with their prior privileged role
+
+High
+apps/api/src/services/auth.ts
+
+TL;DR
+
+Login or reset flows lack effective rate limiting or lockout, permitting credential stuffing or brute-force attacks. Attackers automate guesses to take over accounts or enumerate valid usernames via timing or messaging differences. Weak monitoring and response further prolong exploitation windows.
+
+How do I fix it?
+
+Implement per-account and global rate limits, progressive delays, and IP/device reputation checks. Add MFA, bot detection, and secure password policies, and avoid revealing which factor failed. Monitor authentication events and alert on anomaly patterns and stuffing indicators.
+
+Subissue
+AI Code Analysis
+Per-IP process-local throttling permits distributed brute force of six-digit authentication codes
+
+High
+apps/api/src/security/rateLimit.ts
+
+TL;DR
+
+Application workflow, state-machine, or business rule assumptions can be bypassed even though individual technical controls may appear to function. Attackers manipulate request order, state transitions, quantities, prices, roles, approvals, or hidden parameters to perform actions outside the intended process. This can enable fraud, unauthorized changes, quota abuse, or policy violations that do not fit a narrower injection or access-control category.
+
+How do I fix it?
+
+Model critical workflows server-side as explicit state machines with validated transitions and invariant checks. Derive prices, permissions, limits, and state from trusted server-side data rather than client input, and enforce checks at every step. Add end-to-end abuse-case tests for skipped steps, replayed actions, parameter tampering, and out-of-order requests.
+
+Subissue
+AI Code Analysis
+Unauthenticated dev-complete endpoint mints valid unpaid admission tickets
+
+High
+apps/api/src/routes/orders.ts
+
+
+View attack analysis
+|
+
+Retest
+Reusing a pruned checkout idempotency key can fulfill a cheaper payment as an older, larger order
+
+High
+apps/api/src/services/orders.ts
+
+
+View attack analysis
+|
+
+Retest
+Stripe webhook fulfills orders before payment settlement
+
+High
+apps/api/src/services/orders.ts
+
+
+View attack analysis
+|
+
+Retest
+International SMS senders can alias US subscribers through lossy phone normalization
+
+Medium
+apps/api/src/services/sms.ts
+
+
+View attack analysis
+|
+
+Retest
+Inbound SMS webhook can trigger unauthorized global SMS outbox dispatch
+
+Medium
+apps/api/src/routes/telnyx.ts
+
+
+View attack analysis
+|
+
+Retest
+Pending SMS messages remain deliverable after a STOP opt-out
+
+Medium
+apps/api/src/services/sms.ts
+
+
+View attack analysis
+|
+
+Retest
+Unverified guest phone numbers authorize outbound event SMS
+
+Medium
+apps/api/src/services/smsMessages.ts
+
+
+View attack analysis
+|
+
+Retest
+Account SMS opt-out is bypassed by historical order consent
+
+Medium
+apps/api/src/services/smsMessages.ts
+
+
+View attack analysis
+|
+
+Retest
+Phone verification is not bound to the number validated by the code
+
+Low
+apps/api/src/services/auth.ts
+
+
+View attack analysis
+|
+
+Retest
+Admin SMS broadcasts ignore explicit account-level SMS opt-out
+
+Low
+apps/api/src/services/smsMessages.ts
+
+
+View attack analysis
+|
+
+Retest
+STOP-list phone normalization mismatch bypasses SMS suppression for admin campaigns
+
+Low
+apps/api/src/services/smsMessages.ts
+
+TL;DR
+
+A token, API key, signing secret, or other credential is persisted in a database, cache, or file with no encryption, so anyone with read access to that store recovers the live secret directly. This differs from a hardcoded secret in source: the value is legitimately generated or supplied at runtime, but the storage layer applies no field-level encryption or envelope key, leaving it recoverable by database access, backups, replicas, or an export of the table.
+
+How do I fix it?
+
+Encrypt secret-bearing columns at the application layer with an envelope key from a managed KMS before writing, never rely on storage-layer disk encryption alone. Rotate any secret found in plaintext once encryption is added, since the pre-existing value must be treated as already exposed. Where the secret only needs to be verified rather than recovered (e.g. a signing key comparison), hash or HMAC it instead of storing it reversibly.
+
+Subissue
+AI Code Analysis
+Plaintext password-reset codes persist in the email outbox
+
+High
+apps/api/src/services/auth.ts
+
+TL;DR
+
+Attacker-controlled input can force unbounded parsing, buffering, looping, allocation, or upload handling that exhausts CPU, memory, disk, or the event loop and degrades or takes down the service. This category is for availability and resource-bound failures, not login, OTP, or other abuse-throttling gaps (those belong in missing rate limiting) and not schema or allowlist bugs that do not exhaust resources (those belong in input validation).
+
+How do I fix it?
+
+Bound work per request: enforce size, depth, count, and time limits on parsers, uploads, expansions, and loops, and fail closed when those limits are exceeded. Reject or stream oversized inputs before they are fully buffered, and add tests that a single oversized or deeply nested request cannot exhaust the worker. Do not treat a missing login throttle as the fix for this class.
+
+Subissue
+AI Code Analysis
+Unauthenticated order requests can exhaust the PostgreSQL connection pool
+
+High
+apps/api/src/services/orders.ts
+
+
+View attack analysis
+|
+
+Retest
+Unauthenticated authentication limiter permits attacker-controlled state growth
+
+Medium
+apps/api/src/security/rateLimit.ts
+
+
+View attack analysis
+|
+
+Retest
+Unauthenticated pre-authorization image buffering enables resource exhaustion
+
+Medium
+apps/api/src/server.ts
+
+
+View attack analysis
+|
+
+Retest
+Admin user updates can remove the last active administrator
+
+Medium
+apps/api/src/services/auth.ts
+
+TL;DR
+
+Sensitive data such as PII, credentials, or keys is accessible to unauthorized actors due to weak controls. Leaks occur via overly broad responses, misconfigured storage, or indirect channels like logs and analytics. Attackers can harvest datasets and chain to deeper compromises.
+
+How do I fix it?
+
+Classify data, minimize collection, and apply field-level access controls and masking. Encrypt data at rest and in transit, implement strict response shaping, and audit all access to sensitive records. Continuously scan storage, logs, and code for inadvertent exposures.
+
+Subissues
+
+1
+Subissue
+AI Code Analysis
+Scanner ticket listing discloses replayable ticket credentials
+
+Medium
+apps/api/src/routes/admin.ts
+
+
+TL;DR
+
+Authentication logic is flawed, allowing bypass via weak checks, predictable tokens, or incomplete verification. Attackers may reuse expired tokens, manipulate flows, or exploit missing state transitions to gain access. Complexity in multi-step or federated auth often hides edge-case weaknesses.
+
+How do I fix it?
+
+Standardize on a proven auth framework, validate tokens server-side, and reject ambiguous or partial states. Enforce strong session management, replay protections, and secure redirect handling during login. Add comprehensive tests for edge cases, token lifecycles, and federation scenarios.
+
+Subissues
+
+2
+Subissue
+AI Code Analysis
+Password changes and resets do not revoke existing bearer sessions
+
+Medium
+apps/api/src/services/auth.ts
+
+
+View attack analysis
+|
+
+Retest
+Telnyx webhook replay can re-trigger SMS side effects and corrupt delivery state
+
+Medium
+apps/api/src/routes/telnyx.ts
+
+TL;DR
+
+Security-sensitive actions can be repeated at high volume because the application lacks effective rate limits, quotas, or abuse controls. Attackers can abuse signup, OTP, invitation, password reset, webhook, payment, coupon, messaging, or resource-creation flows to enumerate data, spam users, bypass business limits, consume paid resources, or amplify fraud. This category is intended for security and business-abuse impact, not generic resource-exhaustion denial of service.
+
+Show more
+How do I fix it?
+
+Apply per-account, per-IP, per-device, and global rate limits appropriate to each sensitive action. Use progressive delays, quotas, CAPTCHA or bot checks where appropriate, replay protection, and anomaly monitoring for abusive patterns. Make limits enforceable server-side, return consistent errors, and add tests that verify repeated requests are throttled before meaningful abuse is possible.
+
+Subissues
+
+5
+Subissue
+AI Code Analysis
+Unauthenticated dev-complete orders enable persistent resource and email exhaustion
+
+Medium
+apps/api/src/routes/orders.ts
+
+
+View attack analysis
+|
+
+Retest
+Unauthenticated registration throttling is bypassable by varying the email address
+
+Medium
+apps/api/src/security/rateLimit.ts
+
+
+View attack analysis
+|
+
+Retest
+Authenticated users can trigger unbounded verification SMS dispatch
+
+Medium
+apps/api/src/services/auth.ts
+
+
+View attack analysis
+|
+
+Retest
+Unthrottled keyword auto-replies let unauthenticated SMS senders trigger unbounded provider operations
+
+Medium
+apps/api/src/services/sms.ts
+
+
+View attack analysis
+|
+
+Retest
+Phone-verification code can be brute-forced to bypass the phone-ownership gate
+
+Low
+apps/api/src/routes/account.ts
+
+TL;DR
+
+A response (an error message, timing difference, or distinct success/failure state) reveals whether a specific identifier — an email address, username, or account — exists in the system or has a particular history (e.g. "this email already has a completed order"), without requiring authentication. This lets an attacker enumerate real accounts or infer facts about a specific individual's relationship to the service, which is itself a privacy exposure even without accessing the account's actual data.
+
+Show more
+How do I fix it?
+
+Return identical responses (message, status code, and timing) regardless of whether the identifier exists, for any unauthenticated endpoint that accepts an identifier as input (login, password reset, signup, promotion eligibility checks). Where a distinct state is functionally required, gate it behind authentication rather than exposing it to anonymous callers.
+
+Subissues
+
+1
+Subissue
+AI Code Analysis
+Unauthenticated registration exposes whether an email has an active account
+
+Low
+apps/api/src/services/auth.ts
+
+TL;DR
+
+The system accepts data or messages without verifying their origin or integrity, enabling spoofing and tampering. Attackers inject or modify records in transit or at rest to mislead business logic. Missing signatures, MACs, or trusted timestamps commonly underlie this weakness.
+
+How do I fix it?
+
+Apply cryptographic signatures or MACs to critical messages and verify them on receipt. Enforce authenticated channels (mTLS, token-bound TLS) and maintain tamper-evident audit trails. Bind data to context (issuer, audience, nonce) and reject unverifiable inputs.
+
+Subissues
+
+1
+Subissue
+AI Code Analysis
+Authenticated scanner can forge scan-event attribution
+
+Low
+apps/api/src/services/scanner.ts

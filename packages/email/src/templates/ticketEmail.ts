@@ -19,7 +19,11 @@ export type PasswordResetEmailInput = {
   code: string;
 };
 
-export function renderAccountVerificationEmail(input: AccountVerificationEmailInput) {
+export function renderAccountVerificationEmail(input: AccountVerificationEmailInput & { existingAccount?: boolean }) {
+  if (input.existingAccount) {
+    const message = 'An account already exists for this email. Sign in or request a password reset. If your account was deactivated, contact support.';
+    return { subject: 'Your Wizard Make Potion verification code', htmlBody: `<main><p>${message}</p></main>`, textBody: message };
+  }
   return {
     subject: 'Your Wizard Make Potion verification code',
     htmlBody: `

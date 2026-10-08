@@ -46,9 +46,9 @@ export async function registerScannerRoutes(
   });
 
   server.post('/api/scanner/scan', async (request, reply) => {
-    await deps.auth.requireScanner(request);
+    const user = await deps.auth.requireScanner(request);
     const input = scanTicketInputSchema.parse(request.body);
-    const result = await deps.scanner.scanTicket(input);
+    const result = await deps.scanner.scanTicket({ ...input, scannerLabel: user.email });
 
     return reply.send(result);
   });

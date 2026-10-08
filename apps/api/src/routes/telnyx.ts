@@ -121,6 +121,11 @@ export async function registerTelnyxRoutes(server: FastifyInstance, deps: { conf
       throw createHttpError('Telnyx webhook signature headers are required.', 401);
     }
 
+    if (!/^\d+$/.test(timestamp) || !Number.isSafeInteger(Number(timestamp)) ||
+        Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) {
+      throw createHttpError('Telnyx webhook timestamp was not accepted.', 401);
+    }
+
     if (!deps.config.telnyxPublicKey) {
       throw createHttpError('Telnyx webhook public key is not configured.', 503);
     }
@@ -139,6 +144,8 @@ export async function registerTelnyxRoutes(server: FastifyInstance, deps: { conf
 
     const eventType = payload.data?.event_type;
     const messagePayload = payload.data?.payload;
+    const eventId = readString(payload.data?.id);
+    if (!eventId) throw createHttpError('Telnyx webhook event id is required.', 400);
 
     if (eventType === 'message.finalized') {
       if (!messagePayload) {
@@ -149,12 +156,16 @@ export async function registerTelnyxRoutes(server: FastifyInstance, deps: { conf
       if (!providerMessageId) {
         throw createHttpError('Telnyx delivery webhook is missing the message id.', 400);
       }
+      const occurredAt = readString(payload.data?.occurred_at);
+      if (!occurredAt || !Number.isFinite(Date.parse(occurredAt))) {
+        throw createHttpError('Telnyx delivery webhook requires an event timestamp.', 400);
+      }
 
       const status = readDeliveryStatus(messagePayload);
       const result = await deps.sms.recordDeliveryStatus({
         providerMessageId,
         status,
-        occurredAt: payload.data?.occurred_at,
+        occurredAt,
         errorMessage: status === 'failed' ? readDeliveryError(messagePayload) : null,
       });
 
@@ -178,7 +189,7 @@ export async function registerTelnyxRoutes(server: FastifyInstance, deps: { conf
     }
 
     const result = await deps.sms.handleInboundMessage({
-      providerEventId: payload.data?.id,
+      providerEventId: eventId,
       occurredAt: payload.data?.occurred_at,
       fromPhoneNumber,
       toPhoneNumber,
@@ -187,7 +198,7 @@ export async function registerTelnyxRoutes(server: FastifyInstance, deps: { conf
     });
 
     try {
-      await deps.sms.processPending();
+      if (!result.duplicate) await deps.sms.processPending(eventId);
     } catch (error) {
       request.log.error({ err: error }, 'Processing pending SMS replies failed');
     }

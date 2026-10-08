@@ -7,6 +7,7 @@ import { registerOrderRoutes } from './orders.js';
 
 function createAuth(): AuthService {
   return {
+    requireAdmin: vi.fn().mockResolvedValue({ id: 'admin' }),
     requireUser: vi.fn(async (request) => {
       if (request.headers.authorization === 'Bearer signed-in-token') {
         return {
@@ -33,7 +34,7 @@ function createOrders(): OrderService {
   } as unknown as OrderService;
 }
 
-async function createServer(auth = createAuth(), orders = createOrders()) {
+async function createServer(auth = createAuth(), orders = createOrders(), appEnv: 'development' | 'production' = 'development') {
   const server = Fastify();
 
   server.setErrorHandler((error, _request, reply) => {
@@ -44,11 +45,35 @@ async function createServer(auth = createAuth(), orders = createOrders()) {
     return reply.code(statusCode).send({ message });
   });
 
-  await registerOrderRoutes(server, { auth, orders });
+  await registerOrderRoutes(server, { auth, orders, config: { appEnv, nodeEnv: appEnv } as never });
   return { server, auth, orders };
 }
 
 describe('order routes', () => {
+  it('does not register development checkout in production', async () => {
+    const { server, orders } = await createServer(createAuth(), createOrders(), 'production');
+    try {
+      const response = await server.inject({ method: 'POST', url: '/api/orders/dev-complete', payload: {} });
+      expect(response.statusCode).toBe(404);
+      expect(orders.createDevCompletedOrder).not.toHaveBeenCalled();
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('requires admin access for development checkout', async () => {
+    const auth = createAuth();
+    vi.mocked(auth.requireAdmin).mockRejectedValue(Object.assign(new Error('Admin access required.'), { statusCode: 403 }));
+    const { server, orders } = await createServer(auth);
+    try {
+      const response = await server.inject({ method: 'POST', url: '/api/orders/dev-complete', payload: {} });
+      expect(response.statusCode).toBe(403);
+      expect(orders.createDevCompletedOrder).not.toHaveBeenCalled();
+    } finally {
+      await server.close();
+    }
+  });
+
   it('overrides dev-complete checkout email and SMS consent from the signed-in account', async () => {
     const { server, auth, orders } = await createServer();
 

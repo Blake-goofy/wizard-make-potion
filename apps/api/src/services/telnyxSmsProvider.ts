@@ -32,6 +32,7 @@ export function createTelnyxSmsProvider(options: {
 
       const response = await fetch('https://api.telnyx.com/v2/messages', {
         method: 'POST',
+        signal: AbortSignal.timeout(10_000),
         headers: {
           Authorization: readAuthorizationHeader(options.telnyxApiKey),
           'Content-Type': 'application/json',

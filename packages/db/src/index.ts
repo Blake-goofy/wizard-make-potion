@@ -3,7 +3,7 @@ import { Pool, type PoolClient, type QueryResult, type QueryResultRow } from 'pg
 export type Database = ReturnType<typeof createDatabase>;
 
 export function createDatabase(options: { connectionString: string }) {
-  const pool = new Pool({ connectionString: options.connectionString });
+  const pool = new Pool({ connectionString: options.connectionString, connectionTimeoutMillis: 5000, statement_timeout: 15000, idle_in_transaction_session_timeout: 15000 });
 
   return {
     query<T extends QueryResultRow = QueryResultRow>(text: string, values?: unknown[]): Promise<QueryResult<T>> {
