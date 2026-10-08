@@ -11,7 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "pg": "latest"
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/pg": "latest"

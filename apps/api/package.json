@@ -18,9 +18,9 @@
     "@potion/shared": "*",
     "dotenv": "latest",
     "fastify": "^5.12.5",
-    "pg": "latest",
+    "pg": "^8.23.1",
     "stripe": "^22.1.1",
-    "zod": "latest"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/pg": "latest"
