@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adminUserUpdateInputSchema, changePasswordInputSchema, createAccountInputSchema, createOrderInputSchema, updateAccountInputSchema } from './schemas.js';
+import { adminEventCreateInputSchema, adminEventUpdateInputSchema, adminUserUpdateInputSchema, changePasswordInputSchema, createAccountInputSchema, createOrderInputSchema, updateAccountInputSchema } from './schemas.js';
 
 describe('shared input schemas', () => {
   it('accepts guest checkout contact and opt-in fields', () => {
@@ -78,5 +78,34 @@ describe('shared input schemas', () => {
 
   it('requires a supported role when admins update a user', () => {
     expect(() => adminUserUpdateInputSchema.parse({ role: 'wizard', isActive: true })).toThrow();
+  });
+});
+
+describe('early bird event settings', () => {
+  const event = {
+    name: 'Potion Night', startsAt: '2026-10-31T23:00:00.000Z', address: '123 Test Lane',
+    description: 'An evening of potions.', ticketPriceCents: 2500,
+  };
+  const earlyBird = { earlyBirdPriceCents: 2000, earlyBirdEndsAt: '2026-10-20T18:00:00.000Z' };
+
+  it('accepts optional early bird pricing on create, update and removal', () => {
+    expect(adminEventCreateInputSchema.safeParse(event).success).toBe(true);
+    expect(adminEventCreateInputSchema.safeParse({ ...event, ...earlyBird }).success).toBe(true);
+    expect(adminEventUpdateInputSchema.safeParse({ ...event, ...earlyBird, isActive: true }).success).toBe(true);
+    expect(adminEventUpdateInputSchema.safeParse({ ...event, isActive: true, earlyBirdPriceCents: null, earlyBirdEndsAt: null }).success).toBe(true);
+  });
+
+  it.each([
+    { earlyBirdPriceCents: 2000 },
+    { earlyBirdEndsAt: earlyBird.earlyBirdEndsAt },
+    { ...earlyBird, earlyBirdPriceCents: -1 },
+    { ...earlyBird, earlyBirdPriceCents: 2500 },
+    { ...earlyBird, earlyBirdPriceCents: 2600 },
+    { ...earlyBird, earlyBirdEndsAt: event.startsAt },
+    { ...earlyBird, earlyBirdEndsAt: '2026-11-01T00:00:00.000Z' },
+    { ...earlyBird, earlyBirdEndsAt: 'invalid' },
+  ])('rejects invalid early bird settings: %j', (settings) => {
+    expect(adminEventCreateInputSchema.safeParse({ ...event, ...settings }).success).toBe(false);
+    expect(adminEventUpdateInputSchema.safeParse({ ...event, ...settings, isActive: true }).success).toBe(false);
   });
 });

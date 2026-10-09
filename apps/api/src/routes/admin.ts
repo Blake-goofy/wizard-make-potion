@@ -205,6 +205,7 @@ export async function registerAdminRoutes(
     const result = await deps.db.query(
       `select id, slug, name, starts_at as "startsAt", address, description,
               ticket_price_cents as "ticketPriceCents", tax_rate_bps as "taxRateBps",
+              early_bird_price_cents as "earlyBirdPriceCents", early_bird_ends_at as "earlyBirdEndsAt",
               min_tickets_per_order as "minTicketsPerOrder",
               max_tickets_per_order as "maxTicketsPerOrder", is_active as "isActive",
               (select updated_at from event_images where event_id = events.id) as "imageUpdatedAt"
@@ -221,13 +222,14 @@ export async function registerAdminRoutes(
     const event = await deps.db.transaction(async (client) => {
       const slug = await createUniqueEventSlug(client, input.name);
       const result = await client.query(
-        `insert into events (slug, name, starts_at, address, description, ticket_price_cents)
-         values ($1, $2, $3, $4, $5, $6)
+        `insert into events (slug, name, starts_at, address, description, ticket_price_cents, early_bird_price_cents, early_bird_ends_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)
          returning id, slug, name, starts_at as "startsAt", address, description,
                    ticket_price_cents as "ticketPriceCents", tax_rate_bps as "taxRateBps",
+                   early_bird_price_cents as "earlyBirdPriceCents", early_bird_ends_at as "earlyBirdEndsAt",
                    min_tickets_per_order as "minTicketsPerOrder",
                    max_tickets_per_order as "maxTicketsPerOrder", is_active as "isActive"`,
-        [slug, input.name, input.startsAt, input.address, input.description, input.ticketPriceCents],
+        [slug, input.name, input.startsAt, input.address, input.description, input.ticketPriceCents, input.earlyBirdPriceCents ?? null, input.earlyBirdEndsAt ?? null],
       );
 
       return eventSchema.parse({ ...result.rows[0], imageUpdatedAt: null });
@@ -254,13 +256,16 @@ export async function registerAdminRoutes(
              description = $6,
              ticket_price_cents = $7,
              is_active = $8,
+             early_bird_price_cents = $9,
+             early_bird_ends_at = $10,
              updated_at = now()
          where id = $1
          returning id, slug, name, starts_at as "startsAt", address, description,
                    ticket_price_cents as "ticketPriceCents", tax_rate_bps as "taxRateBps",
+                   early_bird_price_cents as "earlyBirdPriceCents", early_bird_ends_at as "earlyBirdEndsAt",
                    min_tickets_per_order as "minTicketsPerOrder",
                    max_tickets_per_order as "maxTicketsPerOrder", is_active as "isActive"`,
-        [eventId, slug, input.name, input.startsAt, input.address, input.description, input.ticketPriceCents, input.isActive],
+        [eventId, slug, input.name, input.startsAt, input.address, input.description, input.ticketPriceCents, input.isActive, input.earlyBirdPriceCents ?? null, input.earlyBirdEndsAt ?? null],
       );
       const updatedEvent = result.rows[0];
       if (!updatedEvent) throw createHttpError('Event was not found.', 404);

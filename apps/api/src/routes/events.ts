@@ -6,6 +6,7 @@ import { createEventExpiryCutoff, parseEventRecord } from '../services/eventReco
 
 const eventSelect = `id, slug, name, starts_at as "startsAt", address, description,
   ticket_price_cents as "ticketPriceCents", tax_rate_bps as "taxRateBps",
+  early_bird_price_cents as "earlyBirdPriceCents", early_bird_ends_at as "earlyBirdEndsAt",
   min_tickets_per_order as "minTicketsPerOrder", max_tickets_per_order as "maxTicketsPerOrder",
   is_active as "isActive",
   (select updated_at from event_images where event_id = events.id) as "imageUpdatedAt"`;

@@ -32,6 +32,8 @@ export type EventView = {
   address: string;
   description: string | null;
   ticketPriceCents: number;
+  earlyBirdPriceCents?: number | null;
+  earlyBirdEndsAt?: string | null;
   taxRateBps: number;
   minTicketsPerOrder: number;
   maxTicketsPerOrder: number;

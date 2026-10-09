@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { EventRecord } from '@potion/shared';
 import { quoteTickets } from './pricing.js';
 
@@ -24,5 +24,19 @@ describe('quoteTickets', () => {
       taxCents: 450,
       totalCents: 5450,
     });
+  });
+
+  it('quotes early bird tickets with tax, then regular tickets at the cutoff', () => {
+    const deadline = '2026-10-20T18:00:00.000Z';
+    const discountedEvent = { ...event, earlyBirdPriceCents: 1800, earlyBirdEndsAt: deadline };
+    const now = vi.spyOn(Date, 'now');
+    try {
+      now.mockReturnValue(Date.parse(deadline) - 1);
+      expect(quoteTickets(discountedEvent, 2)).toEqual({ quantity: 2, subtotalCents: 3600, taxCents: 324, totalCents: 3924 });
+      now.mockReturnValue(Date.parse(deadline));
+      expect(quoteTickets(discountedEvent, 2)).toEqual({ quantity: 2, subtotalCents: 5000, taxCents: 450, totalCents: 5450 });
+    } finally {
+      now.mockRestore();
+    }
   });
 });

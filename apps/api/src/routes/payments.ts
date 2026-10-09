@@ -116,7 +116,7 @@ export async function registerPaymentRoutes(
             quantity: input.quantity,
             price_data: {
               currency: 'usd',
-              unit_amount: event.ticketPriceCents,
+              unit_amount: quote.subtotalCents / quote.quantity,
               product_data: {
                 name: `${event.name} admission`,
               },

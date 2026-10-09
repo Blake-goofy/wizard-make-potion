@@ -12,6 +12,8 @@ export const eventSchema = z.object({
   address: z.string().min(1),
   description: z.string().nullable(),
   ticketPriceCents: z.number().int().nonnegative(),
+  earlyBirdPriceCents: z.number().int().nonnegative().nullable().optional(),
+  earlyBirdEndsAt: isoDatetimeSchema.nullable().optional(),
   taxRateBps: z.number().int().min(0),
   minTicketsPerOrder: z.number().int().positive(),
   maxTicketsPerOrder: z.number().int().positive(),
@@ -24,8 +26,24 @@ const adminEventBaseInputSchema = z.object({
   startsAt: z.string().datetime(),
   address: z.string().trim().min(1).max(240),
   description: z.string().trim().min(1).max(2000),
-  ticketPriceCents: z.number().int().nonnegative(),
+  ticketPriceCents: z.number().int().min(0).max(2_147_483_647),
+  earlyBirdPriceCents: z.number().int().min(0).max(2_147_483_647).nullable().optional(),
+  earlyBirdEndsAt: z.string().datetime().nullable().optional(),
 });
+
+function validateEarlyBird(value: z.infer<typeof adminEventBaseInputSchema>, ctx: z.RefinementCtx) {
+  const hasPrice = value.earlyBirdPriceCents != null;
+  const hasDeadline = value.earlyBirdEndsAt != null;
+  if (hasPrice !== hasDeadline) {
+    ctx.addIssue({ code: 'custom', path: [hasPrice ? 'earlyBirdEndsAt' : 'earlyBirdPriceCents'], message: 'Early bird price and end date/time must be provided together.' });
+  }
+  if (value.earlyBirdPriceCents != null && value.earlyBirdPriceCents >= value.ticketPriceCents) {
+    ctx.addIssue({ code: 'custom', path: ['earlyBirdPriceCents'], message: 'Early bird price must be lower than the regular ticket price.' });
+  }
+  if (value.earlyBirdEndsAt != null && Date.parse(value.earlyBirdEndsAt) >= Date.parse(value.startsAt)) {
+    ctx.addIssue({ code: 'custom', path: ['earlyBirdEndsAt'], message: 'Early bird pricing must end before the event starts.' });
+  }
+}
 
 const phoneNumberSchema = z
   .string()
@@ -66,11 +84,11 @@ const notificationPreferenceOutputShape = {
   smsOptIn: z.boolean(),
 };
 
-export const adminEventCreateInputSchema = adminEventBaseInputSchema;
+export const adminEventCreateInputSchema = adminEventBaseInputSchema.superRefine(validateEarlyBird);
 
 export const adminEventUpdateInputSchema = adminEventBaseInputSchema.extend({
   isActive: z.boolean(),
-});
+}).superRefine(validateEarlyBird);
 
 export const createOrderRequestSchema = z.object({
   eventId: z.string().uuid(),

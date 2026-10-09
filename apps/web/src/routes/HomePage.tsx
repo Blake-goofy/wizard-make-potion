@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import type { SessionUser } from '@potion/shared';
+import { getTicketPriceCents, type SessionUser } from '@potion/shared';
+import { EventCountdown, EventPrices, useEventClock } from '../components/EventPurchaseDetails';
 import ButtonArrowIcon from '../components/ButtonArrowIcon';
 import LoadingOverlay from '../components/LoadingOverlay';
 import ToastRegion from '../components/ToastRegion';
@@ -18,8 +19,8 @@ type HomePageProps = {
   onCheckout: (slug: string) => void;
 };
 
-function OrderSummary({ event, quantity }: { event: EventView; quantity: number }) {
-  const subtotalCents = event.ticketPriceCents * quantity;
+function OrderSummary({ event, quantity, now }: { event: EventView; quantity: number; now: number }) {
+  const subtotalCents = getTicketPriceCents(event, now) * quantity;
   const taxCents = Math.round((subtotalCents * event.taxRateBps) / 10_000);
   const totalCents = subtotalCents + taxCents;
 
@@ -48,6 +49,7 @@ function OrderSummary({ event, quantity }: { event: EventView; quantity: number 
 export function HomePage({ token, user, eventSlug, onSelectEvent, onCheckout }: HomePageProps) {
   const [events, setEvents] = useState<EventView[]>([]);
   const [event, setEvent] = useState<EventView | null>(null);
+  const now = useEventClock(event);
   const [quantity, setQuantity] = useState(1);
   const [status, setStatus] = useState('');
   const [isLoadingEvent, setIsLoadingEvent] = useState(true);
@@ -231,7 +233,7 @@ export function HomePage({ token, user, eventSlug, onSelectEvent, onCheckout }: 
           <p className="event-address">{event.address}</p>
         </div>
         {event.description ? <p className="event-description">{event.description}</p> : null}
-        {!user ? <p className="event-ticket-price">{formatCurrency(event.ticketPriceCents)} per ticket</p> : null}
+        <EventPrices event={event} now={now} />
       </div>
 
       {user ? (
@@ -246,12 +248,13 @@ export function HomePage({ token, user, eventSlug, onSelectEvent, onCheckout }: 
               ))}
             </select>
           </label>
-          <OrderSummary event={event} quantity={quantity} />
+          <OrderSummary event={event} quantity={quantity} now={now} />
           <button className="stripe-checkout-button" type="submit" disabled={isSubmitting}>
             {isSubmitting ? <span aria-hidden="true" className="stripe-checkout-spinner" /> : null}
             <span>{isSubmitting ? 'Opening Stripe' : 'Buy tickets'}</span>
             {!isSubmitting ? <ButtonArrowIcon /> : null}
           </button>
+          <EventCountdown startsAt={event.startsAt} now={now} />
         </form>
       ) : (
         <div className="purchase-form guest-choice-panel">
@@ -259,6 +262,7 @@ export function HomePage({ token, user, eventSlug, onSelectEvent, onCheckout }: 
             <span>Buy tickets</span>
             <ButtonArrowIcon />
           </button>
+          <EventCountdown startsAt={event.startsAt} now={now} />
         </div>
       )}
     </section>

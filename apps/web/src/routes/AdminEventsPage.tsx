@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { adminEventCreateInputSchema, type AdminEventCreateInput } from '@potion/shared';
 import LoadingOverlay from '../components/LoadingOverlay';
 import ToastRegion from '../components/ToastRegion';
 import { useToast } from '../hooks/useToast';
@@ -23,18 +24,13 @@ type EventFormState = {
   address: string;
   description: string;
   ticketPrice: string;
+  earlyBirdPrice: string;
+  earlyBirdEndsAtDate: string;
+  earlyBirdEndsAtTime: string;
   isActive: boolean;
 };
 
-type EventPayload = {
-  name: string;
-  startsAt: string;
-  address: string;
-  description: string;
-  ticketPriceCents: number;
-};
-
-type EventPayloadResult = { payload: EventPayload } | { error: string };
+type EventPayloadResult = { payload: AdminEventCreateInput } | { error: string };
 
 const emptyEventForm: EventFormState = {
   name: '',
@@ -43,6 +39,9 @@ const emptyEventForm: EventFormState = {
   address: '',
   description: '',
   ticketPrice: '',
+  earlyBirdPrice: '',
+  earlyBirdEndsAtDate: '',
+  earlyBirdEndsAtTime: '',
   isActive: true,
 };
 
@@ -81,6 +80,7 @@ function formatDatetimeLocal(isoValue: string) {
 
 function eventToFormState(event: EventView): EventFormState {
   const startsAtLocal = formatDatetimeLocal(event.startsAt);
+  const earlyBirdEndsAtLocal = event.earlyBirdEndsAt ? formatDatetimeLocal(event.earlyBirdEndsAt) : { date: '', time: '' };
 
   return {
     name: event.name,
@@ -89,6 +89,9 @@ function eventToFormState(event: EventView): EventFormState {
     address: event.address,
     description: event.description ?? '',
     ticketPrice: formatCurrency(event.ticketPriceCents),
+    earlyBirdPrice: event.earlyBirdPriceCents != null ? formatCurrency(event.earlyBirdPriceCents) : '',
+    earlyBirdEndsAtDate: earlyBirdEndsAtLocal.date,
+    earlyBirdEndsAtTime: earlyBirdEndsAtLocal.time,
     isActive: event.isActive,
   };
 }
@@ -178,12 +181,12 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
     setForm((currentForm) => ({ ...currentForm, [key]: value }));
   }
 
-  function formatTicketPriceDraft() {
-    const ticketPriceCents = parseCurrencyToCents(form.ticketPrice);
+  function formatTicketPriceDraft(field: 'ticketPrice' | 'earlyBirdPrice') {
+    const ticketPriceCents = parseCurrencyToCents(form[field]);
 
     if (ticketPriceCents === null) return;
 
-    updateField('ticketPrice', formatCurrency(ticketPriceCents));
+    updateField(field, formatCurrency(ticketPriceCents));
   }
 
   function handleImageSelection(event: React.ChangeEvent<HTMLInputElement>) {
@@ -220,15 +223,26 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
     if (!form.description.trim()) return { error: 'Description is required.' };
     if (ticketPriceCents === null) return { error: 'Enter a ticket price like $12.00.' };
 
-    return {
-      payload: {
-        name: form.name.trim(),
-        startsAt: startsAtDate.toISOString(),
-        address: form.address.trim(),
-        description: form.description.trim(),
-        ticketPriceCents,
-      },
-    };
+    const hasEarlyBird = Boolean(form.earlyBirdPrice.trim() || form.earlyBirdEndsAtDate || form.earlyBirdEndsAtTime);
+    const earlyBirdPriceCents = hasEarlyBird ? parseCurrencyToCents(form.earlyBirdPrice) : null;
+    const earlyBirdEndsAtDate = form.earlyBirdEndsAtDate && form.earlyBirdEndsAtTime
+      ? new Date(`${form.earlyBirdEndsAtDate}T${form.earlyBirdEndsAtTime}`)
+      : null;
+    if (hasEarlyBird && earlyBirdPriceCents === null) return { error: 'Enter an early bird price like $10.00.' };
+    if (hasEarlyBird && (!earlyBirdEndsAtDate || Number.isNaN(earlyBirdEndsAtDate.getTime()))) {
+      return { error: 'Early bird end date and time are required.' };
+    }
+
+    const result = adminEventCreateInputSchema.safeParse({
+      name: form.name.trim(),
+      startsAt: startsAtDate.toISOString(),
+      address: form.address.trim(),
+      description: form.description.trim(),
+      ticketPriceCents,
+      earlyBirdPriceCents,
+      earlyBirdEndsAt: hasEarlyBird ? earlyBirdEndsAtDate?.toISOString() : null,
+    });
+    return result.success ? { payload: result.data } : { error: result.error.issues[0]?.message ?? 'Check the event settings.' };
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -363,17 +377,44 @@ export default function AdminEventsPage({ token }: AdminEventsPageProps) {
               </div>
 
               <label className="admin-events-price-field">
-                Ticket Price
+                Regular Ticket Price
                 <input
                   value={form.ticketPrice}
                   inputMode="decimal"
                   placeholder="$12.00"
-                  onBlur={formatTicketPriceDraft}
+                  onBlur={() => formatTicketPriceDraft('ticketPrice')}
                   onChange={(event) => updateField('ticketPrice', event.target.value)}
                   required
                 />
               </label>
             </div>
+
+            <fieldset className="admin-early-bird-fields stack-form">
+              <legend>Early Bird Pricing (Optional)</legend>
+              <p className="admin-events-inline-note">Leave all fields blank to use only the regular price. Dates and times use your local time zone ({Intl.DateTimeFormat().resolvedOptions().timeZone}).</p>
+              <div className="admin-events-field-row">
+                <label className="admin-events-price-field">
+                  Early Bird Price
+                  <input
+                    value={form.earlyBirdPrice}
+                    inputMode="decimal"
+                    placeholder="$10.00"
+                    onBlur={() => formatTicketPriceDraft('earlyBirdPrice')}
+                    onChange={(event) => updateField('earlyBirdPrice', event.target.value)}
+                  />
+                </label>
+                <div className="admin-events-datetime-group admin-events-compact-field">
+                  <label>
+                    Early Bird End Date
+                    <input type="date" value={form.earlyBirdEndsAtDate} onChange={(event) => updateField('earlyBirdEndsAtDate', event.target.value)} />
+                  </label>
+                  <label>
+                    Early Bird End Time
+                    <input type="time" value={form.earlyBirdEndsAtTime} onChange={(event) => updateField('earlyBirdEndsAtTime', event.target.value)} />
+                  </label>
+                </div>
+              </div>
+            </fieldset>
 
             <label>
               Address

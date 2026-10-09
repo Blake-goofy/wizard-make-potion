@@ -18,6 +18,8 @@ export const themeSections = [
         'color-mix(in srgb, var(--color-background) 86%, var(--color-text) 14%)',
       '--color-muted-text':
         'color-mix(in srgb, var(--color-text) 85%, var(--color-background) 15%)',
+      '--color-inactive-text':
+        'color-mix(in srgb, var(--color-text) 55%, var(--color-background) 45%)',
       '--color-border': 'color-mix(in srgb, var(--color-background) 76%, var(--color-text) 24%)',
       '--color-accent-strong': 'color-mix(in srgb, var(--color-accent) 82%, var(--color-text) 18%)',
       '--color-danger-strong':

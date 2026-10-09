@@ -1,4 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
+import { getTicketPriceCents } from '@potion/shared';
+import { EventCountdown, EventPrices, useEventClock } from '../components/EventPurchaseDetails';
 import ButtonArrowIcon from '../components/ButtonArrowIcon';
 import LoadingOverlay from '../components/LoadingOverlay';
 import { PhoneNumberInput, createPhoneMask, getPhoneDigits, getStoredPhoneNumber } from '../components/PhoneNumberInput';
@@ -15,8 +17,8 @@ function formatEventDate(value: string) {
   return new Intl.DateTimeFormat('en-US', { dateStyle: 'full', timeStyle: 'short' }).format(new Date(value));
 }
 
-function OrderSummary({ event, quantity }: { event: EventView; quantity: number }) {
-  const subtotalCents = event.ticketPriceCents * quantity;
+function OrderSummary({ event, quantity, now }: { event: EventView; quantity: number; now: number }) {
+  const subtotalCents = getTicketPriceCents(event, now) * quantity;
   const taxCents = Math.round((subtotalCents * event.taxRateBps) / 10_000);
   const totalCents = subtotalCents + taxCents;
 
@@ -44,6 +46,7 @@ function OrderSummary({ event, quantity }: { event: EventView; quantity: number 
 
 export default function GuestCheckoutPage({ eventSlug }: { eventSlug: string }) {
   const [event, setEvent] = useState<EventView | null>(null);
+  const now = useEventClock(event);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState(createPhoneMask(''));
@@ -181,6 +184,7 @@ export default function GuestCheckoutPage({ eventSlug }: { eventSlug: string }) 
           <h1>{event.name}</h1>
           <p>{formatEventDate(event.startsAt)}</p>
           <p>{event.address}</p>
+          <EventPrices event={event} now={now} />
         </div>
         <form className="stack-form guest-checkout-form" onSubmit={handleSubmit}>
           <label>
@@ -218,12 +222,13 @@ export default function GuestCheckoutPage({ eventSlug }: { eventSlug: string }) 
               ))}
             </select>
           </label>
-          <OrderSummary event={event} quantity={quantity} />
+          <OrderSummary event={event} quantity={quantity} now={now} />
           <button className="stripe-checkout-button primary-button" type="submit" disabled={isSubmitting}>
             {isSubmitting ? <span aria-hidden="true" className="stripe-checkout-spinner" /> : null}
             <span>{isSubmitting ? 'Opening Stripe' : 'Buy tickets'}</span>
             {!isSubmitting ? <ButtonArrowIcon /> : null}
           </button>
+          <EventCountdown startsAt={event.startsAt} now={now} />
         </form>
       </section>
       {isSubmitting ? <LoadingOverlay label="Opening Stripe" detail="Sending your order details to checkout." variant="purchase" /> : null}

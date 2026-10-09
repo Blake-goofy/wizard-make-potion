@@ -128,6 +128,36 @@ afterEach(() => {
 });
 
 describe('payment routes', () => {
+  it('charges the quoted early bird price even after its deadline passes', async () => {
+    stripeMocks.createCheckoutSession.mockResolvedValue({ id: 'cs_test_early_bird', url: 'https://checkout.stripe.test/session' });
+    const orders = createOrders();
+    const regularQuote = await orders.quoteOrder({ eventId, customerEmail: 'guest@example.com', quantity: 2 });
+    vi.mocked(orders.quoteOrder).mockResolvedValue({
+      event: { ...regularQuote.event, earlyBirdPriceCents: 1800, earlyBirdEndsAt: '2020-01-01T00:00:00.000Z' },
+      quote: { quantity: 2, subtotalCents: 3600, taxCents: 324, totalCents: 3924 },
+    });
+    const { server } = await createServer(createConfig(), orders);
+    try {
+      const response = await server.inject({
+        method: 'POST', url: '/api/payments/stripe-checkout',
+        headers: { 'Idempotency-Key': checkoutIdempotencyKey },
+        payload: { eventId, customerEmail: 'guest@example.com', quantity: 2 },
+      });
+      expect(response.statusCode).toBe(201);
+      expect(stripeMocks.createCheckoutSession).toHaveBeenCalledWith(expect.objectContaining({
+        line_items: [
+          expect.objectContaining({ quantity: 2, price_data: expect.objectContaining({ unit_amount: 1800 }) }),
+          expect.objectContaining({ quantity: 1, price_data: expect.objectContaining({ unit_amount: 324 }) }),
+        ],
+      }), expect.anything());
+      expect(orders.createPendingStripeOrder).toHaveBeenCalledWith(expect.objectContaining({
+        quote: { quantity: 2, subtotalCents: 3600, taxCents: 324, totalCents: 3924 },
+      }));
+    } finally {
+      await server.close();
+    }
+  });
+
   it.each([
     ['checkout.session.completed', 'unpaid', false],
     ['checkout.session.completed', 'paid', true],

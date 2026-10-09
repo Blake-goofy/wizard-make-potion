@@ -27,6 +27,8 @@ describe('event routes', () => {
       address: '123 Test Lane',
       description: null,
       ticketPriceCents: 2500,
+      earlyBirdPriceCents: 2000,
+      earlyBirdEndsAt: new Date('2026-05-20T18:00:00.000Z'),
       taxRateBps: 900,
       minTicketsPerOrder: 1,
       maxTicketsPerOrder: 8,
@@ -45,6 +47,8 @@ describe('event routes', () => {
         event: expect.objectContaining({
           slug: 'test-event',
           taxRateBps: 900,
+          earlyBirdPriceCents: 2000,
+          earlyBirdEndsAt: '2026-05-20T18:00:00.000Z',
         }),
       });
       expect(db.query).toHaveBeenCalledWith(expect.stringContaining('starts_at >= $1'), [expect.any(String)]);

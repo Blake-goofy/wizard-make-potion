@@ -847,6 +847,91 @@ label {
   font-weight: 800;
 }
 
+.event-prices {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.event-price-option {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+}
+
+.event-price-option > span,
+.event-price-option > strong {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.event-price-option > strong {
+  color: var(--color-accent);
+  font-size: 1.25rem;
+}
+
+.event-price-option small {
+  color: var(--color-muted-text);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.event-price-option.is-inactive {
+  border-color: var(--color-border);
+}
+
+.event-price-option.is-inactive,
+.event-price-option.is-inactive strong,
+.event-price-option.is-inactive small {
+  color: var(--color-inactive-text);
+}
+
+.early-bird-deadline {
+  margin: 0;
+  color: var(--color-muted-text);
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.event-countdown {
+  display: grid;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.event-countdown p {
+  margin: 0;
+  color: var(--color-muted-text);
+  font-size: 0.85rem;
+}
+
+.event-countdown-units {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.event-countdown-units > span {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.event-countdown-units strong {
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-variant-numeric: tabular-nums;
+}
+
+.event-countdown-units small {
+  color: var(--color-muted-text);
+  font-size: 0.75rem;
+}
+
 .eyebrow {
   margin: 0 0 var(--space-2);
   color: var(--color-accent);
@@ -1148,6 +1233,18 @@ label {
 .admin-events-inline-note {
   margin: 0;
   align-self: end;
+}
+
+.admin-early-bird-fields {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.admin-early-bird-fields legend {
+  padding-inline: var(--space-2);
 }
 
 .admin-events-datetime-group {
