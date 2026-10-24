@@ -95,6 +95,18 @@ export default function GuestCheckoutPage({ eventSlug }: { eventSlug: string }) 
     };
   }, [eventSlug]);
 
+  useEffect(() => {
+    function handlePageShow(event: PageTransitionEvent) {
+      if (!event.persisted) return;
+      // Back from Stripe restores React state from the browser's page cache.
+      checkoutAttemptIdRef.current = null;
+      setIsSubmitting(false);
+    }
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
+
   async function handleSubmit(formEvent: FormEvent) {
     formEvent.preventDefault();
     if (!event || checkoutAttemptIdRef.current) return;
