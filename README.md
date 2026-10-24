@@ -38,6 +38,7 @@ The `wizard-make-potion-archive` folder is intentionally ignored by git and kept
    - `APP_ENV=production` requires `NODE_ENV=production` and uses production provider values from `*_PROD` keys.
    - Provider credentials are explicit per mode; unsuffixed Stripe and Resend keys are ignored.
    - The API uses `DATABASE_URL_DEV` in development and requires `DATABASE_URL_PROD` in production. `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are not consumed by this codebase today.
+   - Migrations disable users that still have the public development password. Local `db:reset` runs `supabase/seed.sql` afterward to enable only the local admin and scanner fixtures; production deployments must never run that seed file.
    - The web build can use `VITE_API_BASE_URL` when the frontend and API run on different origins in production.
 
 3. Start Supabase locally:
@@ -74,6 +75,7 @@ npx --yes localtunnel --port 5173
 
 ## Deployments
 
+- Use Node.js `>=22.23.4 <23` for local development and both Railway services. Check for Railway runtime-version overrides and verify `node --version` in each deployed container after rebuilding.
 - Local development should set `NODE_ENV=development`, `APP_ENV=development`, a local `WEB_ORIGIN`, `DATABASE_URL_DEV`, and dev Stripe and Resend credentials.
 - Production deployments should set `NODE_ENV=production`, `APP_ENV=production`, production origins, `DATABASE_URL_PROD`, and production Stripe and Resend credentials.
 - The API rejects `APP_ENV=production` unless `NODE_ENV=production`, and rejects `APP_ENV=development` when `NODE_ENV=production`.
@@ -104,6 +106,7 @@ npx --yes localtunnel --port 5173
    - `WEB_ORIGINS=https://your-web-service-domain,https://your-other-allowed-web-domain` only when the API must accept CORS requests from additional web origins.
    - `DATABASE_URL_PROD=postgresql://...` using the Supabase connection string from step 2
    - `AUTH_SESSION_SECRET=...`
+     - Use a unique random value of at least 32 characters. Production rejects missing, short, and example placeholder secrets. Generate one with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` and store it only in the deployment's secret variables.
    - `RESEND_API_KEY_PROD`
    - `STRIPE_SECRET_KEY_PROD`, `STRIPE_PUBLISHABLE_KEY_PROD`, `STRIPE_WEBHOOK_SECRET_PROD`
 5. Set these environment variables on the Railway web service:

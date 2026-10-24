@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.23.4 <23"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -40,6 +43,6 @@
     "tsx": "^4.23.15",
     "typescript": "latest",
     "typescript-eslint": "latest",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   }
 }

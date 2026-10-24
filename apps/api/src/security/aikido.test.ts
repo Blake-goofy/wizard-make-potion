@@ -55,6 +55,30 @@ describe.skipIf(!maintenanceUrl)('Aikido regressions against PostgreSQL', () => 
     vi.clearAllMocks();
   });
 
+  it('disables public seed passwords without disabling changed passwords, and seeds local access separately', async () => {
+    const fixtureHash = 'pbkdf2$sha256$310000$bG9jYWwtZGV2LWFkbWluLXNhbHQtMjAyNg$ZLrlgXYN15HsuGCpw3NL1c117cFq0L3IFzeaDdg9ehA';
+    for (const [email, role, hash] of [
+      ['admin@wizardmakepotion.local', 'admin', fixtureHash],
+      ['scanner@wizardmakepotion.local', 'scanner', fixtureHash],
+      ['unchanged@example.com', 'admin', fixtureHash],
+      ['owner@example.com', 'admin', passwordHash],
+    ]) {
+      await db.query('insert into users (email, display_name, role, password_hash) values ($1, $1, $2, $3)', [email, role, hash]);
+    }
+    const migration = readFileSync(new URL('../../../../supabase/migrations/20261024152522_disable_public_seed_credentials.sql', import.meta.url), 'utf8');
+    await db.query(migration);
+    expect((await db.query('select email, session_version from users where is_active order by email')).rows).toEqual([
+      { email: 'owner@example.com', session_version: 0 },
+    ]);
+    expect((await db.query('select distinct session_version from users where not is_active')).rows).toEqual([{ session_version: 1 }]);
+    await db.query(migration);
+    expect((await db.query('select distinct session_version from users where not is_active')).rows).toEqual([{ session_version: 1 }]);
+    await db.query(readFileSync(new URL('../../../../supabase/seed.sql', import.meta.url), 'utf8'));
+    expect((await db.query('select email from users where is_active order by email')).rows.map((row) => row.email)).toEqual([
+      'admin@wizardmakepotion.local', 'owner@example.com', 'scanner@wizardmakepotion.local',
+    ]);
+  });
+
   afterAll(async () => {
     await db?.close();
     if (maintenance) {

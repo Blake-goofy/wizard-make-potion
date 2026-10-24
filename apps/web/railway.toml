@@ -1,4 +1,5 @@
 [build]
+watchPatterns = ["/apps/web/**", "/packages/shared/**", "/package.json", "/package-lock.json", "/tsconfig.base.json"]
 buildCommand = "npm run build -w @potion/web"
 
 [deploy]

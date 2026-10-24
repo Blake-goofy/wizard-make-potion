@@ -19,3 +19,4 @@ wizard-make-potion-archive/
 # Supabase local runtime artifacts
 supabase/.branches/
 supabase/.temp/
+SECURITY-RECOVERY.md

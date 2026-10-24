@@ -36,7 +36,7 @@ describe('loadConfig', () => {
     expect(config.databaseUrl).toBe('postgresql://dev-db');
   });
 
-  it('uses prod Stripe and Resend values only with production node runtime', () => {
+  it.each(['AUTH_SESSION_SECRET', 'ADMIN_SESSION_SECRET'])('uses production providers with a strong %s', (secretKey) => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.stubEnv('APP_ENV', 'production');
     vi.stubEnv('WEB_ORIGIN', 'https://wizardmakepotion.com');
@@ -49,6 +49,9 @@ describe('loadConfig', () => {
     vi.stubEnv('TELNYX_MESSAGING_PROFILE_ID_PROD', 'profile-prod');
     vi.stubEnv('TELNYX_PUBLIC_KEY_PROD', 'telnyx_public_prod');
     vi.stubEnv('DATABASE_URL_PROD', 'postgresql://prod-db');
+    delete process.env.AUTH_SESSION_SECRET;
+    delete process.env.ADMIN_SESSION_SECRET;
+    vi.stubEnv(secretKey, 'production-test-secret-with-at-least-32-characters');
 
     const config = loadConfig();
 
@@ -62,7 +65,26 @@ describe('loadConfig', () => {
     expect(config.telnyxMessagingProfileId).toBe('profile-prod');
     expect(config.telnyxPublicKey).toBe('telnyx_public_prod');
     expect(config.databaseUrl).toBe('postgresql://prod-db');
+    expect(config.authSessionSecret).toBe('production-test-secret-with-at-least-32-characters');
   });
+
+  it.each([undefined, '', 'short', 'dev-session-secret-change-me', 'replace-with-a-long-production-session-secret', ' '.repeat(32)])(
+    'rejects a missing or unsafe production session secret (%s)',
+    (secret) => {
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('APP_ENV', 'production');
+      vi.stubEnv('WEB_ORIGIN', 'https://wizardmakepotion.com');
+      vi.stubEnv('DATABASE_URL_PROD', 'postgresql://prod-db');
+      vi.stubEnv('STRIPE_SECRET_KEY_PROD', 'sk_prod');
+      vi.stubEnv('STRIPE_PUBLISHABLE_KEY_PROD', 'pk_prod');
+      vi.stubEnv('STRIPE_WEBHOOK_SECRET_PROD', 'whsec_prod');
+      vi.stubEnv('RESEND_API_KEY_PROD', 're_prod');
+      vi.stubEnv('AUTH_SESSION_SECRET', secret);
+      delete process.env.ADMIN_SESSION_SECRET;
+
+      expect(() => loadConfig()).toThrow('AUTH_SESSION_SECRET must be a unique random secret of at least 32 characters in production');
+    },
+  );
 
   it('ignores unsuffixed provider keys', () => {
     vi.stubEnv('NODE_ENV', 'development');
@@ -121,6 +143,7 @@ describe('loadConfig', () => {
     vi.stubEnv('STRIPE_WEBHOOK_SECRET_PROD', 'whsec_prod');
     vi.stubEnv('RESEND_API_KEY_PROD', 're_prod');
     delete process.env.DATABASE_URL_PROD;
+    vi.stubEnv('AUTH_SESSION_SECRET', 'production-test-secret-with-at-least-32-characters');
 
     expect(() => loadConfig()).toThrow('DATABASE_URL_PROD is required when APP_ENV=production');
   });

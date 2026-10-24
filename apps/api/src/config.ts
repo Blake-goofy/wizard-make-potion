@@ -131,6 +131,7 @@ export function loadConfig() {
   const stripeSecretKey = readAppModeValue(env, 'STRIPE_SECRET_KEY', appEnv);
   const stripePublishableKey = readAppModeValue(env, 'STRIPE_PUBLISHABLE_KEY', appEnv);
   const stripeWebhookSecret = readAppModeValue(env, 'STRIPE_WEBHOOK_SECRET', appEnv);
+  const authSessionSecret = env.AUTH_SESSION_SECRET ?? env.ADMIN_SESSION_SECRET ?? defaultAuthSessionSecret;
 
   if (appEnv === 'production') {
     validateProductionWebOrigin(env.WEB_ORIGIN);
@@ -138,6 +139,9 @@ export function loadConfig() {
     requireProductionValue(stripePublishableKey, 'STRIPE_PUBLISHABLE_KEY');
     requireProductionValue(stripeWebhookSecret, 'STRIPE_WEBHOOK_SECRET');
     requireProductionValue(resendApiKey, 'RESEND_API_KEY');
+    if (authSessionSecret.trim().length < 32 || authSessionSecret.startsWith('replace-')) {
+      throw new Error('AUTH_SESSION_SECRET must be a unique random secret of at least 32 characters in production');
+    }
   }
 
   return {
@@ -147,7 +151,7 @@ export function loadConfig() {
     webOrigin: env.WEB_ORIGIN,
     corsOrigins: readCorsOrigins(env.WEB_ORIGIN, env.WEB_ORIGINS),
     databaseUrl: readDatabaseUrl(env, appEnv),
-    authSessionSecret: env.AUTH_SESSION_SECRET ?? env.ADMIN_SESSION_SECRET ?? defaultAuthSessionSecret,
+    authSessionSecret,
     resendApiKey,
     telnyxApiKey,
     telnyxSmsFromNumber,
