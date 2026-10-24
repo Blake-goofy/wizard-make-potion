@@ -20,3 +20,5 @@ wizard-make-potion-archive/
 supabase/.branches/
 supabase/.temp/
 SECURITY-RECOVERY.md
+tmp/
+output/
